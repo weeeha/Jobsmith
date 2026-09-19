@@ -52,7 +52,11 @@ export default defineConfig({
     command:
       "pnpm build && SETUP_TOKEN=e2e-setup-token-0123456789 AUTH_SIGNIN_MAX_PER_MINUTE=1000 pnpm start",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a server already listening on baseURL: it would be
+    // whatever `pnpm dev` or a stale `pnpm start` happens to have running,
+    // built without this suite's SETUP_TOKEN and AUTH_SIGNIN_MAX_PER_MINUTE,
+    // which would then fail in confusing ways rather than at startup.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/auth/session";
 
-export default async function HomePage(props: PageProps<"/">) {
-  void props;
+export default async function HomePage() {
   await requireUser();
   return (
     <div className="p-6">

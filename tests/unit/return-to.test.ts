@@ -29,4 +29,10 @@ describe("safeReturnTo", () => {
       expect(safeReturnTo(value)).toBe("/board");
     }
   });
+
+  it("blocks /login and /setup regardless of a trailing slash or letter case", () => {
+    for (const value of ["/login/", "/LOGIN", "/Setup/?x=1"]) {
+      expect(safeReturnTo(value)).toBe("/board");
+    }
+  });
 });

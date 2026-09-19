@@ -58,7 +58,7 @@ describe("shouldSkip", () => {
   });
 });
 
-describe("findViolations - review fix round 1", () => {
+describe("findViolations - var()-only arbitrary values, comment stripping and the suppression marker", () => {
   it("allows an arbitrary value that is only a var() reference, but flags a compound one", () => {
     const line =
       '<div className="text-[var(--brand-accent)] text-[var(--brand-accent)_solid] text-[calc(var(--brand-accent)+2px)]" />';
@@ -121,7 +121,7 @@ describe("findViolations - review fix round 1", () => {
   });
 });
 
-describe("findViolations - review fix round 2", () => {
+describe("findViolations - comments and code sharing a line, and line numbers after stripping", () => {
   it("scans the code that follows a same-line JSX comment", () => {
     const line = '{/* eslint-disable-next-line */} <div className="bg-red-500" />';
     const violations = findViolations("inline.tsx", line);
@@ -171,7 +171,7 @@ describe("findViolations - review fix round 2", () => {
   });
 });
 
-describe("findViolations - review fix round 3", () => {
+describe("findViolations - real comments vs. comment-shaped text inside strings and template literals", () => {
   it("does not delete a comment-shaped violation that is actually a string's own contents (JS comment punctuation)", () => {
     const line = 'const bg = "/* #ff0000 */";';
     const violations = findViolations("inline.tsx", line);

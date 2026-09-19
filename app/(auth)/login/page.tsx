@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { isFirstRun } from "@/lib/auth/first-run";
+import { getUser } from "@/lib/auth/session";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
@@ -9,6 +10,10 @@ export default async function LoginPage(props: PageProps<"/login">) {
   const searchParams = await props.searchParams;
   if (await isFirstRun()) {
     redirect("/setup");
+  }
+
+  if (await getUser()) {
+    redirect("/board");
   }
 
   const from = typeof searchParams.from === "string" ? searchParams.from : undefined;

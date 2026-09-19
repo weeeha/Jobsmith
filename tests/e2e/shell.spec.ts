@@ -29,6 +29,12 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
     await scanForViolations(page, "/board", testInfo);
   });
 
+  await test.step("the /board response carries the app's baseline security headers", async () => {
+    const response = await page.goto("/board");
+    expect(response?.headers()["content-security-policy"]).toBe("frame-ancestors 'none'");
+    expect(response?.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  });
+
   await test.step("home renders", async () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home" })).toBeVisible();
@@ -48,4 +54,48 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
       await expect(page.getByRole("link", { name: "Board" }).first()).toBeVisible();
     }
   });
+});
+
+test("a forged session cookie does not bypass the page's own check", async ({
+  page,
+  context,
+  browser,
+}) => {
+  // Log in for real first, so the cookie name below comes from an actual
+  // logged-in context in this file rather than a guess: better-auth names it
+  // "better-auth.session_token" by default (dist/cookies/index.mjs), with a
+  // "__Secure-" prefix only when the app's base URL is https, which the
+  // end-to-end suite's http://localhost baseURL is not.
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(EMAIL);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page).toHaveURL(/\/board$/);
+
+  const cookies = await context.cookies();
+  const sessionCookie = cookies.find((cookie) => cookie.name.endsWith(".session_token"));
+  expect(sessionCookie).toBeDefined();
+
+  // proxy.ts only checks that a cookie with this name is present, so it lets
+  // this request through to the page itself. A fresh, otherwise
+  // unauthenticated context that presents the right-named cookie with a
+  // worthless value is exactly what the page's own check (requireUser() ->
+  // auth.api.getSession(), not the proxy) has to reject on its own.
+  const forgedContext = await browser.newContext();
+  await forgedContext.addCookies([
+    {
+      name: sessionCookie!.name,
+      value: "garbage",
+      url: new URL(page.url()).origin,
+      httpOnly: sessionCookie!.httpOnly,
+      sameSite: sessionCookie!.sameSite,
+      secure: sessionCookie!.secure,
+    },
+  ]);
+
+  const forgedPage = await forgedContext.newPage();
+  await forgedPage.goto("/board");
+  await expect(forgedPage).toHaveURL(/\/login/);
+
+  await forgedContext.close();
 });

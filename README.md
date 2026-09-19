@@ -48,6 +48,26 @@ Open `http://localhost:3000`. The first visit redirects to `/setup`, which
 creates the only account this instance will accept until you set
 `ALLOW_SIGNUP=true`.
 
+## Deploying
+
+On Vercel, the build command is `pnpm db:migrate && pnpm build` (see
+`vercel.ts`): every deployment migrates the database before it builds.
+
+Preview and Production must use separate databases. Sharing one means a
+Preview deployment's migration can change the schema Production depends
+on before Production is ready for it.
+
+Migrations only move forward; there is no down migration. Rolling back a
+deployment rolls back the code, not a schema change a later migration
+already applied — a column removed or renamed in a migration is gone even
+if a subsequent rollback brings back the code that expected it.
+
+Use the provider's pooled connection string for `DATABASE_URL` (what the
+app itself uses at runtime, many short-lived queries) and keep its direct,
+unpooled connection string in `DATABASE_URL_UNPOOLED` for migrations,
+which need a session-scoped advisory lock a pooled connection cannot hold
+(see `scripts/migrate.ts`).
+
 ## Running behind a reverse proxy
 
 The login rate limit keys on the client address, read from the

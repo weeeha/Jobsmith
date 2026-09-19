@@ -110,10 +110,17 @@ const SUPPRESS_MARKER = "check-tokens-ignore-next-line";
  * of the file into a fake string); a template literal may span lines.
  *
  * Comment states are reachable only from `code`, and only they ever
- * delete anything, so a wrong guess about being inside a string can only
+ * delete anything, so a wrong guess about being inside a STRING can only
  * cause MORE of the file to be scanned, never less: it cannot hide a
  * genuine violation the way treating a string's own contents as a comment
- * (a regex's failure mode) could.
+ * (a regex's failure mode) could. A wrong guess about being inside a
+ * COMMENT is not as safe: this scanner has no concept of a regex literal,
+ * so a pattern containing an unescaped "/*" — legal inside a character
+ * class, as in /[/*]/ — reads as a real block comment opening and blanks
+ * everything up to whatever "*\/" it finds next, however far away, hiding
+ * any genuine violation in between. That is a known limit of a text
+ * scanner with no real parser behind it; there is no suppression for it
+ * beyond rewriting the regex to avoid the sequence.
  *
  * @param {string} source
  * @returns {string}
