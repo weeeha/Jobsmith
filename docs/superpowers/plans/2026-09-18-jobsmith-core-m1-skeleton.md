@@ -1322,12 +1322,14 @@ async function main() {
   const pool = new Pool({ connectionString });
   const db = drizzle(pool);
 
-  await migrate(db, {
-    migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
-  });
-
-  await pool.end();
-  console.log("Migrations applied");
+  try {
+    await migrate(db, {
+      migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
+    });
+    console.log("Migrations applied");
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((error) => {
@@ -3091,10 +3093,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// getDb() keeps a pooled connection open, which would hold the process for
+// several seconds after the work is done, so exit explicitly on both paths.
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 ```
 
 Add to `package.json` `scripts`:
@@ -3142,16 +3148,19 @@ async function main() {
   // "drizzle" schema, separate from "public". Both must be dropped together,
   // otherwise the migrator sees migration 0000 as already applied and skips
   // recreating the application tables.
-  await db.execute(sql`DROP SCHEMA IF EXISTS public CASCADE`);
-  await db.execute(sql`DROP SCHEMA IF EXISTS drizzle CASCADE`);
-  await db.execute(sql`CREATE SCHEMA public`);
+  try {
+    await db.execute(sql`DROP SCHEMA IF EXISTS public CASCADE`);
+    await db.execute(sql`DROP SCHEMA IF EXISTS drizzle CASCADE`);
+    await db.execute(sql`CREATE SCHEMA public`);
 
-  await migrate(db, {
-    migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
-  });
-
-  await pool.end();
-  console.log("Database reset and migrated.");
+    await migrate(db, {
+      migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
+    });
+    console.log("Database reset and migrated.");
+  } finally {
+    // Close the pool on failure as well as success, same as scripts/migrate.ts.
+    await pool.end();
+  }
 }
 
 main().catch((error) => {
