@@ -18,6 +18,13 @@ stranger can install Jobsmith with no private access.
 3. A component copied from the Minimal Design System (Radix-based; copy only when neither above fits).
 4. New code.
 
+## Token lint rules
+
+`pnpm check:tokens` keeps `app/` and `components/` (outside `components/ui/`) on semantic utilities and stock shadcn variable names: no raw colors, no Tailwind palette classes, no arbitrary values other than a bare `var()` reference.
+
+The `check-tokens-ignore-next-line` comment suppresses the check for the single line below it, and exists only for genuine false positives.
+Every use must carry its reason in the same comment, for example `// check-tokens-ignore-next-line: "#face" is an anchor fragment, not a hex color`.
+
 ## Re-sync
 
 Token file: re-run the `git -C "$DESIGN_SYSTEM_DIR" show main:src/styles/globals.css > app/globals.css` command against a newer commit, re-run `pnpm check:tokens` and the axe suite, and update the commit hash above.

@@ -10,6 +10,20 @@
 // (data-[state=open]:, group-data-[collapsible=icon]:, [&_svg]:) by what
 // follows the closing bracket: a variant is always followed by ":", a value
 // never is.
+//
+// An arbitrary value that is a bare CSS variable reference, [var(--token)]
+// with nothing else inside the brackets, is allowed: components legitimately
+// read design-system variables that way. Anything more than that inside the
+// brackets, such as [var(--token)_solid] or [calc(var(--token)+2px)], is
+// still a violation.
+//
+// A line that is only a comment (trimmed text starting with "//", "/*", "*"
+// or "{/*") is not scanned at all, so a comment that merely mentions rgb()
+// or a hex color is not flagged; a code line with a trailing comment is
+// still scanned in full. A line containing check-tokens-ignore-next-line
+// suppresses the single line below it, for a genuine false positive that
+// cannot be expressed any other way (an anchor's href="#face", say); the
+// reason for the suppression belongs in the same comment.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -38,7 +52,25 @@ const PALETTE_CLASS_RE = new RegExp(
 
 const HEX_COLOR_RE = /#(?:[0-9a-fA-F]{3,4}){1,2}\b/g;
 const RAW_FUNCTION_RE = /\b(?:oklch|rgb|hsl)\(/g;
-const ARBITRARY_VALUE_RE = /[a-zA-Z][a-zA-Z0-9]*-\[[^\]]+\]/g;
+// Captures the prefix and the bracket contents separately so a bare var()
+// reference inside the brackets can be told apart from anything else.
+const ARBITRARY_VALUE_RE = /([a-zA-Z][a-zA-Z0-9]*)-\[([^\]]+)\]/g;
+const ARBITRARY_VALUE_VAR_ONLY_RE = /^var\(--[a-zA-Z0-9_-]+\)$/;
+
+// A suppression comment: "<anything>check-tokens-ignore-next-line<reason>"
+// on one line skips the single line below it. For genuine false positives
+// only, and every use must carry its reason in the same comment.
+const SUPPRESS_MARKER = "check-tokens-ignore-next-line";
+
+function isCommentOnlyLine(line) {
+  const trimmed = line.trim();
+  return (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/*") ||
+    trimmed.startsWith("*") ||
+    trimmed.startsWith("{/*")
+  );
+}
 
 /** @typedef {{ file: string, line: number, rule: string, text: string }} Violation */
 
@@ -51,9 +83,23 @@ export function findViolations(filePath, contents) {
   /** @type {Violation[]} */
   const violations = [];
   const lines = contents.split("\n");
+  let suppressThisLine = false;
 
   lines.forEach((line, index) => {
     const lineNumber = index + 1;
+    const isSuppressed = suppressThisLine;
+    suppressThisLine = false;
+
+    // Checked unconditionally: a suppression comment can itself be a
+    // comment-only line (the usual case) without losing its effect on the
+    // line below it.
+    if (line.includes(SUPPRESS_MARKER)) {
+      suppressThisLine = true;
+    }
+
+    if (isSuppressed || isCommentOnlyLine(line)) {
+      return;
+    }
 
     for (const match of line.matchAll(HEX_COLOR_RE)) {
       violations.push({ file: filePath, line: lineNumber, rule: "raw-hex-color", text: match[0] });
@@ -68,10 +114,12 @@ export function findViolations(filePath, contents) {
     }
 
     for (const match of line.matchAll(ARBITRARY_VALUE_RE)) {
-      const nextChar = line[match.index + match[0].length];
-      if (nextChar !== ":") {
-        violations.push({ file: filePath, line: lineNumber, rule: "arbitrary-value", text: match[0] });
-      }
+      const fullText = match[0];
+      const bracketContents = match[2];
+      const nextChar = line[match.index + fullText.length];
+      if (nextChar === ":") continue; // arbitrary variant, not a value
+      if (ARBITRARY_VALUE_VAR_ONLY_RE.test(bracketContents)) continue; // bare var() reference
+      violations.push({ file: filePath, line: lineNumber, rule: "arbitrary-value", text: fullText });
     }
   });
 
@@ -139,10 +187,11 @@ function main() {
 }
 
 // Compared via pathToFileURL (not a `file://${process.argv[1]}` template
-// literal) because import.meta.url percent-encodes characters like the
-// space in this repo's own path (.../ClaudeCode Projects/Jobsmith/...);
-// the naive template literal does not, so the two never matched and this
-// script silently never ran its check on this machine.
+// literal) because import.meta.url percent-encodes characters that can
+// appear in a real filesystem path, such as a space in a repository path
+// that contains a space; the naive template literal does not encode them,
+// so the two would never match and this script would silently never run
+// its check.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
