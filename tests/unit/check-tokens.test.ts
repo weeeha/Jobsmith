@@ -114,3 +114,53 @@ describe("findViolations - review fix round 1", () => {
     ).toBe(true);
   });
 });
+
+describe("findViolations - review fix round 2", () => {
+  it("scans the code that follows a same-line JSX comment", () => {
+    const line = '{/* eslint-disable-next-line */} <div className="bg-red-500" />';
+    const violations = findViolations("inline.tsx", line);
+    expect(
+      violations.some((v) => v.rule === "tailwind-palette-class" && v.text === "bg-red-500"),
+    ).toBe(true);
+  });
+
+  it("scans the code that follows a same-line block comment", () => {
+    const line = '/* comment */ const bg = "#ff0000";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations.some((v) => v.rule === "raw-hex-color" && v.text === "#ff0000")).toBe(true);
+  });
+
+  it("scans the code that follows a block-comment closer on a continuation line", () => {
+    const line = '*/ const bg = "#ff0000";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations.some((v) => v.rule === "raw-hex-color" && v.text === "#ff0000")).toBe(true);
+  });
+
+  it("still reports nothing for a pure comment line mentioning rgb() or a palette class", () => {
+    const lines = [
+      "// mentions rgb(0,0,0) but is only a comment",
+      "// also only a comment, mentioning bg-zinc-100",
+    ].join("\n");
+    expect(findViolations("inline.tsx", lines)).toEqual([]);
+  });
+
+  it("still scans a code line with a trailing comment in full, reporting a violation in the code", () => {
+    const line = '<div className="bg-red-500" /> // nothing unusual in this trailing comment';
+    const violations = findViolations("inline.tsx", line);
+    expect(
+      violations.some((v) => v.rule === "tailwind-palette-class" && v.text === "bg-red-500"),
+    ).toBe(true);
+  });
+
+  it("keeps line numbers correct across a stripped multi-line block comment", () => {
+    const source = [
+      "/**",
+      " * Mentions rgb(0, 0, 0) here, still only a comment.",
+      " */",
+      'const bg = "#ff0000";',
+    ].join("\n");
+    const violations = findViolations("inline.tsx", source);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ line: 4, rule: "raw-hex-color", text: "#ff0000" });
+  });
+});

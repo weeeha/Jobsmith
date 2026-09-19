@@ -17,13 +17,25 @@
 // brackets, such as [var(--token)_solid] or [calc(var(--token)+2px)], is
 // still a violation.
 //
-// A line that is only a comment (trimmed text starting with "//", "/*", "*"
-// or "{/*") is not scanned at all, so a comment that merely mentions rgb()
-// or a hex color is not flagged; a code line with a trailing comment is
-// still scanned in full. A line containing check-tokens-ignore-next-line
-// suppresses the single line below it, for a genuine false positive that
-// cannot be expressed any other way (an anchor's href="#face", say); the
-// reason for the suppression belongs in the same comment.
+// Comments are removed from a line before it is scanned, rather than the
+// whole line being skipped whenever it merely starts with a comment opener
+// (round 1 of review did that, and a same-line comment followed by real
+// code, e.g. `/* note */ const bg = "#ff0000";`, slipped through unscanned
+// as a result). A "//" that starts the trimmed line runs to the end of the
+// line and empties it. A block comment, "/* ... */" or the JSX "{/* ... */}",
+// that both opens and closes on the same line is cut out and whatever
+// remains on that line (before or after it) is still scanned. A line whose
+// trimmed text opens "/*" or "{/*" without closing it on that line is
+// comment for its full length; a line whose trimmed text starts with "*" is
+// a continuation of such a comment, comment-only unless it contains the
+// closing "*/", in which case only what follows that closer is scanned. A
+// "//" that does NOT start the trimmed line is a trailing comment on real
+// code and is left alone: the whole line, comment included, is scanned
+// exactly as before, so a violation in the code ahead of it is still found.
+// A line containing check-tokens-ignore-next-line suppresses the single
+// line below it, for a genuine false positive that cannot be expressed any
+// other way (an anchor's href="#face", say); the reason for the suppression
+// belongs in the same comment.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -62,14 +74,48 @@ const ARBITRARY_VALUE_VAR_ONLY_RE = /^var\(--[a-zA-Z0-9_-]+\)$/;
 // only, and every use must carry its reason in the same comment.
 const SUPPRESS_MARKER = "check-tokens-ignore-next-line";
 
-function isCommentOnlyLine(line) {
+// Same-line block comments, used both to strip them (the "g" versions, safe
+// to reuse across calls: String#replace resets a global regex's lastIndex
+// to 0 once it finishes) and to test whether one closes on a given line
+// (separate non-global versions, since reusing a global regex's stateful
+// lastIndex across repeated `.test()` calls is a classic bug).
+const JSX_BLOCK_COMMENT_RE = /\{\/\*[\s\S]*?\*\/\}/g;
+const PLAIN_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
+const CLOSES_JSX_BLOCK_COMMENT_RE = /\{\/\*[\s\S]*?\*\/\}/;
+const CLOSES_PLAIN_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//;
+
+/**
+ * Returns the portion of `line` that should be scanned for violations, with
+ * comments removed: a "//" that starts the trimmed line, or a block comment
+ * that does not close on this line, empties it; a block comment continuation
+ * ("*...") scans only what follows its closing "*\/", if any; a block
+ * comment that opens and closes on the same line is cut out in place and
+ * the rest of the line (both before and after it) is kept. A line with no
+ * comment marker at all is returned unchanged.
+ * @param {string} line
+ * @returns {string}
+ */
+function stripComments(line) {
   const trimmed = line.trim();
-  return (
-    trimmed.startsWith("//") ||
-    trimmed.startsWith("/*") ||
-    trimmed.startsWith("*") ||
-    trimmed.startsWith("{/*")
-  );
+
+  if (trimmed.startsWith("//")) {
+    return "";
+  }
+
+  if (trimmed.startsWith("*")) {
+    const closeIndex = trimmed.indexOf("*/");
+    return closeIndex === -1 ? "" : trimmed.slice(closeIndex + 2);
+  }
+
+  if (trimmed.startsWith("{/*") && !CLOSES_JSX_BLOCK_COMMENT_RE.test(line)) {
+    return "";
+  }
+
+  if (trimmed.startsWith("/*") && !CLOSES_PLAIN_BLOCK_COMMENT_RE.test(line)) {
+    return "";
+  }
+
+  return line.replace(JSX_BLOCK_COMMENT_RE, " ").replace(PLAIN_BLOCK_COMMENT_RE, " ");
 }
 
 /** @typedef {{ file: string, line: number, rule: string, text: string }} Violation */
@@ -90,33 +136,35 @@ export function findViolations(filePath, contents) {
     const isSuppressed = suppressThisLine;
     suppressThisLine = false;
 
-    // Checked unconditionally: a suppression comment can itself be a
-    // comment-only line (the usual case) without losing its effect on the
-    // line below it.
+    // Checked unconditionally, against the raw line: a suppression comment
+    // can itself be a comment-only line (the usual case) without losing its
+    // effect on the line below it.
     if (line.includes(SUPPRESS_MARKER)) {
       suppressThisLine = true;
     }
 
-    if (isSuppressed || isCommentOnlyLine(line)) {
+    if (isSuppressed) {
       return;
     }
 
-    for (const match of line.matchAll(HEX_COLOR_RE)) {
+    const scannable = stripComments(line);
+
+    for (const match of scannable.matchAll(HEX_COLOR_RE)) {
       violations.push({ file: filePath, line: lineNumber, rule: "raw-hex-color", text: match[0] });
     }
 
-    for (const match of line.matchAll(RAW_FUNCTION_RE)) {
+    for (const match of scannable.matchAll(RAW_FUNCTION_RE)) {
       violations.push({ file: filePath, line: lineNumber, rule: "raw-color-function", text: match[0] });
     }
 
-    for (const match of line.matchAll(PALETTE_CLASS_RE)) {
+    for (const match of scannable.matchAll(PALETTE_CLASS_RE)) {
       violations.push({ file: filePath, line: lineNumber, rule: "tailwind-palette-class", text: match[0] });
     }
 
-    for (const match of line.matchAll(ARBITRARY_VALUE_RE)) {
+    for (const match of scannable.matchAll(ARBITRARY_VALUE_RE)) {
       const fullText = match[0];
       const bracketContents = match[2];
-      const nextChar = line[match.index + fullText.length];
+      const nextChar = scannable[match.index + fullText.length];
       if (nextChar === ":") continue; // arbitrary variant, not a value
       if (ARBITRARY_VALUE_VAR_ONLY_RE.test(bracketContents)) continue; // bare var() reference
       violations.push({ file: filePath, line: lineNumber, rule: "arbitrary-value", text: fullText });
