@@ -1611,7 +1611,7 @@ The executor pauses here. If the owner has a preference for `expiresInDays`, `re
 
 - [ ] **Step 11: Write the policy constants and the sign-in limit, test first**
 
-The sign-in limit is 5 attempts per minute per client. It is read from `AUTH_SIGNIN_MAX_PER_MINUTE` so the end-to-end suite and CI can raise it: every browser project in that suite logs in from the same address, and with retries it would trip the default limit against itself.
+The sign-in limit is 5 attempts per minute per client. It is read from `AUTH_SIGNIN_MAX_PER_MINUTE` so the end-to-end suite and CI can raise it: every browser project in that suite logs in from the same address, and its six sign-ins in one run would trip the default limit of five against itself, before any retry.
 
 Create `tests/unit/policy.test.ts`:
 
@@ -1705,6 +1705,9 @@ export const auth = betterAuth({
     updateAge: sessionPolicy.refreshAfterDays * 24 * 60 * 60,
   },
   rateLimit: {
+    // True everywhere this app runs. Next compiles NODE_ENV into a build as
+    // "production", so the server the end-to-end suite starts is limited too;
+    // that suite raises AUTH_SIGNIN_MAX_PER_MINUTE instead (playwright.config.ts).
     enabled: process.env.NODE_ENV !== "test",
     storage: "database",
     window: 60,
@@ -1728,7 +1731,13 @@ export const auth = betterAuth({
 
 `hooks.before` runs on every request to the auth handler; the early `return` on any path other than `/sign-up/email` keeps it a no-op for sign-in, session checks and everything else. `createAuthMiddleware` and `APIError` come from `better-auth/api`.
 
-`trustedOrigins` accepts a plain `string[]`, so `env().TRUSTED_ORIGINS` (Task 1) is enough on its own; Better Auth rejects any request whose `Origin` header does not match one of these, which is what makes a preview deployment's own URL work without a fixed `APP_URL`. `rateLimit` accepts `enabled`, `storage`, `window`, `max` and `customRules` directly on the top-level option (confirmed against the installed `better-auth@1.7.5` types in `node_modules/better-auth/dist/types/index.d.mts`, re-exported from `@better-auth/core`): `storage: "database"` uses the `rateLimit` table from Task 3 instead of memory, so every server instance behind a load balancer shares the same counters; the general rule allows 60 requests per 60 seconds, and `customRules["/sign-in/email"]` overrides that to 5 per 60 seconds for sign-in specifically (Better Auth also ships a built-in default of 3 requests per 10 seconds for every path starting with `/sign-in`, `/sign-up`, `/change-password` or `/change-email`, which this custom rule replaces for the exact path `/sign-in/email` only). `enabled: process.env.NODE_ENV !== "test"` keeps the limiter on in development, preview and production, and off only when Vitest sets `NODE_ENV=test`, so the integration and end-to-end suites are not rate-limited against themselves.
+`trustedOrigins` accepts a plain `string[]`, so `env().TRUSTED_ORIGINS` (Task 1) is enough on its own; Better Auth rejects any request whose `Origin` header does not match one of these, which is what makes a preview deployment's own URL work without a fixed `APP_URL`. `rateLimit` accepts `enabled`, `storage`, `window`, `max` and `customRules` directly on the top-level option (confirmed against the installed `better-auth@1.7.5` types in `node_modules/better-auth/dist/types/index.d.mts`, re-exported from `@better-auth/core`): `storage: "database"` uses the `rateLimit` table from Task 3 instead of memory, so every server instance behind a load balancer shares the same counters; the general rule allows 60 requests per 60 seconds, and `customRules["/sign-in/email"]` overrides that to 5 per 60 seconds for sign-in specifically (Better Auth also ships a built-in default of 3 requests per 10 seconds for every path starting with `/sign-in`, `/sign-up`, `/change-password` or `/change-email`, which this custom rule replaces for the exact path `/sign-in/email` only).
+
+`enabled` is set explicitly because Better Auth's own default is production only (`enabled: options.rateLimit?.enabled ?? isProduction` in `node_modules/better-auth/dist/context/create-context.mjs`), which would leave `pnpm dev` unlimited and Step 18 impossible to verify. `process.env.NODE_ENV !== "test"` is `true` everywhere this app runs. It is `false` only for code that Vitest loads, and no test in this milestone imports the auth instance: its importers are the route handler, `lib/auth/session.ts`, the two server-action files and `scripts/seed.ts`. It cannot be switched at run time on a Next.js server either. Next compiles `process.env.NODE_ENV` into the server bundle as the literal `"production"` (`node_modules/next/dist/build/define-env.js`), so a server started with `pnpm build && pnpm start` has the limiter on even with `NODE_ENV=test` exported, and Playwright never sets `NODE_ENV` for the server it starts. Confirmed against the installed versions: a production build carrying this exact expression, built and started with `NODE_ENV=test` exported, evaluated `process.env.NODE_ENV` to `production` inside a route handler while the process's real environment held `test`, and answered five `POST /api/auth/sign-up/email` requests in a row with `200 200 200 429 429`.
+
+So the end-to-end server in Task 8 runs with the limiter on, and that suite stays under the limits by construction. Creating the account and signing out are server actions that call `auth.api.*`, which the limiter never sees: its only caller is the HTTP router's `onRequest` (`node_modules/better-auth/dist/api/index.mjs`). Signing in is the one call that goes over HTTP, and Task 8 raises its limit for the server it starts through `AUTH_SIGNIN_MAX_PER_MINUTE`. `lib/auth/policy.ts` reads that variable when the server process loads the module, so setting it on `pnpm start` alone is enough.
+
+Read each limit as attempts per burst. Better Auth measures a window from the last allowed request (the `consume` functions in `node_modules/better-auth/dist/api/rate-limiter/index.mjs`, for database and memory storage alike), so a counter resets once that path has been quiet for a full window from that client. Five sign-ins spaced 30 seconds apart use up the limit just as five in one second do, and the sixth is refused until 60 quiet seconds have passed.
 
 - [ ] **Step 13: Write the Next.js route handler**
 
@@ -3251,6 +3260,10 @@ The `phone` project starts from the `iPhone 13` device preset (WebKit engine, to
 
 Stop any dev server on port 3000 before running the suite. With `reuseExistingServer`, Playwright would use that server instead of starting its own, and that server has the default sign-in limit.
 
+The server Playwright starts has the rate limiter on (Task 4, Step 12), and every browser reaches it from the same address, so all four projects share one counter per auth path. The only requests this suite sends through the limiter are sign-ins: three in `first-run` (one of them with a wrong password, which counts), then one in each browser project. That is six in a run, and nine on CI if every browser project uses its one retry, and they can all land inside one burst. A limit of 1000 leaves room for the specs later milestones add. Creating the account and signing out do not count, because both are server actions that call `auth.api.*`.
+
+A later milestone that sends `/sign-up/*`, `/change-password` or `/change-email` over HTTP from this suite, through the auth client instead of a server action, meets Better Auth's built-in rule for those paths: three requests per burst, shared by every browser project, and untouched by `AUTH_SIGNIN_MAX_PER_MINUTE`. The fourth such request inside one burst is answered with `429`, and with three browser projects running in parallel one burst is the normal case. Give that path its own `customRules` entry and its own variable at that point, the way `/sign-in/email` is handled here.
+
 - [ ] **Step 6: Write the global setup that resets the database**
 
 Create `tests/e2e/global-setup.ts`:
@@ -3437,7 +3450,7 @@ Run this once against a database that still has the demo user from Step 3's manu
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/jobsmith" BETTER_AUTH_SECRET="$(openssl rand -base64 32)" APP_URL="http://localhost:3000" pnpm test:e2e
 ```
 
-Expected: `global-setup.ts` resets the database first (visible in the output as the reset script's own log lines). The `first-run` project runs alone and passes its two tests, then `chromium`, `webkit` and `phone` each pass `shell.spec.ts`. Axe scans run on `/setup` and `/login` once, and on `/board` and Home in every browser project, each in light and dark. If a browser project is reported as skipped, `first-run` failed: fix that first.
+Expected: `global-setup.ts` resets the database first (visible in the output as the reset script's own log lines). The `first-run` project runs alone and passes its two tests, then `chromium`, `webkit` and `phone` each pass `shell.spec.ts`. Axe scans run on `/setup` and `/login` once, and on `/board` and Home in every browser project, each in light and dark. If a browser project is reported as skipped, `first-run` failed: fix that first. If a login step fails with the form showing `Too many attempts. Wait a minute and try again.`, the suite reused a server that was already on port 3000 and has the default sign-in limit (Step 5): stop that server and run again.
 
 - [ ] **Step 12: Commit**
 
