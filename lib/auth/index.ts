@@ -8,7 +8,7 @@ import { env } from "@/lib/env";
 import { countUsers } from "./users";
 import { signUpAllowed } from "./signup-gate";
 import { checkSetupToken } from "./setup-token";
-import { sessionPolicy, MIN_PASSWORD_LENGTH, signInMaxPerMinute } from "./policy";
+import { sessionPolicy, MIN_PASSWORD_LENGTH, signInRateLimitRule } from "./policy";
 
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
@@ -20,6 +20,17 @@ export const auth = betterAuth({
     expiresIn: sessionPolicy.expiresInDays * 24 * 60 * 60,
     updateAge: sessionPolicy.refreshAfterDays * 24 * 60 * 60,
   },
+  advanced: {
+    ipAddress: {
+      // Named explicitly rather than relying on the library default (which
+      // also accepts other headers): only a reverse proxy in front of this
+      // app should be able to set the client address it keys the rate
+      // limiter and session records on, and only this one header is ever
+      // documented for operators to set (README, "Running behind a reverse
+      // proxy").
+      ipAddressHeaders: ["x-forwarded-for"],
+    },
+  },
   rateLimit: {
     // True everywhere this app runs. Next compiles NODE_ENV into a build as
     // "production", so the server the end-to-end suite starts is limited too;
@@ -29,7 +40,11 @@ export const auth = betterAuth({
     window: 60,
     max: 60,
     customRules: {
-      "/sign-in/email": { window: 60, max: signInMaxPerMinute() },
+      // signInRateLimitRule (lib/auth/policy.ts) explains why a request with
+      // no x-forwarded-for header gets a raised ceiling instead of the
+      // configured one.
+      "/sign-in/email": (request) =>
+        signInRateLimitRule(request.headers.has("x-forwarded-for")),
     },
   },
   hooks: {

@@ -51,9 +51,18 @@ creates the only account this instance will accept until you set
 ## Running behind a reverse proxy
 
 The login rate limit keys on the client address, read from the
-`X-Forwarded-For` header. Behind a reverse proxy, set that header to the
-real client address, or every visitor is rate-limited as one shared
-client.
+`X-Forwarded-For` header (`advanced.ipAddress.ipAddressHeaders` in
+`lib/auth/index.ts`). A reverse proxy that sets that header to the real
+client address is required for per-client limiting. On Vercel, the
+platform sets it for you.
+
+Without a reverse proxy, there is no `X-Forwarded-For` header, so every
+visitor shares one counter instead of getting their own. So that this
+configuration can't lock every visitor out after a handful of failed
+sign-ins from anywhere, the sign-in limit automatically raises itself to
+at least 30 attempts per minute whenever a request carries no
+`X-Forwarded-For` header; behind a real reverse proxy, each client still
+gets the tighter per-client limit below.
 
 `AUTH_SIGNIN_MAX_PER_MINUTE` is optional and defaults to 5.
 
