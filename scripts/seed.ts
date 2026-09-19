@@ -9,6 +9,9 @@ async function main() {
 
   const result = await auth.api.signUpEmail({
     body: { email, password, name: "Demo user" },
+    headers: process.env.SETUP_TOKEN
+      ? { "x-setup-token": process.env.SETUP_TOKEN }
+      : undefined,
   });
 
   await scoped(getDb(), result.user.id).profile.upsert({

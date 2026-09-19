@@ -1,6 +1,50 @@
 import { test, expect } from "@playwright/test";
 import { scanForViolations } from "./axe";
-import { EMAIL, PASSWORD } from "./account";
+import { EMAIL, PASSWORD, SETUP_TOKEN } from "./account";
+
+// Each test below depends on the database state the previous one left
+// behind (no account, then the first account, then sign-up closed), so the
+// order they're declared in matters. Serial mode makes that dependency
+// explicit and stops at the first failure instead of letting a later test
+// run against a state an earlier failure never produced.
+test.describe.configure({ mode: "serial" });
+
+test("the HTTP sign-up endpoint refuses to create the first account without a setup token", async ({
+  page,
+}) => {
+  await page.goto("/setup");
+
+  // A trusted Origin, so a 403 here comes from the setup-token gate and not
+  // from the origin check.
+  const response = await page.request.post("/api/auth/sign-up/email", {
+    headers: { origin: new URL(page.url()).origin },
+    data: { email: EMAIL, password: PASSWORD, name: "Owner" },
+  });
+  expect(response.status()).toBe(403);
+  expect(await response.text()).toContain("Setup token required.");
+});
+
+test("the setup form rejects a wrong setup token and leaves the first-run form in place", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/setup$/);
+
+  await page.getByLabel("Email").fill(EMAIL);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Setup token").fill("the-wrong-token-entirely");
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  // Next.js also renders its own empty route announcer with role="alert", so
+  // getByRole("alert") alone resolves to two elements; filter to the one
+  // that actually carries the error text.
+  const formAlert = page.getByRole("alert").filter({ hasText: "That setup token is not right." });
+  await expect(formAlert).toHaveText("That setup token is not right.");
+
+  // No account was created, so the page still shows the first-run form.
+  await expect(page).toHaveURL(/\/setup$/);
+  await expect(page.getByLabel("Email")).toBeVisible();
+});
 
 test("first run: setup, board, logout and login round-trip", async ({ page }, testInfo) => {
   await page.goto("/");
@@ -9,6 +53,7 @@ test("first run: setup, board, logout and login round-trip", async ({ page }, te
 
   await page.getByLabel("Email").fill(EMAIL);
   await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Setup token").fill(SETUP_TOKEN);
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/board$/);

@@ -7,6 +7,10 @@ const rawEnvSchema = z.object({
     .string()
     .optional()
     .transform((value) => value === "true"),
+  // Gates account creation until the first account exists (see
+  // lib/auth/setup-token.ts). Optional, but at least 16 characters when set,
+  // so a trivially short value can't be brute-forced.
+  SETUP_TOKEN: z.string().min(16).optional(),
 });
 
 export type Env = {
@@ -14,6 +18,7 @@ export type Env = {
   BETTER_AUTH_SECRET: string;
   APP_URL: string;
   ALLOW_SIGNUP: boolean;
+  SETUP_TOKEN: string | undefined;
   TRUSTED_ORIGINS: string[];
 };
 
@@ -67,6 +72,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     BETTER_AUTH_SECRET: result.data.BETTER_AUTH_SECRET,
     APP_URL: urlResult.data,
     ALLOW_SIGNUP: result.data.ALLOW_SIGNUP,
+    SETUP_TOKEN: result.data.SETUP_TOKEN,
     TRUSTED_ORIGINS: resolveTrustedOrigins(source, urlResult.data),
   };
 }

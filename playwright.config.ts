@@ -45,8 +45,12 @@ export default defineConfig({
   ],
   webServer: {
     // All browsers log in from the same address, so the suite raises the
-    // sign-in limit for the server it starts. The default stays 5 per minute.
-    command: "pnpm build && AUTH_SIGNIN_MAX_PER_MINUTE=1000 pnpm start",
+    // sign-in limit for the server it starts. The default stays 5 per
+    // minute. SETUP_TOKEN matches the constant in tests/e2e/account.ts, so
+    // first-run.spec.ts can exercise both a missing and a wrong token
+    // before using the right one to create the only account.
+    command:
+      "pnpm build && SETUP_TOKEN=e2e-setup-token-0123456789 AUTH_SIGNIN_MAX_PER_MINUTE=1000 pnpm start",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

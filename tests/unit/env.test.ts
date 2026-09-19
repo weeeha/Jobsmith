@@ -46,6 +46,28 @@ describe("parseEnv", () => {
   });
 });
 
+describe("parseEnv: SETUP_TOKEN", () => {
+  it("is undefined when not set", () => {
+    const env = parseEnv(validSource);
+    expect(env.SETUP_TOKEN).toBeUndefined();
+  });
+
+  it("accepts a token of at least 16 characters", () => {
+    const env = parseEnv({ ...validSource, SETUP_TOKEN: "x".repeat(16) });
+    expect(env.SETUP_TOKEN).toBe("x".repeat(16));
+  });
+
+  it("rejects a token shorter than 16 characters, naming it in the error", () => {
+    expect.assertions(2);
+    try {
+      parseEnv({ ...validSource, SETUP_TOKEN: "short" });
+    } catch (error) {
+      expect(error).toBeInstanceOf(EnvError);
+      expect((error as EnvError).message).toBe("Invalid environment variables: SETUP_TOKEN");
+    }
+  });
+});
+
 describe("parseEnv: APP_URL falls back to Vercel system variables", () => {
   it("uses APP_URL when set, ignoring any Vercel variables", () => {
     const env = parseEnv({ ...validSource, VERCEL_URL: "some-preview.vercel.app" });

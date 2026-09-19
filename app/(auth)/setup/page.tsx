@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isFirstRun } from "@/lib/auth/first-run";
+import { env } from "@/lib/env";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SetupForm } from "./setup-form";
 
@@ -9,6 +10,10 @@ export default async function SetupPage() {
   if (!(await isFirstRun())) {
     notFound();
   }
+
+  const production = process.env.NODE_ENV === "production";
+  const setupTokenConfigured = Boolean(env().SETUP_TOKEN);
+  const locked = production && !setupTokenConfigured;
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
@@ -27,7 +32,14 @@ export default async function SetupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SetupForm />
+          {locked ? (
+            <p className="text-sm text-muted-foreground">
+              First-run setup is locked. Set the SETUP_TOKEN environment
+              variable, redeploy, then open this page again.
+            </p>
+          ) : (
+            <SetupForm requireSetupToken={setupTokenConfigured} />
+          )}
         </CardContent>
       </Card>
     </main>

@@ -7,6 +7,7 @@ import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { countUsers } from "./users";
 import { signUpAllowed } from "./signup-gate";
+import { checkSetupToken } from "./setup-token";
 import { sessionPolicy, MIN_PASSWORD_LENGTH, signInMaxPerMinute } from "./policy";
 
 export const auth = betterAuth({
@@ -37,6 +38,21 @@ export const auth = betterAuth({
       const userCount = await countUsers(getDb());
       if (!signUpAllowed(userCount, env().ALLOW_SIGNUP)) {
         throw new APIError("FORBIDDEN", { message: "Sign-up is closed." });
+      }
+      // Before the first account exists, anyone who reaches this endpoint
+      // could otherwise claim the instance. This runs for both the HTTP
+      // endpoint (ctx.headers is the real request's headers) and a
+      // server-side auth.api.signUpEmail call, which passes the same header
+      // through its own `headers` option.
+      if (userCount === 0) {
+        const tokenCheck = checkSetupToken({
+          configured: env().SETUP_TOKEN,
+          provided: ctx.headers?.get("x-setup-token") ?? undefined,
+          production: process.env.NODE_ENV === "production",
+        });
+        if (tokenCheck !== "ok" && tokenCheck !== "not-required") {
+          throw new APIError("FORBIDDEN", { message: "Setup token required." });
+        }
       }
     }),
   },

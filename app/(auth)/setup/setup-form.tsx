@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setupAction, type SetupState } from "./actions";
 
-export function SetupForm() {
+export function SetupForm({ requireSetupToken }: { requireSetupToken: boolean }) {
   const [state, action, pending] = useActionState<SetupState, FormData>(setupAction, undefined);
 
   return (
@@ -26,6 +26,12 @@ export function SetupForm() {
           autoComplete="new-password"
         />
       </div>
+      {requireSetupToken && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="setupToken">Setup token</Label>
+          <Input id="setupToken" name="setupToken" type="password" required autoComplete="off" />
+        </div>
+      )}
       {state?.error && (
         <p role="alert" className="text-sm text-destructive">
           {state.error}

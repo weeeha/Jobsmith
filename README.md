@@ -25,6 +25,14 @@ Fill in `.env`:
   `http://localhost:3000` here. On Vercel it can be left unset for
   Preview, and for Production unless a custom domain is used, because the
   app derives it from Vercel's system environment variables.
+- `SETUP_TOKEN`: generate one with `openssl rand -base64 24`. Until the
+  first account exists, anyone who can reach a deployed instance can
+  otherwise create that account; a production deployment with no
+  `SETUP_TOKEN` set refuses to run first-run setup at all rather than
+  allow that. Not required for local development.
+
+**An instance reachable from the internet must have `SETUP_TOKEN` set
+before it is deployed.**
 
 The database scripts (`db:migrate`, `seed`, `reset-db`) load `.env`
 themselves when the file exists, the same way `next dev` does. Then:
@@ -63,8 +71,13 @@ client.
 | `pnpm test:e2e` | End-to-end tests (Playwright), resets the database first |
 | `pnpm db:generate` | Generate a SQL migration from the schema |
 | `pnpm db:migrate` | Apply migrations |
-| `pnpm seed` | Create a fictional demo user and profile |
+| `pnpm seed` | Create a fictional demo user and profile (only while no account exists) |
 | `pnpm reset-db` | Drop and re-migrate a local database (refuses non-local hosts) |
+
+Two more variables are read only by these scripts, never by the app itself:
+
+- `ALLOW_DB_RESET=true`: required to confirm `pnpm reset-db`.
+- `SEED_PASSWORD`: the password `pnpm seed` gives its demo user, instead of generating and printing a random one.
 
 ## Tests
 
