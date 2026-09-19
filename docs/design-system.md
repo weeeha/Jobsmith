@@ -36,4 +36,4 @@ Registry components: re-run the same `shadcn add` command for that item with `--
 
 ## Local changes
 
-(none yet)
+- `hooks/use-mobile.ts` (Super AI Components, a dependency of `sidebar`): added one `eslint-disable-next-line react-hooks/set-state-in-effect` on the initial `setIsMobile` call, because the initial value needs `window.innerWidth`, which is only known once this effect runs client-side. No other change; safe to re-apply after a re-sync.
