@@ -25,6 +25,9 @@ stranger can install Jobsmith with no private access.
 The `check-tokens-ignore-next-line` comment suppresses the check for the single line below it, and exists only for genuine false positives.
 Every use must carry its reason in the same comment, for example `// check-tokens-ignore-next-line: "#face" is an anchor fragment, not a hex color`.
 
+The lint reads text, not syntax: it has no real parser, so a regex literal or an apostrophe in JSX text can still cause a false positive.
+That is what the suppression comment above is for.
+
 ## Re-sync
 
 Token file: re-run the `git -C "$DESIGN_SYSTEM_DIR" show main:src/styles/globals.css > app/globals.css` command against a newer commit, re-run `pnpm check:tokens` and the axe suite, and update the commit hash above.

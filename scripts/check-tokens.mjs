@@ -17,25 +17,28 @@
 // brackets, such as [var(--token)_solid] or [calc(var(--token)+2px)], is
 // still a violation.
 //
-// Comments are removed from a line before it is scanned, rather than the
-// whole line being skipped whenever it merely starts with a comment opener
-// (round 1 of review did that, and a same-line comment followed by real
-// code, e.g. `/* note */ const bg = "#ff0000";`, slipped through unscanned
-// as a result). A "//" that starts the trimmed line runs to the end of the
-// line and empties it. A block comment, "/* ... */" or the JSX "{/* ... */}",
-// that both opens and closes on the same line is cut out and whatever
-// remains on that line (before or after it) is still scanned. A line whose
-// trimmed text opens "/*" or "{/*" without closing it on that line is
-// comment for its full length; a line whose trimmed text starts with "*" is
-// a continuation of such a comment, comment-only unless it contains the
-// closing "*/", in which case only what follows that closer is scanned. A
-// "//" that does NOT start the trimmed line is a trailing comment on real
-// code and is left alone: the whole line, comment included, is scanned
-// exactly as before, so a violation in the code ahead of it is still found.
+// Comments are removed from the WHOLE FILE before it is scanned, by the
+// character-by-character state machine in stripComments below, not by a
+// regex and not line by line (round 2 of review tried both in turn). A
+// regex cannot tell a comment from a comment-shaped span that is actually
+// a STRING's own contents: a violation written as the literal text
+// "/* #ff0000 */" inside a string would be deleted before the scan ever
+// saw it. A per-line heuristic cannot tell a same-line "/* note */ code"
+// apart from a line that is only a comment. The scanner tracks real state
+// instead: string contents (single-, double- and back-quoted) are always
+// kept, because a class name lives inside a string and must still be
+// scanned; only genuine comments are removed, character for character,
+// with every line break preserved so line numbers in the result match the
+// original file exactly. The lint still reads text, not syntax, so it has
+// no real parser: a regex literal or an apostrophe in JSX text can still
+// misjudge a string boundary and cause a false positive, which is what the
+// suppression comment below is for.
+//
 // A line containing check-tokens-ignore-next-line suppresses the single
 // line below it, for a genuine false positive that cannot be expressed any
 // other way (an anchor's href="#face", say); the reason for the suppression
-// belongs in the same comment.
+// belongs in the same comment. The marker is looked for in the ORIGINAL
+// source, before comments are stripped, because it lives inside one.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -74,48 +77,132 @@ const ARBITRARY_VALUE_VAR_ONLY_RE = /^var\(--[a-zA-Z0-9_-]+\)$/;
 // only, and every use must carry its reason in the same comment.
 const SUPPRESS_MARKER = "check-tokens-ignore-next-line";
 
-// Same-line block comments, used both to strip them (the "g" versions, safe
-// to reuse across calls: String#replace resets a global regex's lastIndex
-// to 0 once it finishes) and to test whether one closes on a given line
-// (separate non-global versions, since reusing a global regex's stateful
-// lastIndex across repeated `.test()` calls is a classic bug).
-const JSX_BLOCK_COMMENT_RE = /\{\/\*[\s\S]*?\*\/\}/g;
-const PLAIN_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
-const CLOSES_JSX_BLOCK_COMMENT_RE = /\{\/\*[\s\S]*?\*\/\}/;
-const CLOSES_PLAIN_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//;
-
 /**
- * Returns the portion of `line` that should be scanned for violations, with
- * comments removed: a "//" that starts the trimmed line, or a block comment
- * that does not close on this line, empties it; a block comment continuation
- * ("*...") scans only what follows its closing "*\/", if any; a block
- * comment that opens and closes on the same line is cut out in place and
- * the rest of the line (both before and after it) is kept. A line with no
- * comment marker at all is returned unchanged.
- * @param {string} line
+ * Removes comments from `source` (the WHOLE file's text, not one line),
+ * returning text of the same length with the same line breaks in the same
+ * places, so every line number and column in the result lines up exactly
+ * with the original. String contents are kept as-is; only comments are
+ * blanked out, character for character.
+ *
+ * A small state machine, not a regex: `code` is the default state. Seeing
+ * two slashes or a slash followed by a star enters a comment state; seeing
+ * a quote (single, double or back-tick) enters the matching string state.
+ * Inside a comment state, every character becomes a space (line breaks
+ * stay literal, so a multi-line block comment does not merge lines
+ * together) until the comment closes: two slashes run to the next line
+ * break; a block comment closes on its own star-then-slash marker, which
+ * also covers a JSX comment, since that is the same block-comment syntax
+ * wrapped in braces, and the braces are ordinary code-state characters
+ * left alone (harmless, since a bare brace never matches any of this
+ * script's violation patterns). Inside a string state, every character is
+ * KEPT, because a class name lives inside a string and must still be
+ * scanned; a backslash keeps itself and whatever follows it, so an
+ * escaped quote cannot end the string early. A single- or double-quoted
+ * string also ends at a line break (neither can legitimately span one,
+ * and this stops a stray apostrophe in JSX text from swallowing the rest
+ * of the file into a fake string); a template literal may span lines.
+ *
+ * Comment states are reachable only from `code`, and only they ever
+ * delete anything, so a wrong guess about being inside a string can only
+ * cause MORE of the file to be scanned, never less: it cannot hide a
+ * genuine violation the way treating a string's own contents as a comment
+ * (a regex's failure mode) could.
+ *
+ * @param {string} source
  * @returns {string}
  */
-function stripComments(line) {
-  const trimmed = line.trim();
+function stripComments(source) {
+  const out = [];
+  let state = "code";
+  let i = 0;
 
-  if (trimmed.startsWith("//")) {
-    return "";
+  while (i < source.length) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (state === "code") {
+      if (ch === "/" && next === "/") {
+        out.push(" ", " ");
+        state = "lineComment";
+        i += 2;
+      } else if (ch === "/" && next === "*") {
+        out.push(" ", " ");
+        state = "blockComment";
+        i += 2;
+      } else if (ch === "'") {
+        out.push(ch);
+        state = "single";
+        i += 1;
+      } else if (ch === '"') {
+        out.push(ch);
+        state = "double";
+        i += 1;
+      } else if (ch === "`") {
+        out.push(ch);
+        state = "template";
+        i += 1;
+      } else {
+        out.push(ch);
+        i += 1;
+      }
+      continue;
+    }
+
+    if (state === "lineComment") {
+      if (ch === "\n") {
+        out.push("\n");
+        state = "code";
+      } else {
+        out.push(" ");
+      }
+      i += 1;
+      continue;
+    }
+
+    if (state === "blockComment") {
+      if (ch === "*" && next === "/") {
+        out.push(" ", " ");
+        state = "code";
+        i += 2;
+      } else {
+        out.push(ch === "\n" ? "\n" : " ");
+        i += 1;
+      }
+      continue;
+    }
+
+    // state is "single", "double" or "template": a string, whose contents
+    // are always kept so a class name inside one is still scanned.
+    if (ch === "\\") {
+      out.push(ch);
+      if (next !== undefined) out.push(next);
+      i += 2;
+      continue;
+    }
+
+    if ((state === "single" || state === "double") && ch === "\n") {
+      // A single- or double-quoted string cannot legitimately span a real
+      // line break; bail back to `code` so one stray/unmatched quote (an
+      // apostrophe in JSX text, say) cannot misread the rest of the file
+      // as being inside a string.
+      out.push("\n");
+      state = "code";
+      i += 1;
+      continue;
+    }
+
+    out.push(ch);
+    if (
+      (state === "single" && ch === "'") ||
+      (state === "double" && ch === '"') ||
+      (state === "template" && ch === "`")
+    ) {
+      state = "code";
+    }
+    i += 1;
   }
 
-  if (trimmed.startsWith("*")) {
-    const closeIndex = trimmed.indexOf("*/");
-    return closeIndex === -1 ? "" : trimmed.slice(closeIndex + 2);
-  }
-
-  if (trimmed.startsWith("{/*") && !CLOSES_JSX_BLOCK_COMMENT_RE.test(line)) {
-    return "";
-  }
-
-  if (trimmed.startsWith("/*") && !CLOSES_PLAIN_BLOCK_COMMENT_RE.test(line)) {
-    return "";
-  }
-
-  return line.replace(JSX_BLOCK_COMMENT_RE, " ").replace(PLAIN_BLOCK_COMMENT_RE, " ");
+  return out.join("");
 }
 
 /** @typedef {{ file: string, line: number, rule: string, text: string }} Violation */
@@ -128,18 +215,25 @@ function stripComments(line) {
 export function findViolations(filePath, contents) {
   /** @type {Violation[]} */
   const violations = [];
-  const lines = contents.split("\n");
+  // Comments are stripped once, over the whole file, so the state machine
+  // sees real preceding context (is this "*/" actually closing something,
+  // is this quote actually inside a string) instead of guessing fresh on
+  // every line. Line breaks are preserved character for character, so
+  // splitting both the original and the stripped text on "\n" yields two
+  // arrays of the same length, index-for-index the same lines.
+  const rawLines = contents.split("\n");
+  const scannableLines = stripComments(contents).split("\n");
   let suppressThisLine = false;
 
-  lines.forEach((line, index) => {
+  rawLines.forEach((rawLine, index) => {
     const lineNumber = index + 1;
     const isSuppressed = suppressThisLine;
     suppressThisLine = false;
 
-    // Checked unconditionally, against the raw line: a suppression comment
-    // can itself be a comment-only line (the usual case) without losing its
-    // effect on the line below it.
-    if (line.includes(SUPPRESS_MARKER)) {
+    // Checked against the ORIGINAL line, never the stripped one: a
+    // suppression comment lives inside a comment, which stripComments has
+    // already blanked out in scannableLines.
+    if (rawLine.includes(SUPPRESS_MARKER)) {
       suppressThisLine = true;
     }
 
@@ -147,7 +241,7 @@ export function findViolations(filePath, contents) {
       return;
     }
 
-    const scannable = stripComments(line);
+    const scannable = scannableLines[index];
 
     for (const match of scannable.matchAll(HEX_COLOR_RE)) {
       violations.push({ file: filePath, line: lineNumber, rule: "raw-hex-color", text: match[0] });

@@ -64,21 +64,37 @@ describe("findViolations - review fix round 1", () => {
   });
 
   it("does not scan a line that is only a comment", () => {
+    // Note (review fix round 3): element 3 used to be a standalone line
+    // starting with "*", tested in isolation, which round 2's per-line
+    // heuristic treated as a block-comment continuation regardless of
+    // context. Round 3 tracks real state instead, so a bare "*" line only
+    // reads as a continuation when it is genuinely inside a still-open
+    // block comment; here that means the "/* ..." on the previous line
+    // must stay open (no longer close on its own) and this line supplies
+    // the actual closing marker, which is the only way to keep this test
+    // meaningful under a real scanner instead of accidentally depending on
+    // round 2's now-removed, less precise heuristic.
     const commentOnly = [
       "// mentions rgb(0,0,0), hsl(0,0%,0%) and #ff0000 but is only a comment",
-      "/* also only a comment, mentioning bg-zinc-100 */",
-      "* continuation of a block comment mentioning oklch(0.5 0 0)",
+      "/* also only a comment, mentioning bg-zinc-100",
+      " * continuation of that block comment mentioning oklch(0.5 0 0) */",
       "{/* JSX comment mentioning rgb(1,2,3) */}",
     ].join("\n");
     expect(findViolations("inline.tsx", commentOnly)).toEqual([]);
   });
 
-  it("still scans a code line in full even when it carries a trailing comment", () => {
-    const codeWithTrailingComment = "const x = 1; // still flags rgb(0,0,0) in a trailing comment";
+  it("still scans the code on a line that also carries a trailing comment", () => {
+    // Note (review fix round 3): this used to assert that a violation
+    // WRITTEN INSIDE the trailing "// comment" text was still reported,
+    // because round 2 never stripped a trailing "//" that did not start
+    // the trimmed line. Round 3's real scanner treats "//" as starting a
+    // line comment wherever it appears in `code` state, so a genuine
+    // trailing comment is now correctly blanked like any other comment;
+    // what round 3's own spec requires instead is that the CODE ahead of
+    // that comment is still scanned in full, which is what this now checks.
+    const codeWithTrailingComment = 'const bg = "#ff0000"; // a harmless trailing comment';
     const violations = findViolations("inline.tsx", codeWithTrailingComment);
-    expect(violations.some((v) => v.rule === "raw-color-function" && v.text.includes("rgb("))).toBe(
-      true,
-    );
+    expect(violations.some((v) => v.rule === "raw-hex-color" && v.text === "#ff0000")).toBe(true);
   });
 
   it("suppresses only the single line after a check-tokens-ignore-next-line comment", () => {
@@ -97,7 +113,14 @@ describe("findViolations - review fix round 1", () => {
     expect(violations).toEqual([]);
   });
 
-  it("still flags compound arbitrary values and trailing-comment violations in bad-edge-cases", () => {
+  it("still flags compound arbitrary values in bad-edge-cases, and the code on its trailing-comment line", () => {
+    // Note (review fix round 3): the fixture's trailing-comment line used
+    // to put its own violation INSIDE the "// ..." text, matching round
+    // 2's (now-corrected) behavior of never stripping a trailing "//".
+    // The fixture now puts that line's violation in the CODE ahead of the
+    // comment instead, and this asserts a raw-hex-color rather than the
+    // old raw-color-function, since that is what the updated fixture
+    // actually contains.
     const violations = findViolations("bad-edge-cases.tsx", fixture("bad-edge-cases.tsx"));
     expect(
       violations.some(
@@ -109,9 +132,7 @@ describe("findViolations - review fix round 1", () => {
         (v) => v.rule === "arbitrary-value" && v.text === "text-[calc(var(--brand-accent)+2px)]",
       ),
     ).toBe(true);
-    expect(
-      violations.some((v) => v.rule === "raw-color-function" && v.text.includes("rgb(")),
-    ).toBe(true);
+    expect(violations.some((v) => v.rule === "raw-hex-color" && v.text === "#ff0000")).toBe(true);
   });
 });
 
@@ -162,5 +183,54 @@ describe("findViolations - review fix round 2", () => {
     const violations = findViolations("inline.tsx", source);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatchObject({ line: 4, rule: "raw-hex-color", text: "#ff0000" });
+  });
+});
+
+describe("findViolations - review fix round 3", () => {
+  it("does not delete a comment-shaped violation that is actually a string's own contents (JS comment punctuation)", () => {
+    const line = 'const bg = "/* #ff0000 */";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ rule: "raw-hex-color", text: "#ff0000" });
+  });
+
+  it("does not delete a comment-shaped violation that is actually a string's own contents (JSX comment punctuation)", () => {
+    const line = 'const bg = "{/* #ff0000 */}";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ rule: "raw-hex-color", text: "#ff0000" });
+  });
+
+  it("does not mistake // inside a string (a URL) for the start of a line comment", () => {
+    const line = 'const url = "https://example.com/path"; const bg = "#ff0000";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ rule: "raw-hex-color", text: "#ff0000" });
+  });
+
+  it("scans code before AND after a same-line block comment on one line", () => {
+    const line = 'const a = 1; /* note */ const bg = "#ff0000";';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ rule: "raw-hex-color", text: "#ff0000" });
+  });
+
+  it("reports nothing for a multi-line block comment whose inner lines have no leading *, and reports the violation after it closes with the correct line number", () => {
+    const source = [
+      "/*",
+      "rgb(0,0,0) and bg-zinc-100 mentioned here, with no leading star",
+      "*/",
+      'const bg = "#ff0000";',
+    ].join("\n");
+    const violations = findViolations("inline.tsx", source);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ line: 4, rule: "raw-hex-color", text: "#ff0000" });
+  });
+
+  it("scans a template literal spanning two lines and reports a violation on its second line with the correct line number", () => {
+    const source = ["const cls = `", "  bg-red-500", "`;"].join("\n");
+    const violations = findViolations("inline.tsx", source);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ line: 2, rule: "tailwind-palette-class", text: "bg-red-500" });
   });
 });
