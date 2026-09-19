@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { findViolations } from "../../scripts/check-tokens.mjs";
+import { findViolations, shouldSkip } from "../../scripts/check-tokens.mjs";
 
 const fixture = (name: string) =>
   readFileSync(path.join(__dirname, "../fixtures/check-tokens", name), "utf8");
@@ -51,6 +51,13 @@ describe("findViolations", () => {
   });
 });
 
+describe("shouldSkip", () => {
+  it("skips vendored registry components under components/super-ai but still scans components/ directly", () => {
+    expect(shouldSkip(path.join("components", "super-ai", "kbd.tsx"))).toBe(true);
+    expect(shouldSkip(path.join("components", "app-shell.tsx"))).toBe(false);
+  });
+});
+
 describe("findViolations - review fix round 1", () => {
   it("allows an arbitrary value that is only a var() reference, but flags a compound one", () => {
     const line =
@@ -64,16 +71,7 @@ describe("findViolations - review fix round 1", () => {
   });
 
   it("does not scan a line that is only a comment", () => {
-    // Note (review fix round 3): element 3 used to be a standalone line
-    // starting with "*", tested in isolation, which round 2's per-line
-    // heuristic treated as a block-comment continuation regardless of
-    // context. Round 3 tracks real state instead, so a bare "*" line only
-    // reads as a continuation when it is genuinely inside a still-open
-    // block comment; here that means the "/* ..." on the previous line
-    // must stay open (no longer close on its own) and this line supplies
-    // the actual closing marker, which is the only way to keep this test
-    // meaningful under a real scanner instead of accidentally depending on
-    // round 2's now-removed, less precise heuristic.
+    // A bare "*" line only reads as a comment continuation while a real block comment is still open.
     const commentOnly = [
       "// mentions rgb(0,0,0), hsl(0,0%,0%) and #ff0000 but is only a comment",
       "/* also only a comment, mentioning bg-zinc-100",
@@ -84,14 +82,7 @@ describe("findViolations - review fix round 1", () => {
   });
 
   it("still scans the code on a line that also carries a trailing comment", () => {
-    // Note (review fix round 3): this used to assert that a violation
-    // WRITTEN INSIDE the trailing "// comment" text was still reported,
-    // because round 2 never stripped a trailing "//" that did not start
-    // the trimmed line. Round 3's real scanner treats "//" as starting a
-    // line comment wherever it appears in `code` state, so a genuine
-    // trailing comment is now correctly blanked like any other comment;
-    // what round 3's own spec requires instead is that the CODE ahead of
-    // that comment is still scanned in full, which is what this now checks.
+    // The code ahead of a trailing "//" comment is scanned in full; only the comment itself is blanked.
     const codeWithTrailingComment = 'const bg = "#ff0000"; // a harmless trailing comment';
     const violations = findViolations("inline.tsx", codeWithTrailingComment);
     expect(violations.some((v) => v.rule === "raw-hex-color" && v.text === "#ff0000")).toBe(true);
@@ -114,13 +105,7 @@ describe("findViolations - review fix round 1", () => {
   });
 
   it("still flags compound arbitrary values in bad-edge-cases, and the code on its trailing-comment line", () => {
-    // Note (review fix round 3): the fixture's trailing-comment line used
-    // to put its own violation INSIDE the "// ..." text, matching round
-    // 2's (now-corrected) behavior of never stripping a trailing "//".
-    // The fixture now puts that line's violation in the CODE ahead of the
-    // comment instead, and this asserts a raw-hex-color rather than the
-    // old raw-color-function, since that is what the updated fixture
-    // actually contains.
+    // The fixture's trailing-comment line carries its violation in the code ahead of the comment, not inside it.
     const violations = findViolations("bad-edge-cases.tsx", fixture("bad-edge-cases.tsx"));
     expect(
       violations.some(
@@ -232,5 +217,19 @@ describe("findViolations - review fix round 3", () => {
     const violations = findViolations("inline.tsx", source);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatchObject({ line: 2, rule: "tailwind-palette-class", text: "bg-red-500" });
+  });
+});
+
+describe("findViolations - a URL scheme's // in plain JSX text", () => {
+  it("does not treat a scheme's :// as a line comment, hiding the rest of the line", () => {
+    const line = '<p>See https://example.com</p> <div className="bg-red-500" />';
+    const violations = findViolations("inline.tsx", line);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ rule: "tailwind-palette-class", text: "bg-red-500" });
+  });
+
+  it("still strips an ordinary line comment, whose // is not preceded by a colon", () => {
+    const line = "const a = 1; // note mentions #ff0000";
+    expect(findViolations("inline.tsx", line)).toEqual([]);
   });
 });

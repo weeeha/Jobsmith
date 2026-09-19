@@ -22,6 +22,8 @@ stranger can install Jobsmith with no private access.
 
 `pnpm check:tokens` keeps `app/` and `components/` (outside `components/ui/`) on semantic utilities and stock shadcn variable names: no raw colors, no Tailwind palette classes, no arbitrary values other than a bare `var()` reference.
 
+`components/ui/` and `components/super-ai/` are both excluded, because both are vendored registry code, never hand-edited for token compliance, rather than app code written against the token layer.
+
 The `check-tokens-ignore-next-line` comment suppresses the check for the single line below it, and exists only for genuine false positives.
 Every use must carry its reason in the same comment, for example `// check-tokens-ignore-next-line: "#face" is an anchor fragment, not a hex color`.
 

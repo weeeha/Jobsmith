@@ -2,9 +2,11 @@
 // Fails on raw hex colors, oklch()/rgb()/hsl(), stock Tailwind palette
 // classes (bg-zinc-100, text-slate-500, ...) and Tailwind arbitrary VALUES
 // (rounded-[14px], duration-[250ms]) under app/ and components/, excluding
-// app/globals.css (where the token ramps themselves live) and components/ui/
-// (vendored shadcn primitives, which read theme variables through raw CSS
-// functions like color-mix() by design).
+// app/globals.css (where the token ramps themselves live) and two vendored,
+// never-hand-edited-for-tokens directories: components/ui/ (shadcn
+// primitives, which read theme variables through raw CSS functions like
+// color-mix() by design) and components/super-ai/ (the Super AI Components
+// registry installed on top of them).
 //
 // Arbitrary-value brackets are told apart from arbitrary VARIANT brackets
 // (data-[state=open]:, group-data-[collapsible=icon]:, [&_svg]:) by what
@@ -45,7 +47,10 @@ import { pathToFileURL } from "node:url";
 
 const SCAN_ROOTS = ["app", "components"];
 const EXCLUDE_FILES = new Set([path.join("app", "globals.css")]);
-const EXCLUDE_DIRS = [path.join("components", "ui")];
+// Both are vendored registry code, never hand-edited for token compliance:
+// components/ui/ is shadcn's own primitives, components/super-ai/ is the
+// Super AI Components registry installed on top of them (Task 7).
+const EXCLUDE_DIRS = [path.join("components", "ui"), path.join("components", "super-ai")];
 const SCAN_EXTENSIONS = new Set([".ts", ".tsx", ".css", ".mjs"]);
 
 const TAILWIND_PALETTE_COLORS = [
@@ -121,7 +126,11 @@ function stripComments(source) {
     const next = source[i + 1];
 
     if (state === "code") {
-      if (ch === "/" && next === "/") {
+      // A "//" immediately preceded by ":" is a URL scheme (https://, ftp://,
+      // ...) written as plain JSX text, not a comment: entering lineComment
+      // here would blank the rest of the line, hiding any real code that
+      // follows the URL on the same line.
+      if (ch === "/" && next === "/" && source[i - 1] !== ":") {
         out.push(" ", " ");
         state = "lineComment";
         i += 2;
@@ -268,7 +277,7 @@ export function findViolations(filePath, contents) {
   return violations;
 }
 
-function shouldSkip(relativePath) {
+export function shouldSkip(relativePath) {
   if (EXCLUDE_FILES.has(relativePath)) return true;
   return EXCLUDE_DIRS.some((dir) => relativePath === dir || relativePath.startsWith(dir + path.sep));
 }
