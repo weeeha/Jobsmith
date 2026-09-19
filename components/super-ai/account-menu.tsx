@@ -77,8 +77,9 @@ interface AccountMenuProps extends Omit<React.ComponentProps<"div">, "onSelect">
   theme: string;
   onThemeChange: (value: string) => void;
   themes?: AccountMenuThemeOption[];
-  background: string;
-  onBackgroundChange: (value: string) => void;
+  /** Background swatches render only when both this and `onBackgroundChange` are supplied. */
+  background?: string;
+  onBackgroundChange?: (value: string) => void;
   backgrounds?: AccountMenuBackgroundOption[];
   onSignOut: () => void;
   signOutLabel?: string;
@@ -263,35 +264,42 @@ function AccountMenu({
                 ))}
               </DropdownMenuRadioGroup>
 
-              <DropdownMenuSeparator />
+              {/* Background swatches have no backing state unless a consumer
+                  supplies both props — rendering them without a handler would
+                  be a control with no effect. */}
+              {background !== undefined && onBackgroundChange ? (
+                <>
+                  <DropdownMenuSeparator />
 
-              {/* The standalone Radio primitive has no Menu.Group context, so
-                  its heading is a plain label matching DropdownMenuLabel's
-                  visual style rather than the Menu-bound component. */}
-              <div
-                data-slot="account-menu-background-heading"
-                className="text-muted-foreground px-1.5 py-1 text-xs font-medium"
-              >
-                Background
-              </div>
-              <RadioGroup
-                value={background}
-                onValueChange={(value) => onBackgroundChange(value as string)}
-                data-slot="account-menu-background-group"
-                className="flex w-auto flex-wrap gap-2 px-1.5 py-1"
-              >
-                {backgrounds.map((option) => (
-                  <RadioGroupItem
-                    key={option.value}
-                    value={option.value}
-                    // Swatches convey selection by colour alone unless named —
-                    // the accessible name carries the label the eye can't.
-                    aria-label={option.label}
-                    data-slot="account-menu-background-swatch"
-                    className={cn("size-6 border-2", option.swatchClassName)}
-                  />
-                ))}
-              </RadioGroup>
+                  {/* The standalone Radio primitive has no Menu.Group context, so
+                      its heading is a plain label matching DropdownMenuLabel's
+                      visual style rather than the Menu-bound component. */}
+                  <div
+                    data-slot="account-menu-background-heading"
+                    className="text-muted-foreground px-1.5 py-1 text-xs font-medium"
+                  >
+                    Background
+                  </div>
+                  <RadioGroup
+                    value={background}
+                    onValueChange={(value) => onBackgroundChange(value as string)}
+                    data-slot="account-menu-background-group"
+                    className="flex w-auto flex-wrap gap-2 px-1.5 py-1"
+                  >
+                    {backgrounds.map((option) => (
+                      <RadioGroupItem
+                        key={option.value}
+                        value={option.value}
+                        // Swatches convey selection by colour alone unless named —
+                        // the accessible name carries the label the eye can't.
+                        aria-label={option.label}
+                        data-slot="account-menu-background-swatch"
+                        className={cn("size-6 border-2", option.swatchClassName)}
+                      />
+                    ))}
+                  </RadioGroup>
+                </>
+              ) : null}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 

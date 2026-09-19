@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useState } from "react";
 
 import { AppSidebar } from "@/components/super-ai/app-sidebar";
 import { SidebarNav } from "@/components/super-ai/sidebar-nav";
@@ -28,7 +27,6 @@ export function AppShell({
   const pathname = usePathname();
   const activeId = NAV_ITEMS.find((item) => item.href === pathname)?.id;
   const { theme, setTheme } = useTheme();
-  const [background, setBackground] = useState("default");
 
   return (
     <SidebarProvider>
@@ -44,8 +42,6 @@ export function AppShell({
             user={{ name: email, email }}
             theme={theme ?? "system"}
             onThemeChange={setTheme}
-            background={background}
-            onBackgroundChange={setBackground}
             onSignOut={onSignOut}
           />
         }
@@ -53,10 +49,9 @@ export function AppShell({
 
       <SidebarInset>
         <AppTopbar context="document" title="Jobsmith" />
-        {/* SidebarInset already renders <main data-slot="sidebar-inset">, so
-            this is a div: a nested <main> reads as a second, indistinguishable
-            top-level landmark (axe landmark-unique / landmark-no-duplicate-main,
-            found and fixed while building the end-to-end axe suite in Task 8). */}
+        {/* A div, not <main>: SidebarInset already renders the page's one
+            <main> (data-slot="sidebar-inset"); a second <main> here would be
+            a duplicate top-level landmark. */}
         <div className="flex-1 pb-16 md:pb-0">{children}</div>
       </SidebarInset>
 

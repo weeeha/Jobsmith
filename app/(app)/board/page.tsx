@@ -2,8 +2,7 @@ import { requireUser } from "@/lib/auth/session";
 import { KanbanColumn } from "@/components/super-ai/kanban-column";
 import { STAGE_KINDS } from "@/lib/pipeline/kinds";
 
-export default async function BoardPage(props: PageProps<"/board">) {
-  void props;
+export default async function BoardPage() {
   await requireUser();
 
   return (
@@ -13,10 +12,9 @@ export default async function BoardPage(props: PageProps<"/board">) {
         No jobs yet. Adding jobs arrives in the next milestone.
       </p>
       {/* tabIndex + aria-label, not a bare div: this row scrolls sideways
-          once the columns outrun the viewport, and axe's
-          scrollable-region-focusable rule catches a scroll container with
-          no tab stop (kanban-view.tsx applies the same fix to itself, for
-          the same reason). Found and fixed while building Task 8's axe suite. */}
+          once the columns outrun the viewport, and a scroll container needs
+          a tab stop to be keyboard-reachable (kanban-view.tsx applies the
+          same fix to itself). */}
       <section
         tabIndex={0}
         aria-label="Board columns"

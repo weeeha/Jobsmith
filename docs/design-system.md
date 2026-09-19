@@ -39,3 +39,4 @@ Registry components: re-run the same `shadcn add` command for that item with `--
 ## Local changes
 
 - `hooks/use-mobile.ts` (Super AI Components, a dependency of `sidebar`): added one `eslint-disable-next-line react-hooks/set-state-in-effect` on the initial `setIsMobile` call, because the initial value needs `window.innerWidth`, which is only known once this effect runs client-side. No other change; safe to re-apply after a re-sync.
+- `components/super-ai/account-menu.tsx` (Super AI Components): made `background`/`onBackgroundChange` optional and render the Background heading, its radio group and the separator before it only when both are supplied, because Jobsmith Core has no persisted background preference to back that control and an unwired swatch group is a control with no effect. Should go upstream to the registry so consumers without a background preference don't ship a dead control.
