@@ -3350,6 +3350,16 @@ test("first run: setup, board, logout and login round-trip", async ({ page }) =>
   await page.goto("/setup");
   await expect(page.getByText(/this page could not be found/i)).toBeVisible();
 
+  // The HTTP sign-up endpoint is closed as well once an account exists. The
+  // request carries a trusted Origin, so a 403 here comes from the sign-up
+  // gate and not from the origin check.
+  const closed = await page.request.post("/api/auth/sign-up/email", {
+    headers: { origin: new URL(page.url()).origin },
+    data: { email: "second@example.com", password: PASSWORD, name: "Second" },
+  });
+  expect(closed.status()).toBe(403);
+  expect(await closed.text()).toContain("Sign-up is closed.");
+
   // Sign-out lives in the account menu: open the trigger (its accessible
   // name is "Account menu for {email}"), then the "Sign out" item.
   await page.goto("/board");
