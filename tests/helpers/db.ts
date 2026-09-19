@@ -5,7 +5,7 @@ import path from "node:path";
 import * as schema from "@/lib/db/schema";
 import type { Db } from "@/lib/db/client";
 
-export async function makeTestDb(): Promise<{ db: Db; close(): Promise<void> }> {
+export async function makeTestDb(): Promise<{ db: Db; client: PGlite; close(): Promise<void> }> {
   const client = new PGlite();
   const db = drizzle(client, { schema });
 
@@ -15,6 +15,7 @@ export async function makeTestDb(): Promise<{ db: Db; close(): Promise<void> }> 
 
   return {
     db,
+    client,
     close: () => client.close(),
   };
 }

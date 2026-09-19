@@ -26,4 +26,23 @@ describe("migrations", () => {
       await close();
     }
   });
+
+  it("stores every timestamp column with time zone", async () => {
+    // node-postgres and Postgres both silently drop the UTC offset from a
+    // "timestamp without time zone" column, so every timestamp in this
+    // schema must carry a time zone. Queried through the same PGlite
+    // database the other tests in this file migrate, not the schema
+    // source, so this fails if a future column forgets withTimezone even
+    // though the TypeScript source looks fine.
+    const { client, close } = await makeTestDb();
+    try {
+      const { rows } = await client.query<{ table_name: string; column_name: string }>(
+        `SELECT table_name, column_name FROM information_schema.columns
+         WHERE table_schema = 'public' AND data_type = 'timestamp without time zone'`,
+      );
+      expect(rows).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
 });

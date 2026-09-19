@@ -8,6 +8,13 @@
       "when": 1789802929212,
       "tag": "0000_peaceful_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789838840452,
+      "tag": "0001_lush_hercules",
+      "breakpoints": true
     }
   ]
 }

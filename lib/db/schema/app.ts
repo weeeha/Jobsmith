@@ -9,6 +9,6 @@ export const profile = pgTable("profile", {
   resumeMd: text("resume_md"),
   preferences: jsonb("preferences").notNull().default({}),
   timezone: text("timezone").notNull().default("UTC"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
