@@ -1,0 +1,29 @@
+# Design system
+
+Jobsmith's front end is copied from two design systems into this repo, so a
+stranger can install Jobsmith with no private access.
+
+## What was copied
+
+| Source | What | From | Into |
+|---|---|---|---|
+| Minimal Design System (`@weeeha/ui`, MIT, same owner, private repo) | token file: primitive ramps, semantic layer, shadcn alias layer | commit `21610c6` on `main` | `app/globals.css` |
+| shadcn `base-nova` (Base UI) | primitives | `shadcn add` | `components/ui/` |
+| Super AI Components (public registry, same owner, no license file yet; the owner holds the rights) | application shell components | `shadcn add <registry url>` | `components/super-ai/`, plus their own `components/ui/`, `lib/` and `hooks/` dependencies |
+
+## Order of preference for new UI
+
+1. A Super AI Components registry item.
+2. A `base-nova` primitive.
+3. A component copied from the Minimal Design System (Radix-based; copy only when neither above fits).
+4. New code.
+
+## Re-sync
+
+Token file: re-run the `git -C "$DESIGN_SYSTEM_DIR" show main:src/styles/globals.css > app/globals.css` command against a newer commit, re-run `pnpm check:tokens` and the axe suite, and update the commit hash above.
+
+Registry components: re-run the same `shadcn add` command for that item with `--overwrite`, then re-apply anything listed under "Local changes" below.
+
+## Local changes
+
+(none yet)
