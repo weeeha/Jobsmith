@@ -54,7 +54,8 @@ The five done-when tests in section 9, verified in Chrome and Safari on desktop 
 |---|---|---|
 | Framework | Next.js App Router, React 19, TypeScript strict | `pnpm build && pnpm start` on Node |
 | Database | Postgres with Drizzle ORM and SQL migrations | Neon when hosted, any Postgres otherwise |
-| UI | Tailwind, shadcn/ui, dnd-kit for the board | none |
+| UI | Tailwind v4 with the owner's two design systems, copied into the repo: tokens from the Minimal Design System, primitives from shadcn `base-nova` (Base UI), application components from the Super AI Components registry. See section 10. | installs need no private access, because the code is committed |
+| Drag and drop | chosen in milestone 2: the registry's kanban view if it supports dragging, otherwise dnd-kit | none |
 | Validation | Zod at every boundary (forms, API, AI output, preferences) | none |
 | Login | Self-contained, database-backed auth library with email and password. Candidate: Better Auth. Milestone 1 confirms the choice against its current Next.js guide. | no outside service needed |
 | AI | AI SDK with `provider/model` strings through AI Gateway when hosted. Model ids come from env. | any provider key, or none |
@@ -291,7 +292,7 @@ Test-driven for everything under `lib/`.
 - **End to end (Playwright, Chromium and WebKit, desktop and a 390px viewport):** setup, login, add a job from pasted text with the fake AI driver, card appears in Saved, drag to Applied, timeline shows the move, open the job, paste an artifact, mark a CV as sent and see it locked. On the phone viewport: move a job with the sheet.
 - **AI:** the fake driver is the default in tests. One opt-in live smoke test runs only when a key is present.
 - **CI:** typecheck, lint, unit and integration on every push. End to end on pull requests.
-- **Accessibility:** keyboard-only pass of the board and dialogs in the end-to-end suite, and an axe check on each route.
+- **Accessibility:** keyboard-only pass of the board and dialogs in the end-to-end suite, and an axe check on each route in light and in dark.
 
 ## 9. Milestones
 
@@ -311,18 +312,35 @@ Each milestone ends with a preview link, a pass in Chrome and Safari and the tes
 
 | Source prototype | Ported into Core | Milestone |
 |---|---|---|
-| career-ops-web | dnd-kit board with optimistic move and keyboard shortcuts, ATS link intake (`lib/jobs/extract.ts`), token layer in `globals.css`, AI gateway client | 2, 4 |
+| career-ops-web | board behavior (optimistic move, rollback, keyboard shortcuts), ATS link intake (`lib/jobs/extract.ts`), AI gateway client | 2, 4 |
 | job-search-bot | preferences form, scoring call shape (`lib/matcher/score.ts`), session handling patterns | 5 |
 | interview-prep-workspace | Opportunity type ideas for the Overview tab | 2 |
 
 Ported code gets tests as it lands. The owner's prototypes carry no license, so they can be relicensed under AGPL-3.0. Anything derived from the MIT-licensed upstream career-ops project keeps its copyright notice. Core ports nothing from it, because the fit score in section 5.6 is new and simpler than its rubric.
 
-Fonts in the token layer (Space Grotesk, DM Sans) are under the SIL Open Font License and can ship in an open source repo.
+### Design systems
+
+Decided 2026-09-18: the front end is built from the owner's two design systems. Both are copied into this repo, because one of them is private and a stranger must be able to install Jobsmith.
+
+| Source | What Jobsmith takes | How |
+|---|---|---|
+| Minimal Design System (`@weeeha/ui`, MIT, same owner, private repo) | the token file: primitive ramps, the semantic layer that decides light and dark, and the alias layer that maps shadcn's variable names onto it | copied to `app/globals.css` from a recorded commit |
+| shadcn `base-nova` | primitives in `components/ui` (Base UI based) | `shadcn add` |
+| Super AI Components (public shadcn registry, same owner) | application components: app sidebar, top bar, account menu, auth shell, kanban column and view, detail view shell with tabs, filter bar, field row, date section, shortcuts sheet, and later credits, quota and paywall pieces | `shadcn add <registry url>` |
+
+Order of preference for any new UI need: a Super AI Components item, then a `base-nova` primitive, then a component copied from the Minimal Design System, then new code. The Minimal Design System's own components are Radix based and the registry's are Base UI based, so `components/ui` stays `base-nova` and Radix based components are copied only when nothing else fits.
+
+Rules for app code: semantic utilities and shadcn variable names only. No raw colors, no Tailwind palette classes, no arbitrary values. Motion uses the kit's duration and easing tokens. `pnpm check:tokens` enforces this in CI. Light and dark follow the system setting from milestone 1.
+
+`docs/design-system.md` records what was copied, from which commit, how to re-sync, and every local change to a copied file, so fixes can go back upstream. The kit has known contrast failures in a few token pairs. When the accessibility checks find one, the pair is fixed in the semantic layer here and listed in that file.
+
+The Super AI Components repo has no license file yet. The owner holds the rights, so using it here is fine. Adding a license there is a separate task.
+
+Fonts: Geist and Geist Mono, under the SIL Open Font License, loaded through `next/font`.
 
 ## 11. Assumed until the owner says otherwise
 
-1. Visual starting point: reuse the career-ops-web tokens and fonts, and restyle after Core. The alternative is a visual exploration before milestone 2.
-2. The format of the current applications tracker is unknown. The import script takes a neutral JSON shape, and the mapping is written once the format is known.
+1. The format of the current applications tracker is unknown. The import script takes a neutral JSON shape, and the mapping is written once the format is known.
 
 ## 12. After Core
 
