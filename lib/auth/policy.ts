@@ -16,14 +16,16 @@ export function signInMaxPerMinute(
   return Number.isInteger(value) && value >= 1 ? value : DEFAULT_SIGNIN_MAX_PER_MINUTE;
 }
 
-// Without a reverse proxy in front of this app, there is no x-forwarded-for
-// header, so better-auth's rate limiter has no client address to key on and
-// every visitor shares one bucket: at the configured limit, a handful of
+// When better-auth's rate limiter cannot tie a request to one client, every
+// such request shares one bucket: at the configured limit, a handful of
 // failed sign-ins from anywhere would lock out every visitor, including the
-// owner, for a minute. Raising the ceiling only in that situation (never
-// lowering a limit that is already higher) keeps a real reverse-proxy
-// deployment at the tight per-client default while a bare deployment stays
-// usable.
+// owner, for a minute. That happens with no x-forwarded-for header at all
+// (no reverse proxy), and also when the header holds a chain of addresses
+// or something that is not an address, because the library trusts only a
+// single valid address unless `trustedProxies` is configured. Raising the
+// ceiling only in that situation (never lowering a limit that is already
+// higher) keeps a deployment behind one reverse proxy at the tight
+// per-client default while the others stay usable.
 const MIN_SIGNIN_MAX_PER_MINUTE_WITHOUT_CLIENT_ADDRESS = 30;
 
 export function signInRateLimitRule(

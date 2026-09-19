@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { createAuthMiddleware, APIError } from "better-auth/api";
+import { createAuthMiddleware, APIError, getIP } from "better-auth/api";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -9,6 +9,19 @@ import { countUsers } from "./users";
 import { signUpAllowed } from "./signup-gate";
 import { checkSetupToken } from "./setup-token";
 import { sessionPolicy, MIN_PASSWORD_LENGTH, signInRateLimitRule } from "./policy";
+
+// Shared by the auth config and the sign-in rule below, so the rule asks the
+// limiter's own resolver (getIP) with the limiter's own settings.
+const advanced = {
+  ipAddress: {
+    // Named explicitly, so a library default that changes later cannot widen
+    // what this app trusts: this is the one header operators are told to set
+    // (README, "Running behind a reverse proxy"). The library trusts it only
+    // when it holds exactly one valid address. A chain of proxies needs
+    // `trustedProxies` added here.
+    ipAddressHeaders: ["x-forwarded-for"],
+  },
+};
 
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
@@ -20,17 +33,7 @@ export const auth = betterAuth({
     expiresIn: sessionPolicy.expiresInDays * 24 * 60 * 60,
     updateAge: sessionPolicy.refreshAfterDays * 24 * 60 * 60,
   },
-  advanced: {
-    ipAddress: {
-      // Named explicitly rather than relying on the library default (which
-      // also accepts other headers): only a reverse proxy in front of this
-      // app should be able to set the client address it keys the rate
-      // limiter and session records on, and only this one header is ever
-      // documented for operators to set (README, "Running behind a reverse
-      // proxy").
-      ipAddressHeaders: ["x-forwarded-for"],
-    },
-  },
+  advanced,
   rateLimit: {
     // True everywhere this app runs. Next compiles NODE_ENV into a build as
     // "production", so the server the end-to-end suite starts is limited too;
@@ -40,11 +43,13 @@ export const auth = betterAuth({
     window: 60,
     max: 60,
     customRules: {
-      // signInRateLimitRule (lib/auth/policy.ts) explains why a request with
-      // no x-forwarded-for header gets a raised ceiling instead of the
-      // configured one.
+      // signInRateLimitRule (lib/auth/policy.ts) explains why a request the
+      // limiter cannot tie to one client gets a raised ceiling. getIP is the
+      // resolver the limiter itself keys on, so the two cannot disagree: a
+      // header that is present but untrusted (a chain of addresses, or not
+      // an address at all) lands in the shared bucket too.
       "/sign-in/email": (request) =>
-        signInRateLimitRule(request.headers.has("x-forwarded-for")),
+        signInRateLimitRule(getIP(request, { advanced }) !== null),
     },
   },
   hooks: {

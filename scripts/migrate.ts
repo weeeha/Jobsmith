@@ -43,8 +43,11 @@ async function main() {
     });
     console.log("Migrations applied");
   } finally {
-    await lockClient.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]);
-    await lockClient.end();
+    // Ending the session releases the lock as well, so a failed unlock (for
+    // example on a connection that already dropped) is ignored here: it must
+    // not replace the error that brought us into this block.
+    await lockClient.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]).catch(() => {});
+    await lockClient.end().catch(() => {});
     await pool.end();
   }
 }

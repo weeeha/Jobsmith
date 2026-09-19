@@ -17,8 +17,8 @@ let cached: Db | undefined;
 
 export function getDb(): Db {
   if (!cached) {
-    // A serverless/edge-adjacent deployment can run many instances of this
-    // app at once, each with its own pool; a small per-instance ceiling
+    // A serverless deployment can run many instances of this app at once,
+    // each with its own pool; a small per-instance ceiling
     // (max) keeps the fleet from overwhelming Postgres's own connection
     // limit, and a short idle timeout releases connections between bursts
     // of traffic instead of holding them open unused.
