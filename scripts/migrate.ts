@@ -12,12 +12,14 @@ async function main() {
   const pool = new Pool({ connectionString });
   const db = drizzle(pool);
 
-  await migrate(db, {
-    migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
-  });
-
-  await pool.end();
-  console.log("Migrations applied");
+  try {
+    await migrate(db, {
+      migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
+    });
+    console.log("Migrations applied");
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((error) => {
