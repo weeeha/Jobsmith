@@ -90,7 +90,9 @@ const SUPPRESS_MARKER = "check-tokens-ignore-next-line";
  * blanked out, character for character.
  *
  * A small state machine, not a regex: `code` is the default state. Seeing
- * two slashes or a slash followed by a star enters a comment state; seeing
+ * two slashes or a slash followed by a star enters a comment state, unless
+ * the two slashes are immediately preceded by ":" (a URL scheme, such as
+ * "https://", written as plain JSX text rather than as a comment); seeing
  * a quote (single, double or back-tick) enters the matching string state.
  * Inside a comment state, every character becomes a space (line breaks
  * stay literal, so a multi-line block comment does not merge lines
