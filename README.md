@@ -25,14 +25,14 @@ Fill in `.env`:
   `http://localhost:3000` here. On Vercel it can be left unset for
   Preview, and for Production unless a custom domain is used, because the
   app derives it from Vercel's system environment variables.
-- `SETUP_TOKEN`: generate one with `openssl rand -base64 24`. Until the
-  first account exists, anyone who can reach a deployed instance can
-  otherwise create that account; a production deployment with no
-  `SETUP_TOKEN` set refuses to run first-run setup at all rather than
-  allow that. Not required for local development.
+- `SETUP_TOKEN`: generate one with `openssl rand -base64 24` (at least 16
+  characters). Until the first account exists, the setup page asks for
+  this token, so only someone who can read the deployment's environment
+  can create that account. A production build with no `SETUP_TOKEN` keeps
+  first-run setup locked. Local development (`pnpm dev`) works without it.
 
-**An instance reachable from the internet must have `SETUP_TOKEN` set
-before it is deployed.**
+**Set `SETUP_TOKEN` before you deploy an instance that the internet can
+reach.**
 
 The database scripts (`db:migrate`, `seed`, `reset-db`) load `.env`
 themselves when the file exists, the same way `next dev` does. Then:
@@ -58,9 +58,9 @@ Preview deployment's migration can change the schema Production depends
 on before Production is ready for it.
 
 Migrations only move forward; there is no down migration. Rolling back a
-deployment rolls back the code, not a schema change a later migration
-already applied — a column removed or renamed in a migration is gone even
-if a subsequent rollback brings back the code that expected it.
+deployment restores the old code and leaves the schema as the newest
+migration made it. A column that a migration removed or renamed stays that
+way, even when the rolled-back code expects it.
 
 Use the provider's pooled connection string for `DATABASE_URL` (what the
 app itself uses at runtime, many short-lived queries) and keep its direct,
@@ -70,19 +70,25 @@ which need a session-scoped advisory lock a pooled connection cannot hold
 
 ## Running behind a reverse proxy
 
-The login rate limit keys on the client address, read from the
-`X-Forwarded-For` header (`advanced.ipAddress.ipAddressHeaders` in
-`lib/auth/index.ts`). A reverse proxy that sets that header to the real
-client address is required for per-client limiting. On Vercel, the
-platform sets it for you.
+The login rate limit counts attempts per client address, read from the
+`X-Forwarded-For` header (`advanced.ipAddress` in `lib/auth/index.ts`). The
+header is trusted only when it holds exactly one valid address. On Vercel
+the platform sets it for you. Behind your own reverse proxy, have the proxy
+overwrite the header with the address it sees (nginx:
+`proxy_set_header X-Forwarded-For $remote_addr;`). A proxy that appends to a
+header sent by the client produces a list, and a list is treated as
+unknown.
 
-Without a reverse proxy, there is no `X-Forwarded-For` header, so every
-visitor shares one counter instead of getting their own. So that this
-configuration can't lock every visitor out after a handful of failed
-sign-ins from anywhere, the sign-in limit automatically raises itself to
-at least 30 attempts per minute whenever a request carries no
-`X-Forwarded-For` header; behind a real reverse proxy, each client still
-gets the tighter per-client limit below.
+Behind a chain of proxies (for example a CDN in front of nginx), let each
+proxy append to the header and list the proxies' addresses in
+`advanced.ipAddress.trustedProxies`.
+
+Requests with no trusted client address share one counter. That is the
+case with no reverse proxy at all, and behind a chain of proxies until
+`trustedProxies` is set. For those requests the sign-in limit rises to at
+least 30 attempts per minute, so a handful of failed sign-ins from anywhere
+cannot lock every visitor out. Clients with a trusted address keep the
+tighter per-client limit below.
 
 `AUTH_SIGNIN_MAX_PER_MINUTE` is optional and defaults to 5.
 

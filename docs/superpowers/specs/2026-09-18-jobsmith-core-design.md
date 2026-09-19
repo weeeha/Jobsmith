@@ -69,7 +69,7 @@ The Next.js major version is the current one at build time. It has breaking chan
 ```
 app/                 routes: setup, login, home, board, jobs/[slug], preferences, settings, api/bridge/*
 components/          board, job page, dialogs, forms, ui primitives
-lib/db/              schema, migrations, scoped query helper
+lib/db/              schema, migrations, scoped query helper (one file per table under lib/db/scoped/ once milestone 2 adds tables)
 lib/pipeline/        create, move, close, reopen, edit stages, next action (the only stage write path)
 lib/artifacts/       upsert, versions, sent lock, kind registry (the only artifact write path)
 lib/intake/          resolvePosting, ATS adapters, fetch guard, dedupe
@@ -87,7 +87,7 @@ Each `lib/*` module exposes plain functions that take a database handle and a us
 
 Core creates these tables. `prep_question`, `library_item` and `asset` appear on the board's data model but ship with the Prep cycle.
 
-All ids are uuid. All tables have `created_at` and `updated_at`. "Owned" means the table has `user_id` with an index and is only reachable through the scoped helper.
+Tables that Core defines have a uuid primary key. One-per-user tables such as `profile` use `user_id` as the primary key instead. `user_id` is text everywhere, because the login library generates text ids for its own tables (user, session, account, verification, rate limit). All tables have `created_at` and `updated_at`, stored as `timestamptz`. "Owned" means the table has `user_id` with an index and is only reachable through the scoped helper.
 
 **profile** (owned, one per user): `headline`, `resume_md`, `preferences` jsonb (section 5.7), `timezone` (default `UTC`).
 
@@ -257,7 +257,7 @@ Profile (headline, resume text as markdown, timezone), API tokens (create, revea
 
 ### 5.10 Login and first run
 
-`/setup` works only while the user table is empty and creates the first account. After that it returns 404, and sign-up stays closed unless `ALLOW_SIGNUP=true`. `/login` takes email and password. Sessions are database-backed cookies. Every page, server action and API route checks the session or token itself. Route-level protection is an extra layer and never the only check.
+`/setup` works only while the user table is empty and creates the first account. First-run setup is protected by a setup token: when `SETUP_TOKEN` is set, the form asks for it and the sign-up endpoint rejects a first account without it. A production build requires the token. While the variable is unset, `/setup` shows a locked notice and no account can be created, so a stranger cannot claim a fresh public deployment. Local development works without a token. After the first account exists, `/setup` returns 404, and sign-up stays closed unless `ALLOW_SIGNUP=true`. `/login` takes email and password. Sessions are database-backed cookies. Every page, server action and API route checks the session or token itself. Route-level protection is an extra layer and never the only check.
 
 ### 5.11 One-time import
 
@@ -270,12 +270,12 @@ Profile (headline, resume text as markdown, timezone), API tokens (create, revea
 - Board: a rejected move rolls back and explains why. The board revalidates when the window regains focus, so a phone and a desktop stay in step. The last write wins.
 - Bridge: the payload is validated as a whole (size, count, shape) and rejected with 400 when malformed. Inside a valid push, problems per artifact are warnings and the rest still saves. 401 for a missing or revoked token, 404 for an unknown slug, 413 for oversize.
 - Each route segment has an error boundary with a retry. Logs carry a request id and no posting text, resume text or tokens.
-- Times are stored in UTC and shown in the profile timezone.
+- Times are stored as `timestamptz` (UTC instants) and shown in the profile timezone.
 
 ## 7. Security and privacy
 
 - Tenancy through the scoped query helper, plus the isolation test in section 8.
-- Bridge tokens are hashed, shown once and revocable. Login and bridge endpoints are rate limited with a small in-database limiter that works anywhere.
+- Bridge tokens are hashed, shown once and revocable. Login and bridge endpoints are rate limited. Counters live in the database, so a limit holds across serverless instances and needs no extra service. Login uses the login library's limiter with database storage, keyed by client address. The address comes from `X-Forwarded-For` and is trusted only when the header holds one valid address, so a reverse proxy must set it (install notes). Requests with no trusted address share one counter with a higher ceiling, so a few failed sign-ins cannot lock every visitor out.
 - Server actions rely on the framework's origin checks. The bridge is bearer-only, so it has no CSRF surface.
 - The fetch guard from section 5.5 prevents server-side request forgery.
 - Markdown is sanitized and raw HTML is disabled.
