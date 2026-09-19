@@ -16,9 +16,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "seed": "tsx scripts/seed.ts",
-    "reset-db": "tsx scripts/reset-db.ts"
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+    "reset-db": "tsx --env-file-if-exists=.env scripts/reset-db.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

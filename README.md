@@ -26,14 +26,10 @@ Fill in `.env`:
   Preview, and for Production unless a custom domain is used, because the
   app derives it from Vercel's system environment variables.
 
-The database scripts (`db:migrate`, `seed`, `reset-db`) read `DATABASE_URL`
-from the shell environment, not from `.env` directly. Export it before
-running them, then continue:
+The database scripts (`db:migrate`, `seed`, `reset-db`) load `.env`
+themselves when the file exists, the same way `next dev` does. Then:
 
 ```bash
-set -a
-source .env
-set +a
 docker compose up -d
 pnpm install
 pnpm db:migrate
