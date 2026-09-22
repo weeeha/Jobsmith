@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
 import { sortCards } from "@/lib/board/sort";
 import { Board, BoardViewSwitch } from "@/components/board/board";
+import { PhoneBoard } from "@/components/board/phone-board";
 import { ClosedList } from "@/components/board/closed-list";
 import { RefreshOnFocus } from "@/components/refresh-on-focus";
 
@@ -12,6 +13,7 @@ export default async function BoardPage(props: PageProps<"/board">) {
   const s = scopedFor(user.id);
   const nowIso = new Date().toISOString();
   const companyNames = (await s.company.list()).map((c) => c.name);
+  const activeCards = view === "active" ? sortCards(await s.opportunity.listBoard()) : [];
 
   return (
     <div className="p-6">
@@ -23,7 +25,10 @@ export default async function BoardPage(props: PageProps<"/board">) {
       {view === "closed" ? (
         <ClosedList cards={await s.opportunity.listClosed()} />
       ) : (
-        <Board cards={sortCards(await s.opportunity.listBoard())} nowIso={nowIso} companyNames={companyNames} />
+        <>
+          <Board cards={activeCards} nowIso={nowIso} companyNames={companyNames} />
+          <PhoneBoard cards={activeCards} nowIso={nowIso} companyNames={companyNames} />
+        </>
       )}
       <RefreshOnFocus />
     </div>

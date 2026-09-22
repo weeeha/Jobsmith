@@ -15,19 +15,20 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
   await test.step("the board shows its empty state for a new, zero-job account", async () => {
     // This account never has any opportunities seeded anywhere in this
     // suite (first-run.spec.ts only ever creates the account itself), so
-    // Board correctly renders its empty state - EmptyState's title,
-    // description and "Add job" action - instead of seven columns.
-    if (testInfo.project.name === "phone") {
-      // Board's own root still carries `hidden md:flex` (Task 9, not yet
-      // built, is what adds the phone board beside it), so at this width
-      // nothing under the view switch is visible yet - not even the
-      // desktop empty state.
-      await expect(page.getByText("No jobs yet")).toBeHidden();
-    } else {
-      await expect(page.getByText("No jobs yet")).toBeVisible();
-      await expect(page.getByText("Add the first job you are tracking.")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Add job" })).toBeVisible();
-    }
+    // both Board and PhoneBoard render EmptyState's identical copy - title,
+    // description and "Add job" action - instead of seven columns or a
+    // grouped list (Task 9). Board and PhoneBoard both mount unconditionally
+    // now, one on each side of the `md` breakpoint (`hidden md:flex` /
+    // `flex md:hidden`), so the same text exists twice in the DOM at once -
+    // only one copy is ever actually visible, whichever the current
+    // viewport exposes, so `.filter({ visible: true })` is what picks out
+    // the one under test here rather than relying on which happens to come
+    // first in DOM order. This replaces the previous phone-only branch,
+    // which asserted the text was hidden everywhere on phone - true before
+    // PhoneBoard existed, false now.
+    await expect(page.getByText("No jobs yet").filter({ visible: true })).toBeVisible();
+    await expect(page.getByText("Add the first job you are tracking.").filter({ visible: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add job" }).filter({ visible: true })).toBeVisible();
     await scanForViolations(page, "/board", testInfo);
   });
 

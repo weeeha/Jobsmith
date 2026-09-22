@@ -72,14 +72,14 @@ export function AppShell({
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t border-border bg-surface-sidebar py-2 md:hidden"
+        className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t border-border bg-surface-sidebar pt-2 pb-safe md:hidden"
       >
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.id}
             href={item.href}
             aria-current={item.href === pathname ? "page" : undefined}
-            className="rounded-md px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover"
+            className="rounded-md px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover aria-[current=page]:bg-secondary aria-[current=page]:text-text-accent"
           >
             {item.label}
           </Link>
