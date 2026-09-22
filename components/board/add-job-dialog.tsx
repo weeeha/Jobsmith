@@ -192,16 +192,16 @@ function AddJobForm({
                   aria-invalid={Boolean(fieldErrors?.workMode)}
                 >
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="remote" id="add-job-work-mode-remote" />
-                    <Label htmlFor="add-job-work-mode-remote">Remote</Label>
+                    <RadioGroupItem value="remote" id={`${id}-remote`} />
+                    <Label htmlFor={`${id}-remote`}>Remote</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="hybrid" id="add-job-work-mode-hybrid" />
-                    <Label htmlFor="add-job-work-mode-hybrid">Hybrid</Label>
+                    <RadioGroupItem value="hybrid" id={`${id}-hybrid`} />
+                    <Label htmlFor={`${id}-hybrid`}>Hybrid</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="onsite" id="add-job-work-mode-onsite" />
-                    <Label htmlFor="add-job-work-mode-onsite">On site</Label>
+                    <RadioGroupItem value="onsite" id={`${id}-onsite`} />
+                    <Label htmlFor={`${id}-onsite`}>On site</Label>
                   </div>
                 </RadioGroup>
               </fieldset>

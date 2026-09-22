@@ -18,7 +18,7 @@ export default async function BoardPage(props: PageProps<"/board">) {
   return (
     <div className="p-6">
       <h1 className="text-lg font-semibold">Board</h1>
-      <p className="mt-2 text-muted-foreground">Keys 1 to 7 move the focused job. C closes it.</p>
+      <p className="mt-2 hidden text-muted-foreground md:block">Keys 1 to 7 move the focused job. C closes it.</p>
       <div className="mt-4">
         <BoardViewSwitch view={view} />
       </div>

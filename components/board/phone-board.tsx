@@ -163,6 +163,9 @@ export function PhoneBoard({
         />
       ) : (
         <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-end">
+            <Button onClick={() => setAddOpen(true)}>Add job</Button>
+          </div>
           {STAGE_KINDS.map((stage) => {
             const stageCards = optimisticCards.filter((card) => card.stage.kind === stage.kind);
             if (stageCards.length === 0) return null;
