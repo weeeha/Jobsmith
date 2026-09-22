@@ -15,6 +15,13 @@
       "when": 1789838840452,
       "tag": "0001_lush_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790046689728,
+      "tag": "0002_lumpy_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }
