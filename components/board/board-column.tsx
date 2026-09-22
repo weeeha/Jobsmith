@@ -34,7 +34,10 @@ export function BoardColumn({ kind, cards, children }: BoardColumnProps) {
   return (
     <div
       ref={setNodeRef}
-      className={cn("h-full overflow-hidden transition-all duration-base ease-standard", rail ? "w-12" : "w-64")}
+      className={cn(
+        "h-full shrink-0 overflow-hidden transition-all duration-base ease-standard",
+        rail ? "w-12" : "w-64",
+      )}
     >
       {count > 0 ? (
         <KanbanColumn title={title} count={count} className="h-full w-full">

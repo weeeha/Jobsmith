@@ -47,7 +47,22 @@ export function AppShell({
         }
       />
 
-      <SidebarInset>
+      {/* min-w-0: SidebarInset is a row-direction flex item of the sidebar
+          wrapper (components/ui/sidebar.tsx, vendored - not hand-edited).
+          Flex items keep the default `min-width: auto`, which floors this
+          item at its subtree's min-content width; wide, non-wrapping
+          content further down (the board's own horizontally-scrolling
+          section) then refuses to let SidebarInset shrink to the space the
+          sidebar actually leaves it, so the whole page grows wider than the
+          viewport and scrolls sideways instead of the board's own section
+          scrolling internally. min-w-0 (min-width: 0) removes that floor.
+          Confirmed empirically (scratch Playwright measurements): this is
+          the one element in the ancestor chain from the board's scrolling
+          section up to <body> where adding the constraint changes anything
+          - the section itself, its app-shell wrapper div, and the sidebar
+          wrapper each leave document.documentElement.scrollWidth unchanged
+          when tried alone. */}
+      <SidebarInset className="min-w-0">
         <AppTopbar context="document" title="Jobsmith" />
         {/* A div, not <main>: SidebarInset already renders the page's one
             <main> (data-slot="sidebar-inset"); a second <main> here would be

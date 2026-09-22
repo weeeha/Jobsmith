@@ -80,10 +80,21 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
             this. draggable={false} is required: without it, starting a
             drag on the link's own text triggers the browser's native
             link-drag instead of dnd-kit's, which cancels the pointer
-            events dnd-kit needs to see the gesture at all. */}
+            events dnd-kit needs to see the gesture at all.
+
+            Each line truncates with an ellipsis rather than wrapping (see
+            board-column.tsx's shrink-0: columns hold a steady width instead
+            of compressing, so truncation has a stable line to work from
+            rather than clipping arbitrarily). The link's accessible name
+            above already carries the untruncated text to assistive
+            technology; `title` here additionally surfaces it as the
+            browser's native tooltip on mouse hover, so a visually clipped
+            title or company name is never only available by opening the
+            job. */}
         <Link
           href={`/jobs/${card.slug}`}
           draggable={false}
+          title={`${card.roleTitle} at ${card.companyName}`}
           className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="block truncate font-medium">{card.roleTitle}</span>
