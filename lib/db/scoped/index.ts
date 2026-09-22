@@ -17,7 +17,32 @@ export * from "./person";
 export * from "./opportunity-person";
 export * from "./event";
 
-export function scoped(db: Db, userId: string) {
+// Declared explicitly rather than as `ReturnType<typeof scoped>`. That
+// inferred form is circular: `scoped`'s own `transaction` method takes a
+// callback parameter typed `Scoped`, so inferring `scoped`'s return type
+// requires already knowing `Scoped`. TypeScript does not always surface this
+// as a hard circularity error; in some importing files it silently widens
+// property access off a `Scoped`-typed value to `any` instead, which only
+// shows up downstream as an unrelated `noImplicitAny` error (for example an
+// array `.map()` callback losing its inferred parameter type), and whether a
+// given file trips it depends on unrelated compilation-order effects. Writing
+// the shape out by hand and annotating `scoped`'s return type with it removes
+// the circularity: a named type that refers to itself inside one of its own
+// method signatures (as `transaction` does here) is an ordinary recursive
+// type, not a self-referential inference.
+export type Scoped = {
+  userId: string;
+  transaction<T>(fn: (tx: Scoped) => Promise<T>): Promise<T>;
+  profile: ReturnType<typeof profileQueries>;
+  company: ReturnType<typeof companyQueries>;
+  opportunity: ReturnType<typeof opportunityQueries>;
+  stage: ReturnType<typeof stageQueries>;
+  person: ReturnType<typeof personQueries>;
+  opportunityPerson: ReturnType<typeof opportunityPersonQueries>;
+  event: ReturnType<typeof eventQueries>;
+};
+
+export function scoped(db: Db, userId: string): Scoped {
   return {
     userId,
     async transaction<T>(fn: (tx: Scoped) => Promise<T>): Promise<T> {
@@ -32,8 +57,6 @@ export function scoped(db: Db, userId: string) {
     event: eventQueries(db, userId),
   };
 }
-
-export type Scoped = ReturnType<typeof scoped>;
 
 export function scopedFor(userId: string): Scoped {
   return scoped(getDb(), userId);
