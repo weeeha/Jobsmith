@@ -23,6 +23,7 @@ import { useAnnounce } from "@/components/live-announcer";
 import { BoardColumn } from "@/components/board/board-column";
 import { JobCard } from "@/components/board/job-card";
 import { CloseDialog } from "@/components/board/close-dialog";
+import { AddJobDialog } from "@/components/board/add-job-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
@@ -83,7 +84,15 @@ export function BoardViewSwitch({ view }: { view: "active" | "closed" }) {
   );
 }
 
-export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string }) {
+export function Board({
+  cards,
+  nowIso,
+  companyNames,
+}: {
+  cards: BoardCard[];
+  nowIso: string;
+  companyNames: string[];
+}) {
   // A prop, not a fresh `new Date()` in the client, so the server-rendered
   // HTML and the first client render agree (the same reasoning LocalTime
   // uses).
@@ -97,6 +106,7 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
   );
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [pendingCloseId, setPendingCloseId] = React.useState<string | null>(null);
+  const [addOpen, setAddOpen] = React.useState(false);
   const isDragging = activeId !== null;
 
   const sensors = useSensors(
@@ -188,65 +198,91 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
   // `cards.length`, the server-confirmed prop, not the optimistic view: a
   // job being closed optimistically should not flash the whole board to
   // its empty state before the server round trip confirms it.
-  if (cards.length === 0) {
-    return (
-      <div className="hidden md:flex">
-        <EmptyState
-          size="page"
-          title="No jobs yet"
-          description="Add the first job you are tracking."
-          action={<Button>Add job</Button>}
-          className="w-full"
-        />
-      </div>
-    );
-  }
+  const isEmpty = cards.length === 0;
 
+  // AddJobDialog is written exactly once below, as a stable sibling outside
+  // the isEmpty/non-empty branches, and NOT once per branch. A card being
+  // added is exactly the moment `cards.length` flips from 0 to 1, which
+  // flips `isEmpty` too: writing <AddJobDialog> inside each branch's own
+  // JSX (as two separate call sites, one under a guard clause's early
+  // `return`) would put it at two different positions in the tree, so
+  // React would unmount the instance handling the in-flight submission and
+  // mount a brand new one right as the server action resolves - the new
+  // instance's own useActionState starts back at `undefined`, so it never
+  // sees the `{ ok: true }` that just came back, and neither the
+  // close-the-dialog nor the announce() effect ever runs. Confirmed
+  // empirically (scratch Playwright script): with two call sites, a valid
+  // submit against a zero-job board leaves the dialog open and silent even
+  // though the card is created correctly. One call site at a fixed
+  // position keeps the same component instance mounted across that
+  // transition, so its state survives.
   return (
-    <div className="hidden md:flex md:flex-col md:gap-4">
-      <DndContext
-        sensors={sensors}
-        accessibility={{ announcements: silentAnnouncements, screenReaderInstructions }}
-        onDragStart={(event) => setActiveId(String(event.active.id))}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveId(null)}
-      >
-        <section
-          tabIndex={0}
-          aria-label="Board columns"
-          className="flex gap-4 overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {STAGE_KINDS.map((stage) => {
-            const columnCards = optimisticCards.filter((card) => card.stage.kind === stage.kind);
-            return (
-              <BoardColumn key={stage.kind} kind={stage.kind} cards={columnCards}>
-                {columnCards.map((card) => (
-                  <JobCard
-                    key={card.id}
-                    card={card}
-                    now={now}
-                    onMove={(target) => runMove(card.id, target)}
-                    onRequestClose={() => setPendingCloseId(card.id)}
-                  />
-                ))}
-              </BoardColumn>
-            );
-          })}
-        </section>
-        {isDragging && <ClosedDropZone />}
-        <DragOverlay>
-          {activeCard ? <JobCard card={activeCard} now={now} onMove={() => {}} onRequestClose={() => {}} overlay /> : null}
-        </DragOverlay>
-      </DndContext>
-      <CloseDialog
-        open={pendingCloseId !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingCloseId(null);
-        }}
-        job={pendingCloseCard ? { roleTitle: pendingCloseCard.roleTitle, companyName: pendingCloseCard.companyName } : null}
-        onConfirm={handleConfirmClose}
-      />
-    </div>
+    <>
+      {isEmpty ? (
+        <div className="hidden md:flex">
+          <EmptyState
+            size="page"
+            title="No jobs yet"
+            description="Add the first job you are tracking."
+            action={<Button onClick={() => setAddOpen(true)}>Add job</Button>}
+            className="w-full"
+          />
+        </div>
+      ) : (
+        <div className="hidden md:flex md:flex-col md:gap-4">
+          <div className="flex items-center justify-end">
+            <Button onClick={() => setAddOpen(true)}>Add job</Button>
+          </div>
+          <DndContext
+            sensors={sensors}
+            accessibility={{ announcements: silentAnnouncements, screenReaderInstructions }}
+            onDragStart={(event) => setActiveId(String(event.active.id))}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <section
+              tabIndex={0}
+              aria-label="Board columns"
+              className="flex gap-4 overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {STAGE_KINDS.map((stage) => {
+                const columnCards = optimisticCards.filter((card) => card.stage.kind === stage.kind);
+                return (
+                  <BoardColumn key={stage.kind} kind={stage.kind} cards={columnCards}>
+                    {columnCards.map((card) => (
+                      <JobCard
+                        key={card.id}
+                        card={card}
+                        now={now}
+                        onMove={(target) => runMove(card.id, target)}
+                        onRequestClose={() => setPendingCloseId(card.id)}
+                      />
+                    ))}
+                  </BoardColumn>
+                );
+              })}
+            </section>
+            {isDragging && <ClosedDropZone />}
+            <DragOverlay>
+              {activeCard ? (
+                <JobCard card={activeCard} now={now} onMove={() => {}} onRequestClose={() => {}} overlay />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+          <CloseDialog
+            open={pendingCloseId !== null}
+            onOpenChange={(open) => {
+              if (!open) setPendingCloseId(null);
+            }}
+            job={
+              pendingCloseCard ? { roleTitle: pendingCloseCard.roleTitle, companyName: pendingCloseCard.companyName } : null
+            }
+            onConfirm={handleConfirmClose}
+          />
+        </div>
+      )}
+      <AddJobDialog open={addOpen} onOpenChange={setAddOpen} companyNames={companyNames} />
+    </>
   );
 }
 

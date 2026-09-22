@@ -11,6 +11,7 @@ export default async function BoardPage(props: PageProps<"/board">) {
   const view = searchParams.view === "closed" ? "closed" : "active";
   const s = scopedFor(user.id);
   const nowIso = new Date().toISOString();
+  const companyNames = (await s.company.list()).map((c) => c.name);
 
   return (
     <div className="p-6">
@@ -22,7 +23,7 @@ export default async function BoardPage(props: PageProps<"/board">) {
       {view === "closed" ? (
         <ClosedList cards={await s.opportunity.listClosed()} />
       ) : (
-        <Board cards={sortCards(await s.opportunity.listBoard())} nowIso={nowIso} />
+        <Board cards={sortCards(await s.opportunity.listBoard())} nowIso={nowIso} companyNames={companyNames} />
       )}
       <RefreshOnFocus />
     </div>
