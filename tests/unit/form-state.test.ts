@@ -17,10 +17,13 @@ describe("fieldErrorsFromZod", () => {
   });
 
   it("keeps only the first issue when one field fails more than one rule", () => {
-    const schema = z.object({ value: z.string().min(5).email() });
+    const schema = z.object({
+      value: z.string().min(5, "too short").email("not a valid email"),
+    });
     const result = schema.safeParse({ value: "a" });
     if (result.success) throw new Error("expected validation to fail");
     const errors = fieldErrorsFromZod(result.error);
     expect(Object.keys(errors)).toEqual(["value"]);
+    expect(errors.value).toBe("too short");
   });
 });
