@@ -23,6 +23,41 @@ interface AddJobDialogProps {
 }
 
 export function AddJobDialog({ open, onOpenChange, companyNames }: AddJobDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        {/*
+          AddJobForm owns useActionState and is a genuinely separate
+          component, not inline JSX here, on purpose (Task 8 review
+          finding 1). AddJobDialog itself is a stable sibling in
+          board.tsx that never unmounts - that is what fixed an earlier
+          remount bug and must stay that way - so a hook called directly
+          in ITS body would keep its state forever, surviving every
+          close/reopen. Base UI's DialogPortal, by contrast, genuinely
+          unmounts whatever is inside DialogContent once closed
+          (`shouldRender = mounted || keepMounted`, keepMounted defaults
+          to false - see node_modules/@base-ui/react/dialog/portal/
+          DialogPortal.js). Placing useActionState in a component that
+          lives inside THAT boundary means a failed attempt's error
+          state is discarded for free the moment the dialog fully closes,
+          and a fresh AddJobForm - with a fresh useActionState starting
+          at `undefined` - mounts the next time it opens. No manual
+          reset, key, or extra state is needed, and nothing about the
+          dialog's own mount/unmount timing changes.
+        */}
+        <AddJobForm onOpenChange={onOpenChange} companyNames={companyNames} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddJobForm({
+  onOpenChange,
+  companyNames,
+}: {
+  onOpenChange: (open: boolean) => void;
+  companyNames: string[];
+}) {
   const [state, formAction, pending] = React.useActionState<FormState, FormData>(createOpportunityAction, undefined);
   const announce = useAnnounce();
   const lastSubmitted = React.useRef({ companyName: "", roleTitle: "" });
@@ -62,74 +97,97 @@ export function AddJobDialog({ open, onOpenChange, companyNames }: AddJobDialogP
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle>Add a job</DialogTitle>
-          </DialogHeader>
+    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <DialogHeader>
+        <DialogTitle>Add a job</DialogTitle>
+      </DialogHeader>
 
-          {state?.ok === false ? (
-            <p role="alert" className="text-sm text-destructive">
-              {state.message}
-              {state.href ? (
-                <>
-                  {" "}
-                  <Link href={state.href} className="underline underline-offset-4">
-                    Open it
-                  </Link>
-                </>
-              ) : null}
-            </p>
+      {state?.ok === false ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.message}
+          {state.href ? (
+            <>
+              {" "}
+              <Link href={state.href} className="underline underline-offset-4">
+                Open it
+              </Link>
+            </>
           ) : null}
+        </p>
+      ) : null}
 
-          <div className="flex max-h-96 flex-col gap-3 overflow-y-auto">
-            <FieldRow label="Company" hint={fieldErrors?.companyName}>
-              {(id, describedBy) => (
-                <>
-                  <Input
-                    id={id}
-                    name="companyName"
-                    list={companyListId}
-                    aria-describedby={describedBy}
-                    aria-invalid={Boolean(fieldErrors?.companyName)}
-                  />
-                  <datalist id={companyListId}>
-                    {companyNames.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                </>
-              )}
-            </FieldRow>
+      <div className="flex max-h-96 flex-col gap-3 overflow-y-auto">
+        <FieldRow label="Company" hint={fieldErrors?.companyName}>
+          {(id, describedBy) => (
+            <>
+              <Input
+                id={id}
+                name="companyName"
+                list={companyListId}
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(fieldErrors?.companyName)}
+              />
+              <datalist id={companyListId}>
+                {companyNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </FieldRow>
 
-            <FieldRow label="Role" hint={fieldErrors?.roleTitle}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  name="roleTitle"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.roleTitle)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Role" hint={fieldErrors?.roleTitle}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              name="roleTitle"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.roleTitle)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Location" hint={fieldErrors?.location}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  name="location"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.location)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Location" hint={fieldErrors?.location}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              name="location"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.location)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Work mode" hint={fieldErrors?.workMode}>
-              {(id, describedBy) => (
+        <FieldRow label="Work mode" hint={fieldErrors?.workMode}>
+          {(id, describedBy) => {
+            const legendId = `${id}-legend`;
+            return (
+              // A plain FieldRow label can't name this control: Base UI's
+              // RadioGroup only takes its accessible name from its own
+              // Field.Label or Fieldset.Legend context (confirmed by
+              // reading node_modules/@base-ui/react/radio-group/
+              // RadioGroup.js - `ariaLabelledby = labelId ??
+              // fieldsetContext?.legendId`, both populated exclusively by
+              // Base UI's own Field.Root/Fieldset.Root), which neither
+              // FieldRow's `<label htmlFor>` nor a bare native
+              // <fieldset>/<legend> (this codebase's own precedent,
+              // close-dialog.tsx) ever provides - Base UI does not detect
+              // a plain HTML fieldset. So the name is wired explicitly
+              // with aria-labelledby rather than left to implicit
+              // association. The <legend> stays screen-reader-only and
+              // the <fieldset> is `contents` (out of the box model
+              // entirely), so FieldRow's own visible "Work mode" label is
+              // still the only copy a sighted user sees - this row's
+              // layout matches every other FieldRow here exactly
+              // (Task 8 review finding 3).
+              <fieldset className="contents">
+                <legend id={legendId} className="sr-only">
+                  Work mode
+                </legend>
                 <RadioGroup
                   id={id}
                   name="workMode"
+                  aria-labelledby={legendId}
                   aria-describedby={describedBy}
                   aria-invalid={Boolean(fieldErrors?.workMode)}
                 >
@@ -146,117 +204,117 @@ export function AddJobDialog({ open, onOpenChange, companyNames }: AddJobDialogP
                     <Label htmlFor="add-job-work-mode-onsite">On site</Label>
                   </div>
                 </RadioGroup>
-              )}
-            </FieldRow>
+              </fieldset>
+            );
+          }}
+        </FieldRow>
 
-            <FieldRow label="Link to the posting" hint={fieldErrors?.sourceUrl}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  type="url"
-                  name="sourceUrl"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.sourceUrl)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Link to the posting" hint={fieldErrors?.sourceUrl}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              type="url"
+              name="sourceUrl"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.sourceUrl)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Posting text" hint={fieldErrors?.postingText}>
-              {(id, describedBy) => (
-                <Textarea
-                  id={id}
-                  name="postingText"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.postingText)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Posting text" hint={fieldErrors?.postingText}>
+          {(id, describedBy) => (
+            <Textarea
+              id={id}
+              name="postingText"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.postingText)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Pay from" hint={fieldErrors?.compMin}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  type="number"
-                  name="compMin"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.compMin)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Pay from" hint={fieldErrors?.compMin}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              type="number"
+              name="compMin"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.compMin)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Pay to" hint={fieldErrors?.compMax}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  type="number"
-                  name="compMax"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.compMax)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Pay to" hint={fieldErrors?.compMax}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              type="number"
+              name="compMax"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.compMax)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Currency" hint={fieldErrors?.compCurrency}>
-              {(id, describedBy) => (
-                <Input
-                  id={id}
-                  name="compCurrency"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.compCurrency)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Currency" hint={fieldErrors?.compCurrency}>
+          {(id, describedBy) => (
+            <Input
+              id={id}
+              name="compCurrency"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.compCurrency)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Pay note" hint={fieldErrors?.compNote}>
-              {(id, describedBy) => (
-                <Textarea
-                  id={id}
-                  name="compNote"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.compNote)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="Pay note" hint={fieldErrors?.compNote}>
+          {(id, describedBy) => (
+            <Textarea
+              id={id}
+              name="compNote"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.compNote)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="My ask" hint={fieldErrors?.myAsk}>
-              {(id, describedBy) => (
-                <Textarea
-                  id={id}
-                  name="myAsk"
-                  aria-describedby={describedBy}
-                  aria-invalid={Boolean(fieldErrors?.myAsk)}
-                />
-              )}
-            </FieldRow>
+        <FieldRow label="My ask" hint={fieldErrors?.myAsk}>
+          {(id, describedBy) => (
+            <Textarea
+              id={id}
+              name="myAsk"
+              aria-describedby={describedBy}
+              aria-invalid={Boolean(fieldErrors?.myAsk)}
+            />
+          )}
+        </FieldRow>
 
-            <FieldRow label="Where is it now">
-              {(id) => (
-                <Select id={id} name="whereIsItNow" defaultValue="saved">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STAGE_KINDS.map((stage) => (
-                      <SelectItem key={stage.kind} value={stage.kind}>
-                        {stage.columnTitle}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </FieldRow>
-          </div>
+        <FieldRow label="Where is it now">
+          {(id) => (
+            <Select id={id} name="whereIsItNow" defaultValue="saved">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STAGE_KINDS.map((stage) => (
+                  <SelectItem key={stage.kind} value={stage.kind}>
+                    {stage.columnTitle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FieldRow>
+      </div>
 
-          <DialogFooter>
-            <Button ref={submitRef} type="submit" disabled={pending}>
-              Add job
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button ref={submitRef} type="submit" disabled={pending}>
+          Add job
+        </Button>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

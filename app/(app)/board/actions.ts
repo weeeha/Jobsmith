@@ -143,10 +143,25 @@ export async function createOpportunityAction(prev: FormState, formData: FormDat
   // that is already at a later stage was applied to first, so Applied must
   // not end up skipped.
   const whereIsItNow = formData.get("whereIsItNow");
+  let placement: Result<null, MoveError> | undefined;
   if (typeof whereIsItNow === "string" && isStageKind(whereIsItNow)) {
-    await placeOpportunity(s, result.data.id, whereIsItNow);
+    placement = await placeOpportunity(s, result.data.id, whereIsItNow);
   }
 
+  // The opportunity itself was already created at this point, so the board
+  // is revalidated either way - it exists at whatever stage placeOpportunity
+  // reached, not silently lost. Not reachable today: createOpportunity
+  // always inserts every STAGE_KIND, so none of MoveError's four cases can
+  // fire for a just-created job. Checked anyway, and the failure surfaced
+  // rather than discarded, because lib/pipeline/place.ts documents that the
+  // import (Task 12) and seed (Task 13) tasks reuse this same function, and
+  // nothing here would catch a regression that later breaks that invariant
+  // - without this check, this action would report `{ ok: true }` and the
+  // UI would announce the job as added at a stage it never reached.
   revalidatePath("/board");
+  if (placement && !placement.ok) {
+    return { ok: false, code: placement.code, message: messageFor(placement.code) };
+  }
+
   return { ok: true };
 }
