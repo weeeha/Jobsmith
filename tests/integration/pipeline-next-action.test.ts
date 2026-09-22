@@ -28,6 +28,11 @@ describe("setNextAction", () => {
       const user = await createTestUser(db, "owner2@example.com");
       const s = scoped(db, user.id);
       const { id } = await seedOpportunity(s);
+      const at = new Date("2026-09-25T09:00:00.000Z");
+      await setNextAction(s, id, { text: "Apply", at });
+      const before = await s.opportunity.getById(id);
+      expect(before?.nextActionAt).toEqual(at);
+
       expectOk(await setNextAction(s, id, { text: "Apply", at: null }));
       const opportunity = await s.opportunity.getById(id);
       expect(opportunity?.nextActionAt).toBeNull();

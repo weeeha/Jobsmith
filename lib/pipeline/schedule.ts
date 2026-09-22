@@ -23,7 +23,7 @@ export async function scheduleStage(
 
     const stage = loaded.data.state.stages.find((st) => st.id === stageId);
     if (!stage) {
-      return fail("not_found", "This job no longer exists.");
+      return fail("not_found", "That stage does not belong to this job.");
     }
 
     const isFuture = input.scheduledAt !== null && input.scheduledAt.getTime() > resolvedNow.getTime();
@@ -57,7 +57,7 @@ export async function setStageOutcome(
   const stages = await s.stage.listForOpportunity(opportunityId);
   const stage = stages.find((st) => st.id === stageId);
   if (!stage) {
-    return fail("not_found", "This job no longer exists.");
+    return fail("not_found", "That stage does not belong to this job.");
   }
 
   await s.stage.update(stageId, { outcomeMd });
