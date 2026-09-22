@@ -2,16 +2,6 @@ import { test, expect } from "@playwright/test";
 import { scanForViolations } from "./axe";
 import { EMAIL, PASSWORD } from "./account";
 
-const COLUMN_TITLES = [
-  "Saved",
-  "Applied",
-  "Recruiter",
-  "Hiring manager",
-  "Portfolio / case",
-  "Panel / final",
-  "Offer",
-];
-
 test("shell: login, board, home, navigation and accessibility", async ({ page }, testInfo) => {
   await test.step("an unauthenticated visit is sent to login and returns to the board", async () => {
     await page.goto("/board");
@@ -22,9 +12,21 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
     await expect(page).toHaveURL(/\/board$/);
   });
 
-  await test.step("the board shows its seven empty columns", async () => {
-    for (const title of COLUMN_TITLES) {
-      await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await test.step("the board shows its empty state for a new, zero-job account", async () => {
+    // This account never has any opportunities seeded anywhere in this
+    // suite (first-run.spec.ts only ever creates the account itself), so
+    // Board correctly renders its empty state - EmptyState's title,
+    // description and "Add job" action - instead of seven columns.
+    if (testInfo.project.name === "phone") {
+      // Board's own root still carries `hidden md:flex` (Task 9, not yet
+      // built, is what adds the phone board beside it), so at this width
+      // nothing under the view switch is visible yet - not even the
+      // desktop empty state.
+      await expect(page.getByText("No jobs yet")).toBeHidden();
+    } else {
+      await expect(page.getByText("No jobs yet")).toBeVisible();
+      await expect(page.getByText("Add the first job you are tracking.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Add job" })).toBeVisible();
     }
     await scanForViolations(page, "/board", testInfo);
   });

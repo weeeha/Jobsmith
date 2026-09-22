@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/super-ai/empty-state";
 import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
 import { reopenAction } from "@/app/(app)/board/actions";
+import { actionFailureMessage } from "@/lib/board/messages";
 import { CLOSED_REASON_LABELS } from "@/lib/pipeline/labels";
-import { messageFor } from "@/lib/pipeline/messages";
 import type { ClosedCard } from "@/lib/db/scoped";
 
 interface ClosedListProps {
@@ -44,12 +44,16 @@ function ClosedListRow({ card }: { card: ClosedCard }) {
       try {
         const result = await reopenAction(card.id);
         if (!result.ok) {
-          toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor(result.code)}`);
+          toast.error(actionFailureMessage("reopen", card, result.code));
           return;
         }
         announce(`Reopened ${card.roleTitle} at ${card.companyName}.`);
-      } catch {
-        toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor("unexpected")}`);
+      } catch (error) {
+        // Logged before the toast, matching app/(auth)/setup/actions.ts's
+        // precedent: there is no telemetry elsewhere in this tree, so this
+        // is currently the only diagnostic trail for a genuine bug.
+        console.error("reopen failed", error);
+        toast.error(actionFailureMessage("reopen", card, "unexpected"));
       }
     });
   }

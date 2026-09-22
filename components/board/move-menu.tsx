@@ -44,7 +44,16 @@ export function MoveMenu({ card, onMove, onRequestClose }: MoveMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         {STAGE_KINDS.map((stage) => (
-          <DropdownMenuItem key={stage.kind} onClick={() => onMove({ kind: stage.kind })}>
+          // The card's current column is disabled rather than omitted, so
+          // the "this is a no-op" fact is visible in the menu instead of
+          // just silently doing nothing if chosen (Task 7 review finding 1).
+          // runMove's own same-column guard is what actually makes choosing
+          // it a no-op; this is the visible half of that fix.
+          <DropdownMenuItem
+            key={stage.kind}
+            disabled={stage.kind === card.stage.kind}
+            onClick={() => onMove({ kind: stage.kind })}
+          >
             {stage.columnTitle}
           </DropdownMenuItem>
         ))}

@@ -32,9 +32,22 @@ describe("sortCards", () => {
   });
 
   it("does not mutate the input array", () => {
-    const input = [card({ id: "a" }), card({ id: "b" })];
-    const copy = [...input];
+    // Deliberately out of sorted order (the correct result of sortCards is
+    // [soon, later]) and with distinct nextActionAt values, so a broken
+    // implementation that sorted `input` itself in place - rather than a
+    // copy of it - would visibly reorder it, unlike two cards tied on every
+    // sort key, which stay put under a stable sort whether or not a copy
+    // was made.
+    const soon = card({ id: "soon", nextActionAt: new Date("2026-09-20T00:00:00.000Z") });
+    const later = card({ id: "later", nextActionAt: new Date("2026-09-25T00:00:00.000Z") });
+    const input = [later, soon];
+    // A snapshot with its own `stage` objects, not shared with `input`'s, so
+    // a field-level mutation of a card (e.g. an in-place rewrite of
+    // `stage.kind`) would also diverge from it - a shallow `[...input]`
+    // copy shares every element's object identity with `input` and so could
+    // never catch that class of bug.
+    const snapshot = input.map((c) => ({ ...c, stage: { ...c.stage } }));
     sortCards(input);
-    expect(input).toEqual(copy);
+    expect(input).toEqual(snapshot);
   });
 });

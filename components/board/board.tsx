@@ -25,8 +25,8 @@ import { JobCard } from "@/components/board/job-card";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
+import { actionFailureMessage } from "@/lib/board/messages";
 import { columnTitle } from "@/lib/pipeline/labels";
-import { messageFor } from "@/lib/pipeline/messages";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { cn } from "@/lib/utils";
 import type { BoardCard } from "@/lib/db/scoped";
@@ -107,16 +107,24 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
   function runMove(cardId: string, target: MoveTarget) {
     const card = optimisticCards.find((c) => c.id === cardId);
     if (!card) return;
+    // A move to the card's own column is a silent no-op, full stop - no
+    // optimistic dispatch, no request, no toast - no matter which of the
+    // three triggers (a drop, a number key, the "Move to" menu) asks for it.
+    // Living here rather than at each call site is what makes all three
+    // behave identically instead of only the one that remembers to check
+    // (Task 7 review finding 1). The menu also renders this same column
+    // `disabled` so the no-op is visible, not just silent.
+    if ("kind" in target && target.kind === card.stage.kind) return;
     React.startTransition(async () => {
       if ("kind" in target) dispatchOptimistic({ type: "move", id: cardId, toKind: target.kind });
       try {
         const result = await moveAction(cardId, target);
         if (!result.ok) {
-          toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor(result.code)}`);
+          toast.error(actionFailureMessage("move", card, result.code));
           return;
         }
         announce(`Moved ${card.roleTitle} at ${card.companyName} to ${columnTitle(result.data.to.kind)}.`);
-      } catch {
+      } catch (error) {
         // moveAction itself can reject before ever returning a Result - for
         // example requireUser()'s own session lookup throws when the
         // database is unreachable, verified by manually stopping the
@@ -124,8 +132,12 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
         // once this transition ends (D6, tested the same way); without this
         // catch, that revert would happen silently with no toast at all,
         // which is a worse failure than the one this file's Result-based
-        // handling above already covers.
-        toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor("unexpected")}`);
+        // handling above already covers. Logged before the toast, matching
+        // app/(auth)/setup/actions.ts's precedent: there is no telemetry
+        // elsewhere in this tree, so this is currently the only diagnostic
+        // trail for a genuine bug.
+        console.error("move failed", error);
+        toast.error(actionFailureMessage("move", card, "unexpected"));
       }
     });
   }
@@ -138,14 +150,15 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
       try {
         const result = await closeAction(cardId, reason);
         if (!result.ok) {
-          toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor(result.code)}`);
+          toast.error(actionFailureMessage("close", card, result.code));
           return;
         }
         announce(`Closed ${card.roleTitle} at ${card.companyName}.`);
-      } catch {
+      } catch (error) {
         // See runMove's matching catch: closeAction can also reject before
         // returning a Result.
-        toast.error(`Could not move ${card.roleTitle} at ${card.companyName}. ${messageFor("unexpected")}`);
+        console.error("close failed", error);
+        toast.error(actionFailureMessage("close", card, "unexpected"));
       }
     });
   }
@@ -159,10 +172,9 @@ export function Board({ cards, nowIso }: { cards: BoardCard[]; nowIso: string })
       setPendingCloseId(cardId);
       return;
     }
-    const toKind = over.id as StageKind;
-    const card = optimisticCards.find((c) => c.id === cardId);
-    if (!card || card.stage.kind === toKind) return; // dropping on its own column does nothing
-    runMove(cardId, { kind: toKind });
+    // A drop on the card's own column is a no-op: runMove's own guard
+    // handles that (see its comment) so it does not need repeating here.
+    runMove(cardId, { kind: over.id as StageKind });
   }
 
   function handleConfirmClose(reason: ClosedReason) {
