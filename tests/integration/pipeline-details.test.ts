@@ -38,6 +38,57 @@ describe("updateOpportunityDetails", () => {
       await close();
     }
   });
+
+  // Ruling 1 (Task 10): a blank optional field on the Edit details form
+  // means "clear this column", not "leave unchanged" - so the schema and
+  // the function's input type accept `null` for every optional column.
+  // roleTitle is excluded: it has no clearing gesture in the UI and stays
+  // required-when-given and non-empty.
+  it("stores null for location and sourceUrl when they are sent as null, clearing them", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "clearer@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, {
+        location: "Remote",
+        sourceUrl: "https://example.com/job",
+      });
+      expectOk(await updateOpportunityDetails(s, id, { location: null, sourceUrl: null }));
+      const opportunity = await s.opportunity.getById(id);
+      expect(opportunity?.location).toBeNull();
+      expect(opportunity?.sourceUrl).toBeNull();
+    } finally {
+      await close();
+    }
+  });
+
+  it("still rejects a blank roleTitle (it cannot be cleared)", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "blanker@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s);
+      expectFail(await updateOpportunityDetails(s, id, { roleTitle: "" }), "invalid");
+      const opportunity = await s.opportunity.getById(id);
+      expect(opportunity?.roleTitle).toBe("Product Designer");
+    } finally {
+      await close();
+    }
+  });
+
+  it("still rejects compMin > compMax when both are set, but ignores either side when null", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ranger@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { compMin: 100000, compMax: 150000 });
+      expectOk(await updateOpportunityDetails(s, id, { compMax: null }));
+      expectOk(await updateOpportunityDetails(s, id, { compMin: null, compMax: 150000 }));
+      expectFail(await updateOpportunityDetails(s, id, { compMin: 200000, compMax: 100000 }), "invalid");
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe("updateCompanyDetails", () => {
