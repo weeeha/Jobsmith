@@ -26,6 +26,24 @@ describe("addStage", () => {
       expect(stages).toHaveLength(8);
       expect(stages.map((st) => st.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
       expect(stages.find((st) => st.id === result.stageId)?.label).toBe("Take-home");
+      // Positions alone are contiguous "for free" here because the new row is
+      // inserted at the tail (position 7) before renumber runs, so a broken
+      // or missing renumber call would still leave 0..7 with no gaps. Assert
+      // the actual ORDER too: planAddStage places a same-kind stage right
+      // after the last existing one of that kind, so the new portfolio_case
+      // belongs at index 5, ahead of panel_final and offer. Only a real
+      // renumber call moves it there from the tail it was inserted at.
+      expect(stages.map((st) => st.kind)).toEqual([
+        "saved",
+        "applied",
+        "recruiter_screen",
+        "hiring_manager",
+        "portfolio_case",
+        "portfolio_case",
+        "panel_final",
+        "offer",
+      ]);
+      expect(stages[5]?.id).toBe(result.stageId);
     } finally {
       await close();
     }

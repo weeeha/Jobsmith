@@ -1,6 +1,6 @@
 import type { Scoped } from "@/lib/db/scoped";
-import { type Result, ok, fail } from "@/lib/result";
-import { loadState } from "@/lib/pipeline/snapshot";
+import { type Result, ok } from "@/lib/result";
+import { loadOrFail } from "@/lib/pipeline/snapshot";
 import {
   planAddStage,
   planRename,
@@ -26,19 +26,19 @@ export async function addStage(
   label: string,
 ): Promise<Result<{ stageId: string }, EditError>> {
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planAddStage(loaded.state, kind, label);
+    const result = planAddStage(loaded.data.state, kind, label);
     if (!result.ok) {
       return result;
     }
 
     // Positions are contiguous 0..n-1, so the stage count is the next free
     // slot; renumber() immediately below reassigns every position anyway.
-    const maxPosition = loaded.state.stages.length;
+    const maxPosition = loaded.data.state.stages.length;
     const newStage = await tx.stage.insert({
       opportunityId,
       kind: result.data.create.kind,
@@ -60,12 +60,12 @@ export async function renameStage(
   label: string,
 ): Promise<Result<null, EditError>> {
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planRename(loaded.state, stageId, label);
+    const result = planRename(loaded.data.state, stageId, label);
     if (!result.ok) {
       return result;
     }
@@ -81,12 +81,12 @@ export async function reorderStages(
   orderedIds: string[],
 ): Promise<Result<null, EditError>> {
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planReorder(loaded.state, orderedIds);
+    const result = planReorder(loaded.data.state, orderedIds);
     if (!result.ok) {
       return result;
     }
@@ -102,12 +102,12 @@ export async function skipStage(
   stageId: string,
 ): Promise<Result<null, EditError>> {
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planSkip(loaded.state, stageId);
+    const result = planSkip(loaded.data.state, stageId);
     if (!result.ok) {
       return result;
     }
@@ -126,12 +126,12 @@ export async function unskipStage(
   const resolvedNow = now ?? new Date();
 
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planUnskip(loaded.state, stageId, resolvedNow);
+    const result = planUnskip(loaded.data.state, stageId, resolvedNow);
     if (!result.ok) {
       return result;
     }
@@ -147,12 +147,12 @@ export async function removeStage(
   stageId: string,
 ): Promise<Result<null, EditError>> {
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const result = planRemove(loaded.state, stageId);
+    const result = planRemove(loaded.data.state, stageId);
     if (!result.ok) {
       return result;
     }

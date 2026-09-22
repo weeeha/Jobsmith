@@ -1,6 +1,6 @@
 import type { Scoped } from "@/lib/db/scoped";
-import { type Result, ok, fail } from "@/lib/result";
-import { loadState } from "@/lib/pipeline/snapshot";
+import { type Result, ok } from "@/lib/result";
+import { loadOrFail } from "@/lib/pipeline/snapshot";
 import { planMove, NEW_STAGE, type MoveTarget, type MoveError } from "@/lib/pipeline/rules";
 import type { StageKind } from "@/lib/pipeline/kinds";
 
@@ -18,12 +18,12 @@ export async function moveOpportunity(
   const resolvedNow = now ?? new Date();
 
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
 
-    const plan = planMove(loaded.state, target, resolvedNow);
+    const plan = planMove(loaded.data.state, target, resolvedNow);
     if (!plan.ok) {
       return plan;
     }
@@ -31,7 +31,7 @@ export async function moveOpportunity(
     let targetStageId: string;
 
     if (plan.data.create) {
-      const maxPosition = Math.max(...loaded.state.stages.map((st) => st.position));
+      const maxPosition = Math.max(...loaded.data.state.stages.map((st) => st.position));
       const newStage = await tx.stage.insert({
         opportunityId,
         kind: plan.data.create.kind,

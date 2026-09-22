@@ -2,6 +2,7 @@ import type { Scoped, OpportunityRow } from "@/lib/db/scoped";
 import type { OpportunityState, StageState } from "@/lib/pipeline/rules";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { OpportunityStatus, StageStatus } from "@/lib/pipeline/values";
+import { type Result, ok, fail } from "@/lib/result";
 
 export async function loadState(
   s: Scoped,
@@ -34,4 +35,23 @@ export async function loadState(
   };
 
   return { opportunity: row, state };
+}
+
+// Every pipeline command (move/close/reopen/stage-edit) opens with the same
+// load-and-guard: lock the opportunity row, and fail with "not_found" if it
+// doesn't exist (or belongs to another tenant, which looks identical by
+// design). Shared here so that block exists exactly once; it only loads and
+// guards, it never absorbs rule logic. Callers must pass a transaction's own
+// `tx` (never the outer `s`), same as `loadState` itself, so the lock this
+// takes is inside the same transaction as the snapshot read, in the same
+// order as before.
+export async function loadOrFail(
+  tx: Scoped,
+  opportunityId: string,
+): Promise<Result<{ opportunity: OpportunityRow; state: OpportunityState }, "not_found">> {
+  const loaded = await loadState(tx, opportunityId);
+  if (!loaded) {
+    return fail("not_found", "This job no longer exists.");
+  }
+  return ok(loaded);
 }

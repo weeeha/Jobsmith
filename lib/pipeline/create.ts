@@ -1,4 +1,5 @@
-import type { Scoped } from "@/lib/db/scoped";
+import { DrizzleQueryError } from "drizzle-orm";
+import type { OpportunityRow, Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 import { companyNameKey } from "@/lib/companies/name-key";
 import { baseSlug, uniqueSlug } from "@/lib/pipeline/slug";
@@ -20,6 +21,23 @@ export type CreateOpportunityInput = {
   myAsk?: string;
   source?: OpportunitySource;
 };
+
+// The slug handed to insert() below is allocated from a pre-commit read
+// (listSlugsWithPrefix), so two concurrent creates can compute the same
+// slug; the loser's insert then violates this constraint instead of the
+// findByCompanyAndRole check above catching it. node-postgres (prod) and
+// PGlite (tests) both speak the Postgres wire protocol, so either surfaces
+// the same way: drizzle-orm wraps the driver's error in a DrizzleQueryError,
+// with the original Postgres error (code 23505 = unique_violation, plus
+// which named constraint fired) on `.cause`. Verified empirically against
+// PGlite in this repo (see the task-4 fix report).
+const SLUG_UNIQUE_CONSTRAINT = "opportunity_user_slug_unique";
+
+function isSlugCollision(err: unknown): boolean {
+  if (!(err instanceof DrizzleQueryError)) return false;
+  const cause = err.cause as { code?: string; constraint?: string } | undefined;
+  return cause?.code === "23505" && cause?.constraint === SLUG_UNIQUE_CONSTRAINT;
+}
 
 export async function createOpportunity(
   s: Scoped,
@@ -49,23 +67,31 @@ export async function createOpportunity(
     const taken = await tx.opportunity.listSlugsWithPrefix(base);
     const slug = uniqueSlug(base, taken);
 
-    const opportunity = await tx.opportunity.insert({
-      companyId: company.id,
-      slug,
-      roleTitle: input.roleTitle.trim(),
-      location: input.location?.trim(),
-      workMode: input.workMode,
-      source: input.source ?? "manual",
-      sourceUrl: input.sourceUrl,
-      postingMd: input.postingText ?? null,
-      postingCapturedAt: input.postingText ? resolvedNow : null,
-      compMin: input.compMin,
-      compMax: input.compMax,
-      compCurrency: input.compCurrency,
-      compNote: input.compNote,
-      myAsk: input.myAsk,
-      currentStageId: null,
-    });
+    let opportunity: OpportunityRow;
+    try {
+      opportunity = await tx.opportunity.insert({
+        companyId: company.id,
+        slug,
+        roleTitle: input.roleTitle.trim(),
+        location: input.location?.trim(),
+        workMode: input.workMode,
+        source: input.source ?? "manual",
+        sourceUrl: input.sourceUrl,
+        postingMd: input.postingText ?? null,
+        postingCapturedAt: input.postingText ? resolvedNow : null,
+        compMin: input.compMin,
+        compMax: input.compMax,
+        compCurrency: input.compCurrency?.trim(),
+        compNote: input.compNote,
+        myAsk: input.myAsk,
+        currentStageId: null,
+      });
+    } catch (err) {
+      if (isSlugCollision(err)) {
+        return fail("duplicate", "You already have an active job for this company and role.");
+      }
+      throw err;
+    }
 
     const drafts = defaultStages();
     const stageRows = await tx.stage.insertMany(

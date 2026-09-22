@@ -1,6 +1,6 @@
 import type { Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
-import { loadState } from "@/lib/pipeline/snapshot";
+import { loadOrFail } from "@/lib/pipeline/snapshot";
 import type { ClosedReason } from "@/lib/pipeline/values";
 
 export async function closeOpportunity(
@@ -12,11 +12,11 @@ export async function closeOpportunity(
   const resolvedNow = now ?? new Date();
 
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
-    if (loaded.state.status === "closed") {
+    if (loaded.data.state.status === "closed") {
       return fail("closed", "This job is already closed.");
     }
 
@@ -24,7 +24,7 @@ export async function closeOpportunity(
       status: "closed",
       closedReason: reason,
       closedAt: resolvedNow,
-      closedStageId: loaded.opportunity.currentStageId,
+      closedStageId: loaded.data.opportunity.currentStageId,
     });
     await tx.event.insert({
       opportunityId,
@@ -45,11 +45,11 @@ export async function reopenOpportunity(
   const resolvedNow = now ?? new Date();
 
   return s.transaction(async (tx) => {
-    const loaded = await loadState(tx, opportunityId);
-    if (!loaded) {
-      return fail("not_found", "This job no longer exists.");
+    const loaded = await loadOrFail(tx, opportunityId);
+    if (!loaded.ok) {
+      return loaded;
     }
-    if (loaded.state.status !== "closed") {
+    if (loaded.data.state.status !== "closed") {
       return fail("not_closed", "This job is not closed.");
     }
 
