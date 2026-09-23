@@ -28,7 +28,7 @@ describe("updateOpportunityDetailsSchema plain messages", () => {
     );
   });
 
-  // I3: the same Postgres integer overflow as createOpportunitySchema - the
+  // The same Postgres integer overflow as createOpportunitySchema - the
   // Edit details form can also submit a pay figure this large.
   it("rejects a pay figure above Postgres's integer maximum", () => {
     expect(firstOpportunityMessage({ compMax: 3_000_000_000 })).toBe(

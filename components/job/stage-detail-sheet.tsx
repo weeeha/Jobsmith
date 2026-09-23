@@ -148,12 +148,12 @@ function StageDetailSheetBody({
   }
 
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
-  // I5: a closed job's stage sheet is the only way to read a past stage's
-  // date, format and outcome notes without reopening the job first, so the
-  // step buttons that open it stay enabled on a closed job (stage-
-  // stepper.tsx) - but nothing here should still look editable: every field
-  // is disabled and there is no Save. "Move here" is already excluded by
-  // the `opportunity.status === "active"` check above.
+  // This sheet is the only way to read a past stage's date, format and
+  // outcome notes without reopening the job first, so the step buttons
+  // that open it stay enabled on a closed job (stage-stepper.tsx) - but
+  // nothing here should still look editable: every field is disabled and
+  // there is no Save. "Move here" is already excluded by the
+  // `opportunity.status === "active"` check above.
   const isReadOnly = opportunity.status === "closed";
 
   return (

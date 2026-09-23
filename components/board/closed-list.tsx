@@ -62,10 +62,9 @@ function ClosedListRow({ card }: { card: ClosedCard }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3">
       <div className="min-w-0">
-        {/* I5: closed jobs were a dead end - this row showed the job's
-            name but gave no way to open it (ClosedCard.slug was fetched and
-            unused), so reading a stage's stored details meant reopening the
-            job first. */}
+        {/* A link, not plain text: the row otherwise showed a job's name
+            with no way to open it, so reading a stage's stored details
+            meant reopening the job first. */}
         <Link
           href={`/jobs/${card.slug}`}
           className="block truncate rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

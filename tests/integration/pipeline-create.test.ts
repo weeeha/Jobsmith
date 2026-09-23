@@ -124,10 +124,10 @@ describe("createOpportunity", () => {
     }
   });
 
-  // I3: comp_min/comp_max are Postgres `integer` columns (max
-  // 2,147,483,647). 3,000,000,000 is a valid JS safe integer, so without a
-  // matching Zod bound this reached the insert and Postgres itself threw -
-  // this proves it now comes back as an ordinary `invalid` result instead.
+  // comp_min/comp_max are Postgres `integer` columns (max 2,147,483,647).
+  // 3,000,000,000 is a valid JS safe integer, so without a matching Zod
+  // bound this reached the insert and Postgres itself threw - this proves
+  // it now comes back as an ordinary `invalid` result instead.
   it("rejects a pay figure above Postgres's integer maximum without throwing", async () => {
     const { db, close } = await makeTestDb();
     try {

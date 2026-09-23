@@ -40,7 +40,7 @@ describe("createOpportunitySchema plain messages", () => {
     expect(firstMessage({ ...VALID, compMin: 100.5 })).toBe("Enter a whole number.");
   });
 
-  // I3: 3,000,000,000 is a valid safe integer in JS but overflows Postgres's
+  // 3,000,000,000 is a valid safe integer in JS but overflows Postgres's
   // `integer` column (max 2,147,483,647) - without this bound, Zod accepted
   // it and Postgres threw at insert time instead of this schema returning
   // `invalid`.

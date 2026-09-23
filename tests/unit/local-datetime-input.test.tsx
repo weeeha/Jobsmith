@@ -34,7 +34,7 @@ describe("LocalDateTimeInput", () => {
     expect(visible.name).toBe("");
   });
 
-  // I5: a closed job's stage sheet shows this field read-only, so a viewer
+  // A closed job's stage sheet shows this field read-only, so a viewer
   // can see a past interview's date without being able to change it.
   it("disables the visible field when disabled is true", () => {
     const iso = new Date("2026-10-01T09:30").toISOString();
