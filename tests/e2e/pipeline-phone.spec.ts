@@ -31,7 +31,20 @@ test("phone: the board renders as a grouped list, and Move to opens a sheet", as
 
   const cardName = `${role} at ${company}`;
   await expect(page.getByRole("heading", { name: "Saved" })).toBeVisible();
-  await expect(page.getByText(cardName)).toBeVisible();
+  // Not getByText(cardName): the row's own two spans (role, then "at
+  // <company>") join with no space between them in the accessibility tree's
+  // text, so that query never matches the row - it was instead passing on
+  // the live region's own "Added <cardName>." announcement, still on screen
+  // at this point, which is a coincidence of wording, not proof the phone
+  // list actually shows the job. Scoped to the visible "Saved" group (the
+  // desktop board's own same-titled column sits in the DOM too, just
+  // display:none below this breakpoint) and queried by the row link's own
+  // role and full accessible name instead, the way the Applied check below
+  // already does after the move.
+  const savedGroup = page
+    .locator("section:visible")
+    .filter({ has: page.getByRole("heading", { name: "Saved", exact: true }) });
+  await expect(savedGroup.getByRole("link", { name: cardName })).toBeVisible();
   await scanForViolations(page, "phone list", testInfo);
 
   await page.getByRole("button", { name: `Move ${role} at ${company}` }).click();
