@@ -123,6 +123,28 @@ environment as First run. It needs the local Postgres running, resets it,
 and starts its own server on port 3000, or on `PORT` when set, with a
 matching `APP_URL`.
 
+## Importing applications once
+
+`pnpm import:applications <file> [--email <address>] [--dry-run]` reads a
+JSON array of applications and replays each one through the same rules the
+app itself uses to add and move a job, so events and stage history stay
+consistent with a job added by hand.
+
+Each entry: `company`, `roleTitle`, `stageKind` (one of `saved`, `applied`,
+`recruiter_screen`, `hiring_manager`, `portfolio_case`, `panel_final`,
+`offer`), and optionally `appliedAt` (a date, landing on the Applied
+stage's entered date, honored for every `stageKind` other than `saved`),
+`sourceUrl`, `notes` and `nextAction`. See
+`tests/fixtures/applications.sample.json` for a complete, fictional
+example.
+
+An entry whose company and role already exist for the target account is
+skipped, so running the same file twice changes nothing on the second run.
+`--email` chooses which account to import into: optional while the
+instance has exactly one account, required once it has more than one.
+`--dry-run` reports what would happen (created, skipped, and any entry it
+could not read, by its position in the file) without writing anything.
+
 ## Design system
 
 Tokens, vendored primitives and the re-sync process are documented in
