@@ -235,3 +235,32 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
   await page.goto("/board");
   await expect(page.getByRole("link", { name: cardName })).toBeVisible();
 });
+
+test("a pay figure the browser cannot read is rejected, not dropped", async ({ page }, testInfo) => {
+  await login(page);
+  const company = uniqueName(testInfo, "Halcyon Maps");
+  const role = "Product Designer";
+
+  await page.getByRole("button", { name: "Add job" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a job" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Company").fill(company);
+  await dialog.getByLabel("Role").fill(role);
+  // fill() refuses text a number box cannot parse, so this types it key by
+  // key, as a person would. The box keeps showing "12e" while the browser
+  // reports its value as "" (validity.badInput).
+  const payFrom = dialog.getByLabel("Pay from");
+  await payFrom.pressSequentially("12e");
+  await dialog.getByRole("button", { name: "Add job" }).click();
+
+  await expect(dialog.getByRole("alert")).toHaveText("Check the highlighted fields.");
+  await expect(payFrom).toHaveAccessibleDescription("Enter a number.");
+  await expect(payFrom).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByRole("button", { name: "Add job" })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole("region", { name: /^Saved,/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: `${role} at ${company}` })).toHaveCount(0);
+});

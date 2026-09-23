@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { createOpportunityAction } from "@/app/(app)/board/actions";
+import { UNREADABLE_INPUT_VALUE } from "@/lib/forms/submit";
 import { makeTestDb, createTestUser } from "../helpers/db";
 
 // createOpportunityAction turns the Add job form's text into numbers before
@@ -53,6 +54,21 @@ describe("createOpportunityAction pay figures", () => {
       }
     },
   );
+
+  // lib/forms/submit.ts sends this in place of a Pay box the browser holds
+  // text for but cannot read ("12e"). Read as blank, it would add the job
+  // without the figure.
+  it("rejects the stand-in sent for a pay figure the browser could not read", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "adder@example.com");
+      const state = await createOpportunityAction(undefined, addJobForm({ compMin: UNREADABLE_INPUT_VALUE }));
+      expect(state).toMatchObject({ ok: false, code: "invalid", fieldErrors: { compMin: "Enter a number." } });
+      expect(await db.select().from(schema.opportunity)).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
 
   // Number("") and Number("  ") are both 0, so a blank Pay box has to be
   // caught before Number() runs or it would be saved as a pay figure of 0.

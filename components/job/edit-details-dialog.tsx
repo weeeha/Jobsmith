@@ -105,6 +105,8 @@ function EditDetailsForm({
     // `type="url"` are real HTML constraints that would otherwise let the
     // browser's own native validation bubble block the submit event before
     // the server, or this app's own field-level error text, ever sees it.
+    // noValidate also lifts the browser's block on a Pay box holding text
+    // it cannot read ("125e"); submitViaTransition covers that.
     <form onSubmit={(event) => submitViaTransition(event, formAction)} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Edit details</DialogTitle>

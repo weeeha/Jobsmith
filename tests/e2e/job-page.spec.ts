@@ -183,3 +183,44 @@ test("next action, people and notes, with axe across all three tabs", async ({ p
   await expect(page.getByText("Left a voicemail for the recruiter.")).toBeVisible();
   await expect(page.getByText("Done: Send a thank-you note.")).toBeVisible();
 });
+
+test("edit details: a pay figure the browser cannot read keeps the saved one", async ({ page }, testInfo) => {
+  await login(page);
+  const company = uniqueName(testInfo, "Kestrel Freight");
+  const role = "Design Lead";
+
+  await page.getByRole("button", { name: "Add job" }).click();
+  const addDialog = page.getByRole("dialog", { name: "Add a job" });
+  await expect(addDialog).toBeVisible();
+  await addDialog.getByLabel("Company").fill(company);
+  await addDialog.getByLabel("Role").fill(role);
+  await addDialog.getByLabel("Pay from").fill("120000");
+  await addDialog.getByLabel("Pay to").fill("150000");
+  await addDialog.getByRole("button", { name: "Add job" }).click();
+  await expect(addDialog).toBeHidden();
+  await page.getByRole("link", { name: `${role} at ${company}` }).click();
+  await expect(page).toHaveURL(/\/jobs\//);
+  await expect(page.getByText("120,000–150,000")).toBeVisible();
+
+  await page.getByRole("button", { name: "Job actions" }).click();
+  await page.getByRole("menuitem", { name: "Edit details" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit details" });
+  await expect(dialog).toBeVisible();
+  // Select the saved figure and type over it key by key, as a person would
+  // (fill() refuses text a number box cannot parse). The box shows "125e"
+  // while the browser reports its value as "" (validity.badInput).
+  const payFrom = dialog.getByLabel("Pay from");
+  await payFrom.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await payFrom.pressSequentially("125e");
+  await dialog.getByRole("button", { name: "Save" }).click();
+
+  await expect(dialog.getByRole("alert")).toHaveText("Check the highlighted fields.");
+  await expect(payFrom).toHaveAccessibleDescription("Enter a number.");
+  await expect(payFrom).toHaveAttribute("aria-invalid", "true");
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await expect(page.getByText("120,000–150,000")).toBeVisible();
+});

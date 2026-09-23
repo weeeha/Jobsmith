@@ -127,7 +127,8 @@ function AddJobForm({
     // person-dialog.tsx's own noValidate already closes for its Email
     // field) - this app's own error presentation (the red hint text under a
     // field, from `fieldErrors`) is the only validation UI a user should
-    // see here.
+    // see here. noValidate also lifts the browser's block on a Pay box
+    // holding text it cannot read ("12e"); submitViaTransition covers that.
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Add a job</DialogTitle>
