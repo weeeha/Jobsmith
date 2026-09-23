@@ -164,6 +164,17 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
   await closeDialog.getByRole("button", { name: "Close job" }).click();
   await expect(closeDialog).toBeHidden();
   await expect(card).toBeHidden();
+  // The card above disappears as soon as the board's own optimistic update
+  // applies, before closeAction's server round trip has actually resolved
+  // (board.tsx's runClose dispatches the removal first and announces only
+  // once the action comes back ok), so the check above can pass while the
+  // close has not yet been committed. Navigating to the closed list right
+  // after that, the way the earlier "Moved ... to Recruiter." wait already
+  // does for the move above, waiting for the announcement here is what
+  // makes sure the closed list below is being asked to show a job the
+  // server has actually closed, not one this page has merely stopped
+  // showing on its own.
+  await expect(page.getByText(`Closed ${role} at ${company}.`)).toBeAttached();
 
   await page.goto("/board?view=closed");
   await expect(page.getByText(cardName)).toBeVisible();
@@ -174,7 +185,12 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
   // <cardName>." after this click, which also matches that text and would
   // make this assertion unsatisfiable no matter what the closed list does.
   // The row's own Reopen button is unique to it and genuinely gone once the
-  // row unmounts.
+  // row unmounts. Unlike the close above, this row has no optimistic step
+  // of its own (ClosedListRow calls reopenAction and only announces on
+  // success; the row stays until the server response actually lands and
+  // this page re-renders with it), so the button's own disappearance below
+  // already cannot happen before the server has committed the reopen, and
+  // needs no separate announcement wait before the navigation that follows.
   await page.getByRole("button", { name: `Reopen ${role} at ${company}` }).click();
   await expect(page.getByRole("button", { name: `Reopen ${role} at ${company}` })).toBeHidden();
 
