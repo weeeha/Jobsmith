@@ -34,14 +34,17 @@ export function focusWasLost(): boolean {
  * "Close job" button, mid animation) and skipped the very loss that then
  * happened once that animation actually finished and the popup's own
  * restoration failed to find its original target (long gone by then) and
- * fell back to <body>. Polls on a short interval - not a one-time check,
- * and not a delay tied to any one animation's duration - for the whole
- * window, correcting every loss it finds rather than stopping after the
- * first: confirmed empirically that the popup's own queued restoration can
- * still fire and re-lose focus after an earlier poll already fixed it once
- * (a plain browser-timing difference, not tied to any one browser).
+ * fell back to <body>. Polls on a short interval - not a one-time check -
+ * for the whole window, correcting every loss it finds rather than
+ * stopping after the first: confirmed empirically that the popup's own
+ * queued restoration can still fire and re-lose focus after an earlier
+ * poll already fixed it once (a plain browser-timing difference, not tied
+ * to any one browser). The window only needs to comfortably outlast one
+ * exit animation (a few hundred milliseconds at most here), not guard
+ * against a slow server round trip - `focus` already runs after that
+ * round trip's own await settles.
  */
-export function correctFocusOnceLost(focus: () => void, timeoutMs = 1000): void {
+export function correctFocusOnceLost(focus: () => void, timeoutMs = 1500): void {
   if (typeof window === "undefined") return;
   const deadline = Date.now() + timeoutMs;
   const POLL_MS = 20;

@@ -40,13 +40,22 @@ export function focusCardButton(cardId: string): void {
  * the given column (board-column.tsx's own data-column-kind marker), or
  * the column's own container when the column has nothing left in it right
  * now. The container carries tabIndex={-1} in both its populated and empty
- * states for exactly this fallback.
+ * states for exactly this fallback - but when the closed card was the last
+ * one anywhere on the board, Board itself switches its whole column tree
+ * out for its empty-board state (board.tsx's own `isEmpty` branch), taking
+ * every column's container down with it. Returns whether it actually found
+ * something to focus, so the caller can fall back further (to its own
+ * "Add job" button) when the column - and the rest of the board with it -
+ * is gone entirely, confirmed as the real cause of an otherwise
+ * unreproducible-looking failure by instrumenting a single-card board and
+ * seeing zero elements carrying this marker at all.
  */
-export function focusColumnCardOrRegion(kind: StageKind): void {
+export function focusColumnCardOrRegion(kind: StageKind): boolean {
   const column = document.querySelector<HTMLElement>(`[data-column-kind="${kind}"]`);
-  if (!column) return;
+  if (!column) return false;
   const card = column.querySelector<HTMLElement>("a[data-card-id]");
   (card ?? column).focus();
+  return true;
 }
 
 /**

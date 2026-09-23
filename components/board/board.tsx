@@ -110,6 +110,16 @@ export function Board({
   const [pendingCloseId, setPendingCloseId] = React.useState<string | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
   const isDragging = activeId !== null;
+  // Attached to the "Add job" button in both the empty and non-empty
+  // branches below (only one is ever mounted at once, matching
+  // PhoneBoard's identical ref), so this always points at whichever one is
+  // currently on screen - runClose's own fallback when closing a card
+  // leaves the whole board empty: `isEmpty` then swaps out every column
+  // (and each one's own focusColumnCardOrRegion container) for the
+  // empty-board state, confirmed as a real case, not just a theoretical
+  // one, by a single-card board losing focus to <body> with nothing left
+  // for that column lookup to find at all.
+  const addJobButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -188,8 +198,15 @@ export function Board({
         // column's current contents live, not a list captured before this
         // await, for the same reason focusColumnCardOrRegion's own comment
         // gives: the board is shared with whatever else is running
-        // concurrently.
-        correctFocusOnceLost(() => focusColumnCardOrRegion(card.stage.kind));
+        // concurrently. Falls back further, to "Add job", when this was
+        // the last card anywhere on the board: `isEmpty` below then swaps
+        // out every column - this one included - for the empty-board
+        // state, so there is no column container left to focus either.
+        correctFocusOnceLost(() => {
+          if (!focusColumnCardOrRegion(card.stage.kind)) {
+            addJobButtonRef.current?.focus();
+          }
+        });
       } catch (error) {
         // See runMove's matching catch: closeAction can also reject before
         // returning a Result.
@@ -250,14 +267,20 @@ export function Board({
             size="page"
             title="No jobs yet"
             description="Add the first job you are tracking."
-            action={<Button onClick={() => setAddOpen(true)}>Add job</Button>}
+            action={
+              <Button ref={addJobButtonRef} onClick={() => setAddOpen(true)}>
+                Add job
+              </Button>
+            }
             className="w-full"
           />
         </div>
       ) : (
         <div className="hidden md:flex md:flex-col md:gap-4">
           <div className="flex items-center justify-end">
-            <Button onClick={() => setAddOpen(true)}>Add job</Button>
+            <Button ref={addJobButtonRef} onClick={() => setAddOpen(true)}>
+              Add job
+            </Button>
           </div>
           <DndContext
             sensors={sensors}

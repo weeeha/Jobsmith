@@ -66,19 +66,23 @@ describe("DOM focus helpers", () => {
       </div>
       <div data-column-kind="applied" tabindex="-1"></div>
     `;
-    focusColumnCardOrRegion("recruiter_screen");
+    expect(focusColumnCardOrRegion("recruiter_screen")).toBe(true);
     expect((document.activeElement as HTMLElement).getAttribute("data-card-id")).toBe("card-9");
   });
 
   it("focusColumnCardOrRegion falls back to the column container itself when it has no cards", () => {
     document.body.innerHTML = `<div data-column-kind="recruiter_screen" tabindex="-1"></div>`;
-    focusColumnCardOrRegion("recruiter_screen");
+    expect(focusColumnCardOrRegion("recruiter_screen")).toBe(true);
     expect((document.activeElement as HTMLElement).getAttribute("data-column-kind")).toBe("recruiter_screen");
   });
 
-  it("focusColumnCardOrRegion does nothing when the column itself is not in the DOM", () => {
+  // Board.tsx's own runClose relies on this: when the closed card was the
+  // last one anywhere on the board, its whole column tree (this container
+  // included) is swapped out for the empty-board state, and the caller
+  // needs to know to fall back further, to its own "Add job" button.
+  it("focusColumnCardOrRegion returns false and does nothing when the column itself is not in the DOM", () => {
     document.body.innerHTML = "";
-    focusColumnCardOrRegion("recruiter_screen");
+    expect(focusColumnCardOrRegion("recruiter_screen")).toBe(false);
     expect(document.activeElement).toBe(document.body);
   });
 
