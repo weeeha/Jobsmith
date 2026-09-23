@@ -10,6 +10,8 @@ import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
 import { reopenAction } from "@/app/(app)/board/actions";
 import { actionFailureMessage } from "@/lib/board/messages";
+import { focusCardButton, focusClosedViewToggle, nextFocusCandidate } from "@/lib/dom/board-focus";
+import { focusWasLost } from "@/lib/dom/focus";
 import { CLOSED_REASON_LABELS } from "@/lib/pipeline/labels";
 import type { ClosedCard } from "@/lib/db/scoped";
 
@@ -18,6 +20,29 @@ interface ClosedListProps {
 }
 
 export function ClosedList({ cards }: ClosedListProps) {
+  // Reopening a row removes it from `cards` once the server confirms it (see
+  // pipeline.spec.ts's own comment on this row's lack of an optimistic
+  // step) - the row's Reopen button, the one thing that had focus, is gone
+  // the moment that revalidated `cards` prop lands, and nothing else moves
+  // focus anywhere on its own. Kept above the early return below so this
+  // effect still runs on the render that empties the list, not skipped by
+  // it (React requires every hook to run on every render regardless of
+  // which branch a component's own JSX takes).
+  const prevCardsRef = React.useRef(cards);
+  React.useEffect(() => {
+    const prevCards = prevCardsRef.current;
+    prevCardsRef.current = cards;
+    const currentIds = new Set(cards.map((c) => c.id));
+    const removedIndex = prevCards.findIndex((c) => !currentIds.has(c.id));
+    if (removedIndex === -1 || !focusWasLost()) return;
+    const fallback = nextFocusCandidate(prevCards, prevCards[removedIndex]!.id);
+    if (fallback && currentIds.has(fallback.id)) {
+      focusCardButton(fallback.id);
+    } else {
+      focusClosedViewToggle();
+    }
+  }, [cards]);
+
   if (cards.length === 0) {
     return <EmptyState title="No closed jobs." />;
   }
@@ -78,6 +103,7 @@ function ClosedListRow({ card }: { card: ClosedCard }) {
       <Button
         variant="outline"
         size="sm"
+        data-card-id={card.id}
         disabled={isPending}
         aria-label={`Reopen ${card.roleTitle} at ${card.companyName}`}
         onClick={handleReopen}

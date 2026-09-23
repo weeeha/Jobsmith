@@ -46,7 +46,12 @@ export function BoardColumn({ kind, cards, children }: BoardColumnProps) {
       ) : (
         <section
           aria-label={`${title}, no jobs`}
-          className="flex h-full flex-col items-center gap-2 rounded-lg border bg-muted/40 px-1 py-2"
+          // -1: not part of the normal Tab order, but a valid target for
+          // board.tsx to send focus to once closing a job leaves this column
+          // with nothing left in it to focus instead (lib/dom/board-focus.ts's
+          // focusColumnRegion).
+          tabIndex={-1}
+          className="flex h-full flex-col items-center gap-2 rounded-lg border bg-muted/40 px-1 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <h2 className="truncate text-sm font-medium">{title}</h2>
           <span className="text-xs tabular-nums opacity-70">0</span>

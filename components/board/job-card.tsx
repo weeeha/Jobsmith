@@ -94,6 +94,7 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
         <Link
           href={`/jobs/${card.slug}`}
           draggable={false}
+          data-card-id={card.id}
           title={`${card.roleTitle} at ${card.companyName}`}
           className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

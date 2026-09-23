@@ -143,11 +143,22 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
 
   await addJob(page, company, role);
   const card = page.getByRole("link", { name: cardName });
+  // The one and only .focus() before any key: a real keyboard user would
+  // have already Tabbed here. Nothing below refocuses the card a second
+  // time - if it did, that would silently paper over the exact bug this
+  // test exists to catch (a move or close dropping focus to <body>, from
+  // where a keypress reaches no card at all).
   await card.focus();
+
   await page.keyboard.press("3");
   await expect(page.getByText(`Moved ${role} at ${company} to Recruiter.`)).toBeAttached();
+  // `card` is a live locator: whatever link currently has this accessible
+  // name, in whichever column it is in now. The move above unmounted the
+  // link that used to have focus (it moved to a different column's own
+  // list) and mounted a fresh one in its place, so this only holds if
+  // something actually put focus back on the new one.
+  await expect(card).toBeFocused();
 
-  await card.focus();
   await page.keyboard.press("c");
   const closeDialog = page.getByRole("dialog", { name: "Close this job" });
   await expect(closeDialog).toBeVisible();
@@ -160,8 +171,24 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
     await expect(closeDialog).toBeVisible();
   });
 
-  await closeDialog.getByRole("radio", { name: "Rejected" }).click();
-  await closeDialog.getByRole("button", { name: "Close job" }).click();
+  // Base UI's Dialog moves focus to the first focusable descendant as soon
+  // as it opens - here, the first radio - so the reason below is reached
+  // and chosen without a mouse or an explicit Tab into the group.
+  const rejectedRadio = closeDialog.getByRole("radio", { name: "Rejected" });
+  await expect(rejectedRadio).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(rejectedRadio).toBeChecked();
+
+  const closeJobButton = closeDialog.getByRole("button", { name: "Close job" });
+  await expect(closeJobButton).toBeEnabled();
+  // The radio group is one stop in the tab order (its own roving tabindex
+  // follows the checked item), so two Tabs reach Close job: group -> Cancel
+  // -> Close job.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(closeJobButton).toBeFocused();
+  await page.keyboard.press("Enter");
+
   await expect(closeDialog).toBeHidden();
   await expect(card).toBeHidden();
   // The card above disappears as soon as the board's own optimistic update
@@ -175,6 +202,12 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
   // server has actually closed, not one this page has merely stopped
   // showing on its own.
   await expect(page.getByText(`Closed ${role} at ${company}.`)).toBeAttached();
+  // The closed card's own title link (wherever focus was within it) is
+  // gone along with it. The three browser projects share this board, so
+  // which specific card or column region recovers focus is not knowable
+  // from here, but it must not be <body> - the exact failure this test
+  // exists to catch.
+  await expect(page.locator("body")).not.toBeFocused();
 
   await page.goto("/board?view=closed");
   await expect(page.getByText(cardName)).toBeVisible();
@@ -193,6 +226,11 @@ test("keyboard-only pass: digits move the focused card, c closes it, and it can 
   // needs no separate announcement wait before the navigation that follows.
   await page.getByRole("button", { name: `Reopen ${role} at ${company}` }).click();
   await expect(page.getByRole("button", { name: `Reopen ${role} at ${company}` })).toBeHidden();
+  // Same reasoning as the close above: the reopened row's own Reopen button
+  // is gone along with the rest of that row, and the shared closed list's
+  // exact remaining contents are not knowable from here - but focus must
+  // not have fallen back to <body>.
+  await expect(page.locator("body")).not.toBeFocused();
 
   await page.goto("/board");
   await expect(page.getByRole("link", { name: cardName })).toBeVisible();

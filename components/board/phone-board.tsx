@@ -17,6 +17,8 @@ import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
 import { daysInStage } from "@/lib/board/days";
 import { columnTitle } from "@/lib/pipeline/labels";
+import { focusCardButton, nextFocusCandidate } from "@/lib/dom/board-focus";
+import { focusWasLost } from "@/lib/dom/focus";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import type { BoardCard } from "@/lib/db/scoped";
 import type { MoveTarget } from "@/lib/pipeline/rules";
@@ -87,6 +89,13 @@ export function PhoneBoard({
   const [moveSheetCardId, setMoveSheetCardId] = React.useState<string | null>(null);
   const [pendingCloseId, setPendingCloseId] = React.useState<string | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
+  // Attached to the "Add job" button in both the empty and non-empty
+  // branches below (only one is ever mounted at once), so this always
+  // points at whichever one is currently on screen - the fallback runClose
+  // reaches for once closing a card leaves its whole stage group empty
+  // (that group's own heading disappears along with it, unlike the desktop
+  // board's column rail, which stays in the DOM to be focused instead).
+  const addJobButtonRef = React.useRef<HTMLButtonElement>(null);
 
   function runMove(cardId: string, target: MoveTarget) {
     const card = optimisticCards.find((c) => c.id === cardId);
@@ -106,6 +115,15 @@ export function PhoneBoard({
           return;
         }
         announce(`Moved ${card.roleTitle} at ${card.companyName} to ${columnTitle(result.data.to.kind)}.`);
+        // The sheet already tried to return focus to the "Move to" button
+        // that opened it (Sheet's own default), but that button belonged to
+        // this card's row in its OLD group, which unmounted the instant the
+        // optimistic dispatch above moved it - so that default landed
+        // nowhere. This sends it to the same button's replacement instead,
+        // now sitting in the card's new group.
+        if (focusWasLost()) {
+          focusCardButton(cardId);
+        }
       } catch (error) {
         // moveAction can reject before ever returning a Result (board.tsx's
         // runMove hit this first - requireUser()'s own session lookup
@@ -121,6 +139,11 @@ export function PhoneBoard({
   function runClose(cardId: string, reason: ClosedReason) {
     const card = optimisticCards.find((c) => c.id === cardId);
     if (!card) return;
+    // Read before dispatching the removal below, same reasoning as
+    // board.tsx's runClose: a card's neighbors within its own group are
+    // only knowable from the list as it stood before that card left it.
+    const groupCards = optimisticCards.filter((c) => c.stage.kind === card.stage.kind);
+    const fallbackCard = nextFocusCandidate(groupCards, cardId);
     React.startTransition(async () => {
       dispatchOptimistic({ type: "remove", id: cardId });
       try {
@@ -130,6 +153,13 @@ export function PhoneBoard({
           return;
         }
         announce(`Closed ${card.roleTitle} at ${card.companyName}.`);
+        // Same reasoning as runMove above: the closed card's own row,
+        // including its "Move to" button, unmounted the instant the
+        // optimistic removal above dropped it from the list.
+        if (focusWasLost()) {
+          if (fallbackCard) focusCardButton(fallbackCard.id);
+          else addJobButtonRef.current?.focus();
+        }
       } catch (error) {
         // See runMove's matching catch above.
         console.error("close failed", error);
@@ -158,13 +188,19 @@ export function PhoneBoard({
           size="page"
           title="No jobs yet"
           description="Add the first job you are tracking."
-          action={<Button onClick={() => setAddOpen(true)}>Add job</Button>}
+          action={
+            <Button ref={addJobButtonRef} onClick={() => setAddOpen(true)}>
+              Add job
+            </Button>
+          }
           className="w-full"
         />
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-end">
-            <Button onClick={() => setAddOpen(true)}>Add job</Button>
+            <Button ref={addJobButtonRef} onClick={() => setAddOpen(true)}>
+              Add job
+            </Button>
           </div>
           {STAGE_KINDS.map((stage) => {
             const stageCards = optimisticCards.filter((card) => card.stage.kind === stage.kind);
@@ -202,6 +238,7 @@ export function PhoneBoard({
                           <Button
                             variant="outline"
                             size="sm"
+                            data-card-id={card.id}
                             aria-label={`Move ${card.roleTitle} at ${card.companyName}`}
                             onClick={() => setMoveSheetCardId(card.id)}
                           >
