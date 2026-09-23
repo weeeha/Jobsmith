@@ -73,6 +73,25 @@ test("first run: setup, board, logout and login round-trip", async ({ page }, te
   await expect(page.getByText("Add the first job you are tracking.").filter({ visible: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add job" }).filter({ visible: true })).toBeVisible();
 
+  // PhoneBoard (components/board/phone-board.tsx) is a separate component
+  // tree from Board, rendering the same empty state under its own
+  // `md:hidden` wrapper - the desktop-viewport check above never exercises
+  // it, since Board (`hidden md:flex`) is the one visible there. This is
+  // still the one guaranteed-empty window for PhoneBoard's own render too,
+  // so its check also happens here rather than in shell.spec.ts: narrowing
+  // the viewport flips which of the two trees is visible, and the same
+  // `.filter({ visible: true })` reasoning applies, picking out PhoneBoard's
+  // copy now instead of Board's. Restored afterward since the rest of this
+  // test (the account menu below) is written against the desktop layout.
+  const desktopViewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByText("No jobs yet").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Add the first job you are tracking.").filter({ visible: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add job" }).filter({ visible: true })).toBeVisible();
+  if (desktopViewport) {
+    await page.setViewportSize(desktopViewport);
+  }
+
   await page.goto("/setup");
   await expect(page.getByText(/this page could not be found/i)).toBeVisible();
 

@@ -17,6 +17,14 @@ function slugify(label: string): string {
  * and nothing else mid-transition, the same expectation scanForViolations
  * has of the page it reloads onto.
  *
+ * The axe run itself is scoped to the open popup (`[role="dialog"]`, which
+ * both a Base UI Dialog and Sheet render), not the whole page: everything
+ * behind an open modal is `aria-hidden` and inert, and WCAG 1.4.3 exempts
+ * incidental text belonging to an inactive user interface component, so a
+ * contrast reading on the page behind the overlay is a false positive of
+ * scanning too broadly, not a defect. The page itself, with no overlay
+ * open, is already covered by scanForViolations on the same route.
+ *
  * Waiting for the browser's own matchMedia to report the emulated scheme
  * before calling `reopen()` stands in for the settle time a reload gives
  * scanForViolations, so next-themes' change listener is not still racing
@@ -66,19 +74,7 @@ export async function scanOpenOverlay(
       fullPage: true,
     });
 
-    // [data-base-ui-focus-guard] excluded: Base UI's own modal focus trap
-    // (node_modules/@base-ui/react/utils/FocusGuard.js) gives these sentinel
-    // spans role="button" only for VoiceOver on WebKit, and its own platform
-    // check (@base-ui/utils/platform's screen-reader.js) is an OS check, not
-    // real detection - "whether a screen reader is *actually* running cannot
-    // be detected", by that file's own comment - so it fires on any WebKit
-    // run on an Apple host, real assistive tech or not. The span is
-    // visuallyHidden and exists only to catch VoiceOver's virtual cursor and
-    // redirect focus; it is not a control a user is meant to notice, name,
-    // or activate, so axe-core's aria-command-name rule has nothing to check
-    // it against. Not reachable from ./axe.ts's scanForViolations, which
-    // never scans a page with a focus-trapping overlay open.
-    const results = await new AxeBuilder({ page }).exclude("[data-base-ui-focus-guard]").analyze();
+    const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
     for (const violation of results.violations) {
       console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
       for (const node of violation.nodes) {
