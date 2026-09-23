@@ -31,24 +31,58 @@ async function addJob(page: Page, company: string, role: string) {
 // straight to the target does not trigger it. A column's own container is
 // exposed as a "region" whose accessible name starts with the column
 // title in both states (a card-bearing column and the empty rail's
-// "<column>, no jobs"), so one query locates the drop target either way;
-// the drop lands on that region's own bounding box center.
+// "<column>, no jobs"), so one query locates the drop target either way.
+//
+// Every position used here is measured as late as possible, right before
+// it is acted on, rather than cached once up front: this board is shared
+// with whatever other browser projects (or, under --repeat-each, other
+// runs of this same test) are doing at the same time, cards sort by
+// most-recently-updated first (lib/board/sort.ts), and a card or column
+// this test already measured can be reflowed to a new position by any of
+// those the instant a concurrently running one of its own actions touches
+// the same account - confirmed by instrumenting a failing run, where
+// document.elementFromPoint at the cached start coordinate resolved to
+// nothing at all, because a sibling run's own update had already moved
+// the card out from under it. hover() re-measures and waits for the
+// source card to be stable immediately before the pointer moves there;
+// the column is measured once to aim the intermediate moves dnd-kit needs
+// and again right before release, in case it also shifted meanwhile. The
+// drop targets a point near the column's own top edge rather than its
+// center for a second reason: the column can hold more cards than fit in
+// one viewport under the same heavy/concurrent use, and a point near the
+// top stays reachable regardless of how tall the full column has grown.
 async function dragCardToColumn(page: Page, cardName: string, columnName: string) {
   const card = page.getByRole("link", { name: cardName });
   const column = page.getByRole("region", { name: new RegExp("^" + columnName + ",") });
+
+  await card.hover();
   const cardBox = await card.boundingBox();
-  const columnBox = await column.boundingBox();
-  if (!cardBox || !columnBox) {
-    throw new Error(`dragCardToColumn: could not locate "${cardName}" or column "${columnName}"`);
+  if (!cardBox) {
+    throw new Error(`dragCardToColumn: could not locate "${cardName}"`);
   }
   const start = { x: cardBox.x + cardBox.width / 2, y: cardBox.y + cardBox.height / 2 };
-  const end = { x: columnBox.x + columnBox.width / 2, y: columnBox.y + columnBox.height / 2 };
 
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
+
+  function topOf(box: { x: number; y: number; width: number; height: number }) {
+    return { x: box.x + box.width / 2, y: box.y + Math.min(40, box.height / 2) };
+  }
+
+  const firstColumnBox = await column.boundingBox();
+  if (!firstColumnBox) {
+    throw new Error(`dragCardToColumn: could not locate column "${columnName}"`);
+  }
+  const end = topOf(firstColumnBox);
   const steps = 12;
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(start.x + ((end.x - start.x) * i) / steps, start.y + ((end.y - start.y) * i) / steps);
+  }
+
+  const lastColumnBox = await column.boundingBox();
+  if (lastColumnBox) {
+    const finalEnd = topOf(lastColumnBox);
+    await page.mouse.move(finalEnd.x, finalEnd.y);
   }
   await page.mouse.up();
 }
