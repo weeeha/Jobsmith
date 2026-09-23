@@ -128,4 +128,31 @@ describe("updateCompanyDetails", () => {
       await close();
     }
   });
+
+  // Ruling 6 (Task 11): the Edit company dialog has no separate "clear"
+  // control either, same as Edit details (Ruling 1, Task 10) - a blank
+  // optional field is sent as `null` and clears the column, not silently
+  // ignored. Every field here (domain, careersUrl, size, industry, hq,
+  // notesMd) accepts `null` for exactly that reason.
+  it("stores null for careersUrl and hq when sent as null, clearing them", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "clearer2@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s);
+      const opportunity = await s.opportunity.getById(id);
+      expectOk(
+        await updateCompanyDetails(s, opportunity!.companyId, {
+          careersUrl: "https://example.com/careers",
+          hq: "Remote",
+        }),
+      );
+      expectOk(await updateCompanyDetails(s, opportunity!.companyId, { careersUrl: null, hq: null }));
+      const company = await s.company.getById(opportunity!.companyId);
+      expect(company?.careersUrl).toBeNull();
+      expect(company?.hq).toBeNull();
+    } finally {
+      await close();
+    }
+  });
 });

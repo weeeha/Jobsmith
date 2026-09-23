@@ -3,22 +3,31 @@ import type { Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 import { PERSON_ROLES, type PersonRole } from "@/lib/pipeline/values";
 
+// Ruling 6 (Task 11): the person dialog has no separate "clear" control
+// either, same reasoning as updateOpportunityDetailsSchema (Ruling 1, Task
+// 10) - title, linkedinUrl, email and notesMd are nullable, not just
+// optional, so a blanked field actually clears the column on an edit
+// instead of being silently ignored. `undefined` still means "leave
+// unchanged" on an edit (the key is simply absent) and "not set" on an add;
+// `null` means "clear it" on an edit and, per the ruling, "not set" too on
+// an add (addPersonToOpportunity has no previous value to leave alone).
+// name and role stay required; stageId already accepted null.
 export const personInputSchema = z.object({
   name: z.string().trim().min(1),
-  title: z.string().trim().min(1).optional(),
-  linkedinUrl: z.url({ protocol: /^https?$/ }).optional(),
-  email: z.email().optional(),
-  notesMd: z.string().optional(),
+  title: z.string().trim().min(1).nullable().optional(),
+  linkedinUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
+  email: z.email().nullable().optional(),
+  notesMd: z.string().nullable().optional(),
   role: z.enum(PERSON_ROLES),
   stageId: z.uuid().nullable().optional(),
 });
 
 export type PersonInput = {
   name: string;
-  title?: string;
-  linkedinUrl?: string;
-  email?: string;
-  notesMd?: string;
+  title?: string | null;
+  linkedinUrl?: string | null;
+  email?: string | null;
+  notesMd?: string | null;
   role: PersonRole;
   stageId?: string | null;
 };

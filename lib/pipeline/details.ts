@@ -37,13 +37,17 @@ export const updateOpportunityDetailsSchema = z
     { message: "compMin must be less than or equal to compMax", path: ["compMax"] },
   );
 
+// Ruling 6 (Task 11): the Edit company dialog has no separate "clear"
+// control either, same reasoning as updateOpportunityDetailsSchema above -
+// every field is nullable, not just optional, so a blanked field can
+// actually clear the column instead of being silently ignored.
 export const updateCompanyDetailsSchema = z.object({
-  domain: z.string().trim().min(1).optional(),
-  careersUrl: z.url({ protocol: /^https?$/ }).optional(),
-  size: z.string().trim().min(1).optional(),
-  industry: z.string().trim().min(1).optional(),
-  hq: z.string().trim().min(1).optional(),
-  notesMd: z.string().optional(),
+  domain: z.string().trim().min(1).nullable().optional(),
+  careersUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
+  size: z.string().trim().min(1).nullable().optional(),
+  industry: z.string().trim().min(1).nullable().optional(),
+  hq: z.string().trim().min(1).nullable().optional(),
+  notesMd: z.string().nullable().optional(),
 });
 
 export type UpdateOpportunityDetailsInput = Pick<Partial<CreateOpportunityInput>, "roleTitle"> & {
@@ -79,7 +83,14 @@ export async function updateOpportunityDetails(
 export async function updateCompanyDetails(
   s: Scoped,
   companyId: string,
-  input: { domain?: string; careersUrl?: string; size?: string; industry?: string; hq?: string; notesMd?: string },
+  input: {
+    domain?: string | null;
+    careersUrl?: string | null;
+    size?: string | null;
+    industry?: string | null;
+    hq?: string | null;
+    notesMd?: string | null;
+  },
 ): Promise<Result<null, "not_found" | "invalid">> {
   const parsed = updateCompanyDetailsSchema.safeParse(input);
   if (!parsed.success) {

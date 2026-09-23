@@ -125,6 +125,43 @@ describe("updateLinkedPerson and unlinkPerson", () => {
     }
   });
 
+  // Ruling 6 (Task 11): the person dialog has no separate "clear" control
+  // either, same as Edit details/Edit company - a blank optional field is
+  // sent as `null` and clears the column. name and role stay required.
+  it("stores null for title and email when sent as null, clearing them, but still rejects a blank name", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "clearer3@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s);
+      const created = expectOk(
+        await addPersonToOpportunity(s, id, {
+          name: "Priya Raman",
+          role: "recruiter",
+          title: "Recruiter Lead",
+          email: "priya@example.com",
+        }),
+      );
+
+      expectOk(
+        await updateLinkedPerson(s, id, created.linkId, {
+          name: "Priya Raman",
+          role: "recruiter",
+          title: null,
+          email: null,
+        }),
+      );
+
+      const person = await s.person.getById(created.personId);
+      expect(person?.title).toBeNull();
+      expect(person?.email).toBeNull();
+
+      expectFail(await updateLinkedPerson(s, id, created.linkId, { name: "", role: "recruiter" }), "invalid");
+    } finally {
+      await close();
+    }
+  });
+
   it("returns not_found for user B on user A's link", async () => {
     const { db, close } = await makeTestDb();
     try {

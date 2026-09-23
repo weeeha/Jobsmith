@@ -8,7 +8,9 @@ import type { Scoped } from "@/lib/db/scoped";
 import { addStage, renameStage, reorderStages, skipStage, unskipStage, removeStage } from "@/lib/pipeline/stages";
 import { scheduleStage, setStageOutcome } from "@/lib/pipeline/schedule";
 import { setNextAction, setNextActionSchema, completeNextAction } from "@/lib/pipeline/next-action";
-import { updateOpportunityDetails, updateOpportunityDetailsSchema } from "@/lib/pipeline/details";
+import { updateOpportunityDetails, updateOpportunityDetailsSchema, updateCompanyDetails, updateCompanyDetailsSchema } from "@/lib/pipeline/details";
+import { addPersonToOpportunity, updateLinkedPerson, unlinkPerson, personInputSchema } from "@/lib/people";
+import { addNote, addNoteSchema } from "@/lib/pipeline/notes";
 import { opportunityIdSchema, stageIdSchema } from "@/lib/pipeline/action-schemas";
 import { messageFor } from "@/lib/pipeline/messages";
 import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
@@ -234,6 +236,118 @@ export async function updateOpportunityDetailsAction(
   }
   const s = scopedFor(user.id);
   const result = await updateOpportunityDetails(s, opportunityId, parsed.data);
+  if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
+  await revalidateJob(s, opportunityId);
+  return { ok: true };
+}
+
+// Ruling 6: the Edit company dialog has no separate "clear" control either,
+// same as Edit details above - every field is blankToNull, not `|| undefined`,
+// so a blanked field actually clears the column (lib/pipeline/details.ts's
+// updateCompanyDetailsSchema accepts null for exactly that reason).
+export async function updateCompanyDetailsAction(
+  companyId: string,
+  opportunityId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const idParsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
+  const raw = {
+    domain: blankToNull(formData.get("domain")),
+    careersUrl: blankToNull(formData.get("careersUrl")),
+    size: blankToNull(formData.get("size")),
+    industry: blankToNull(formData.get("industry")),
+    hq: blankToNull(formData.get("hq")),
+    notesMd: blankToNull(formData.get("notesMd")),
+  };
+  const parsed = updateCompanyDetailsSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const s = scopedFor(user.id);
+  const result = await updateCompanyDetails(s, companyId, parsed.data);
+  if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
+  await revalidateJob(s, opportunityId);
+  return { ok: true };
+}
+
+// Ruling 6: same reasoning as updateCompanyDetailsAction above - title,
+// linkedinUrl, email and notesMd are blankToNull, not `|| undefined`, so
+// editing a person can actually clear a previously-set field. name and role
+// are read as plain strings (no clearing gesture, both required); stageId's
+// own "" -> null mapping was already correct (an empty Select value already
+// meant "no stage", never "leave unchanged" - there is no separate stageId
+// on the person dialog's own defaultValue for "leave unchanged" to apply to).
+function personInputFromFormData(formData: FormData) {
+  const stageId = formData.get("stageId");
+  return {
+    name: formData.get("name"),
+    title: blankToNull(formData.get("title")),
+    linkedinUrl: blankToNull(formData.get("linkedinUrl")),
+    email: blankToNull(formData.get("email")),
+    notesMd: blankToNull(formData.get("notesMd")),
+    role: formData.get("role"),
+    stageId: stageId === "" || stageId === null ? null : stageId,
+  };
+}
+
+export async function addPersonAction(opportunityId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const idParsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
+  const parsed = personInputSchema.safeParse(personInputFromFormData(formData));
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const s = scopedFor(user.id);
+  const result = await addPersonToOpportunity(s, opportunityId, parsed.data);
+  if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
+  await revalidateJob(s, opportunityId);
+  return { ok: true };
+}
+
+export async function updatePersonAction(
+  opportunityId: string,
+  linkId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const idParsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
+  const parsed = personInputSchema.safeParse(personInputFromFormData(formData));
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const s = scopedFor(user.id);
+  const result = await updateLinkedPerson(s, opportunityId, linkId, parsed.data);
+  if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
+  await revalidateJob(s, opportunityId);
+  return { ok: true };
+}
+
+export async function unlinkPersonAction(opportunityId: string, linkId: string): Promise<Result<null, string>> {
+  const user = await requireUser();
+  const parsed = z.object({ opportunityId: opportunityIdSchema, linkId: z.uuid() }).safeParse({ opportunityId, linkId });
+  if (!parsed.success) return fail("not_found", messageFor("not_found"));
+  const s = scopedFor(user.id);
+  const result = await unlinkPerson(s, opportunityId, linkId);
+  if (result.ok) await revalidateJob(s, opportunityId);
+  return result;
+}
+
+export async function addNoteAction(opportunityId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const idParsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
+  const parsed = addNoteSchema.safeParse({ body: formData.get("body") });
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const s = scopedFor(user.id);
+  const result = await addNote(s, opportunityId, parsed.data.body);
   if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
   await revalidateJob(s, opportunityId);
   return { ok: true };
