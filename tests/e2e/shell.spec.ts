@@ -12,23 +12,16 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
     await expect(page).toHaveURL(/\/board$/);
   });
 
-  await test.step("the board shows its empty state for a new, zero-job account", async () => {
-    // This account never has any opportunities seeded anywhere in this
-    // suite (first-run.spec.ts only ever creates the account itself), so
-    // both Board and PhoneBoard render EmptyState's identical copy - title,
-    // description and "Add job" action - instead of seven columns or a
-    // grouped list (Task 9). Board and PhoneBoard both mount unconditionally
-    // now, one on each side of the `md` breakpoint (`hidden md:flex` /
-    // `flex md:hidden`), so the same text exists twice in the DOM at once -
-    // only one copy is ever actually visible, whichever the current
-    // viewport exposes, so `.filter({ visible: true })` is what picks out
-    // the one under test here rather than relying on which happens to come
-    // first in DOM order. This replaces the previous phone-only branch,
-    // which asserted the text was hidden everywhere on phone - true before
-    // PhoneBoard existed, false now.
-    await expect(page.getByText("No jobs yet").filter({ visible: true })).toBeVisible();
-    await expect(page.getByText("Add the first job you are tracking.").filter({ visible: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add job" }).filter({ visible: true })).toBeVisible();
+  await test.step("the board renders and passes an accessibility scan", async () => {
+    // Not asserting an empty board here on purpose: this account is shared
+    // with every spec file that runs in the other two browser projects at
+    // the same time, and several of them add their own jobs to it, so
+    // nothing running here can rely on the board still being empty by the
+    // time this step runs. first-run.spec.ts's own first test checks the
+    // empty state instead, immediately after creating the account and
+    // before any other project's tests can reach it - the one point in the
+    // whole suite where that is still guaranteed. This scan still covers
+    // whatever the board actually shows at that moment, on every engine.
     await scanForViolations(page, "/board", testInfo);
   });
 

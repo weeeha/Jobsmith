@@ -96,31 +96,36 @@ function StageDetailSheetBody({
   );
   const announce = useAnnounce();
   const submitRef = React.useRef<HTMLButtonElement>(null);
-  // Controlled, not defaultValue: a successful Save does not close this
-  // sheet (per the frame), so the same mounted Select goes on to receive a
-  // freshly-revalidated `stage` prop whose `format` now matches whatever
-  // was just picked. Base UI warns ("A component is changing the default
-  // value state of an uncontrolled Select after being initialized") the
-  // moment an uncontrolled Select's `defaultValue` differs across renders
-  // of the same instance - confirmed empirically while running this
-  // task's own manual Playwright pass (see the report). The initializer
-  // only needs to run once per mount: a different `stage` only ever
-  // arrives via a fresh mount (this sheet is modal, so nothing behind it -
-  // including another step's button - is reachable while it is open), and
-  // after a save the user's own last selection already matches the new
-  // prop, so no separate effect is needed to keep the two in sync.
+  // Controlled, not defaultValue: a rejected Save leaves this same instance
+  // mounted (only a successful Save closes it), so an uncontrolled Select's
+  // own `defaultValue` would go stale the moment the user picks a different
+  // option and that save is then rejected. Base UI warns ("A component is
+  // changing the default value state of an uncontrolled Select after being
+  // initialized") the moment an uncontrolled Select's `defaultValue` differs
+  // across renders of the same instance - confirmed empirically while
+  // running this task's own manual Playwright pass (see the report). The
+  // initializer only needs to run once per mount: a success closes (and any
+  // later open remounts) this whole component, so the only renders it
+  // survives are rejected ones, where the user's own last pick already
+  // belongs here.
   const [formatValue, setFormatValue] = React.useState<StageFormat | "">(stage.format ?? "");
 
   React.useEffect(() => {
-    // Unlike AddJobForm/EditDetailsForm, a save here never unmounts this
-    // form (the sheet stays open on success, per the frame): the same
-    // Chromium bug - disabling the just-clicked submit button while
-    // `pending` moves focus to <body> - fires on every resolved state, not
-    // only a failed one, so this refocuses on both outcomes.
-    if (state !== undefined) {
+    if (state?.ok) {
+      // Closing is this sheet's only success feedback, matching every other
+      // form in this app. Base UI's Popup already returns focus to the step
+      // button that opened it once this unmounts (the same default
+      // move-sheet.tsx documents relying on for its own rows), so nothing
+      // here needs to manage focus itself.
+      onOpenChange(false);
+    } else if (state?.ok === false) {
+      // Chromium moves focus to <body> when the just-clicked Save button is
+      // disabled while `pending` is true (Base UI's Button does not opt
+      // into focusableWhenDisabled). A rejection leaves this sheet open and
+      // this instance mounted, so Save is reachable to refocus.
       submitRef.current?.focus();
     }
-  }, [state]);
+  }, [state, onOpenChange]);
 
   function handleMoveHere() {
     React.startTransition(async () => {
@@ -160,14 +165,13 @@ function StageDetailSheetBody({
         {/* Finding 3 (Task 11 fix round 1): converted from <form
             action={formAction}> to submitViaTransition (lib/forms/submit.ts).
             "Outcome notes" and "Date and time" below are uncontrolled
-            (defaultValue), and unlike the Format Select just above they were
-            never given the controlled-state fix, so React 19's
-            requestFormReset was wiping them back to their pre-save
-            defaultValue after EVERY save (success included, since this
-            sheet stays open and the same instance never remounts to pick up
-            a fresh defaultValue - see the Format Select's own comment for
-            why an already-mounted uncontrolled field ignores a later
-            defaultValue change). */}
+            (defaultValue) and, unlike the Format Select above, never given
+            the controlled-state fix, so React 19's requestFormReset was
+            wiping them back to their pre-save defaultValue on a REJECTED
+            save - the one case that leaves this same instance mounted with
+            its error showing (a successful save closes the sheet instead,
+            per the effect above, so there is no stale-defaultValue case to
+            guard there). */}
         <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
           {state?.ok === false ? (
             <p role="alert" className="text-sm text-destructive">

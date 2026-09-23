@@ -30,8 +30,14 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
+      // No backdrop blur: blurring the board content behind this overlay
+      // smears its text into the surrounding pixels, which measurably drops
+      // its contrast (axe-core's color-contrast rule checks this content
+      // deliberately, since a sighted user still perceives it even though
+      // it is aria-hidden while the dialog is open). The plain tint below
+      // still reads as "dimmed" without that effect.
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/10 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
