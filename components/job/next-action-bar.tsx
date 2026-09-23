@@ -59,12 +59,25 @@ export function NextActionBar({ opportunity }: NextActionBarProps) {
 
   function handleDone() {
     startDoneTransition(async () => {
-      const result = await completeNextActionAction(opportunity.id);
-      if (!result.ok) {
-        toast.error(messageFor(result.code));
-        // Only reachable on failure: on success this element is about to
-        // be removed anyway (nextAction becomes null), and the effect
-        // above takes over.
+      try {
+        const result = await completeNextActionAction(opportunity.id);
+        if (!result.ok) {
+          toast.error(messageFor(result.code));
+          // Only reachable on failure: on success this element is about
+          // to be removed anyway (nextAction becomes null), and the
+          // effect above takes over.
+          if (focusWasLost()) {
+            doneRef.current?.focus();
+          }
+        }
+      } catch (error) {
+        // completeNextActionAction can reject before ever returning a
+        // Result - see board.tsx's runMove for the same case. Nothing
+        // changed server-side, so - like the Result-failure branch above -
+        // this element is still here and still the right thing to
+        // recover focus onto.
+        console.error("complete next action failed", error);
+        toast.error(messageFor("unexpected"));
         if (focusWasLost()) {
           doneRef.current?.focus();
         }

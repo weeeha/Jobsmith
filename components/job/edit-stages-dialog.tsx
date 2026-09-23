@@ -28,6 +28,18 @@ const ADDABLE_STAGE_KINDS = STAGE_KINDS.filter(
   (k) => k.kind !== "saved" && k.kind !== "applied" && k.kind !== "offer",
 );
 
+// Finding 3 (Task 10 fix round 1): Base UI's <Select.Value> resolves its
+// label purely from the Root's own `items` prop (node_modules/@base-ui/
+// react/select/value/SelectValue.js: resolveSelectedLabel(value, items) -
+// verified by reading the source, not guessed), never from having once
+// rendered a matching <Select.Item>. Without it, a closed Select shows the
+// raw value ("recruiter_screen") until the user opens the popup at least
+// once. `columnTitle` is already imported for the option list below; this
+// is the same map, keyed for `items` instead of iterated for children.
+const ADDABLE_STAGE_KIND_ITEMS: Record<string, string> = Object.fromEntries(
+  ADDABLE_STAGE_KINDS.map((entry) => [entry.kind, columnTitle(entry.kind)]),
+);
+
 type EditStagesStage = { id: string; kind: StageKind; label: string; status: StageStatus };
 
 interface EditStagesDialogProps {
@@ -194,8 +206,18 @@ function StageRow({
     if (!controls.moveUp.allowed) return;
     const orderedIds = onMoveUp();
     startTransition(async () => {
-      const result = await reorderStagesAction(opportunity.id, orderedIds);
-      if (!result.ok) toast.error(messageFor(result.code));
+      try {
+        const result = await reorderStagesAction(opportunity.id, orderedIds);
+        if (!result.ok) toast.error(messageFor(result.code));
+      } catch (error) {
+        // reorderStagesAction can reject before ever returning a Result -
+        // see board.tsx's runMove for the same case. `controls` never
+        // changes when that happens, so there is nothing for the effect
+        // above to recover: the button the user clicked is still exactly
+        // as enabled as it was.
+        console.error("reorder failed", error);
+        toast.error(messageFor("unexpected"));
+      }
     });
   }
 
@@ -203,32 +225,48 @@ function StageRow({
     if (!controls.moveDown.allowed) return;
     const orderedIds = onMoveDown();
     startTransition(async () => {
-      const result = await reorderStagesAction(opportunity.id, orderedIds);
-      if (!result.ok) toast.error(messageFor(result.code));
+      try {
+        const result = await reorderStagesAction(opportunity.id, orderedIds);
+        if (!result.ok) toast.error(messageFor(result.code));
+      } catch (error) {
+        console.error("reorder failed", error);
+        toast.error(messageFor("unexpected"));
+      }
     });
   }
 
   function runSkipOrUnskip() {
     if (!controls.skip.allowed) return;
+    const wasSkipped = stage.status === "skipped";
     startTransition(async () => {
-      const result =
-        stage.status === "skipped"
+      try {
+        const result = wasSkipped
           ? await unskipStageAction(opportunity.id, stage.id)
           : await skipStageAction(opportunity.id, stage.id);
-      if (!result.ok) toast.error(messageFor(result.code));
+        if (!result.ok) toast.error(messageFor(result.code));
+      } catch (error) {
+        console.error(`${wasSkipped ? "unskip" : "skip"} failed`, error);
+        toast.error(messageFor("unexpected"));
+      }
     });
   }
 
   function runRemove() {
     if (!controls.remove.allowed) return;
     startTransition(async () => {
-      const result = await removeStageAction(opportunity.id, stage.id);
-      if (!result.ok) toast.error(messageFor(result.code));
       // Success: this row is about to unmount once the new `stages` prop
       // lands. Recovering focus onto the dialog's Done button then is the
       // parent's job (EditStagesDialogBody watches `stages` for exactly
       // this), since this component will not be around to run its own
-      // effect by that point.
+      // effect by that point. A rejection below never reaches that point
+      // (nothing changed), so the row - and this catch - are still here.
+      try {
+        const result = await removeStageAction(opportunity.id, stage.id);
+        if (!result.ok) toast.error(messageFor(result.code));
+      } catch (error) {
+        console.error("remove failed", error);
+        toast.error(messageFor("unexpected"));
+      }
     });
   }
 
@@ -343,7 +381,7 @@ function AddStageSection({ opportunity }: { opportunity: { id: string } }) {
 
         <FieldRow label="Kind" hint={fieldErrors?.kind}>
           {(id) => (
-            <Select id={id} name="kind" defaultValue={ADDABLE_STAGE_KINDS[0]?.kind}>
+            <Select id={id} name="kind" defaultValue={ADDABLE_STAGE_KINDS[0]?.kind} items={ADDABLE_STAGE_KIND_ITEMS}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

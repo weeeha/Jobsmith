@@ -16,6 +16,17 @@ import { Button } from "@/components/ui/button";
 import { STAGE_KINDS } from "@/lib/pipeline/kinds";
 import type { FormState } from "@/lib/forms/state";
 
+// Task 10 fix round 1, Finding 3: Base UI's <Select.Value> resolves its
+// label purely from the Root's own `items` prop (node_modules/@base-ui/
+// react/select/value/SelectValue.js: resolveSelectedLabel(value, items)),
+// never from having once rendered a matching <Select.Item> - without it, a
+// closed Select shows the raw stored value ("saved") until the popup has
+// been opened at least once. Fixed here (a Task 8 file) so every Select in
+// the app follows the same pattern, not only the two Task 10 introduced.
+const STAGE_KIND_ITEMS: Record<string, string> = Object.fromEntries(
+  STAGE_KINDS.map((stage) => [stage.kind, stage.columnTitle]),
+);
+
 interface AddJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -291,7 +302,7 @@ function AddJobForm({
 
         <FieldRow label="Where is it now">
           {(id) => (
-            <Select id={id} name="whereIsItNow" defaultValue="saved">
+            <Select id={id} name="whereIsItNow" defaultValue="saved" items={STAGE_KIND_ITEMS}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

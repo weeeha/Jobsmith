@@ -16,10 +16,24 @@ import { toLocalInputValue } from "@/lib/time/local";
 import { columnTitle } from "@/lib/pipeline/labels";
 import { STAGE_FORMATS, type StageFormat } from "@/lib/pipeline/values";
 import { STAGE_FORMAT_LABELS } from "@/lib/pipeline/labels";
-import { messageFor } from "@/lib/pipeline/messages";
+import { actionFailureMessage } from "@/lib/board/messages";
 import type { FormState } from "@/lib/forms/state";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { OpportunityStatus } from "@/lib/pipeline/values";
+
+// Finding 3 (Task 10 fix round 1): Base UI's <Select.Value> resolves its
+// label purely from the Root's own `items` prop (node_modules/@base-ui/
+// react/select/value/SelectValue.js: resolveSelectedLabel(value, items)),
+// never from having once rendered a matching <Select.Item> - without it, a
+// closed Select shows the raw stored value ("video") until the popup has
+// been opened at least once. Includes the empty "no format" option, whose
+// own visible label ("No format set") lives here too so there is exactly
+// one place that names it.
+const NO_FORMAT_LABEL = "No format set";
+const FORMAT_SELECT_ITEMS: Record<string, string> = {
+  "": NO_FORMAT_LABEL,
+  ...Object.fromEntries(STAGE_FORMATS.map((format) => [format, STAGE_FORMAT_LABELS[format]])),
+};
 
 interface StageDetailStage {
   id: string;
@@ -109,12 +123,20 @@ function StageDetailSheetBody({
 
   function handleMoveHere() {
     React.startTransition(async () => {
-      const result = await moveAction(opportunity.id, { stageId: stage.id });
-      if (!result.ok) {
-        toast.error(`Could not move ${opportunity.roleTitle} at ${companyName}. ${messageFor(result.code)}`);
-      } else {
+      const subject = { roleTitle: opportunity.roleTitle, companyName };
+      try {
+        const result = await moveAction(opportunity.id, { stageId: stage.id });
+        if (!result.ok) {
+          toast.error(actionFailureMessage("move", subject, result.code));
+          return;
+        }
         announce(`Moved ${opportunity.roleTitle} at ${companyName} to ${columnTitle(result.data.to.kind)}.`);
         onOpenChange(false);
+      } catch (error) {
+        // moveAction can reject before ever returning a Result - see
+        // board.tsx's runMove for the same case.
+        console.error("move failed", error);
+        toast.error(actionFailureMessage("move", subject, "unexpected"));
       }
     });
   }
@@ -159,12 +181,13 @@ function StageDetailSheetBody({
                 name="format"
                 value={formatValue}
                 onValueChange={(value) => setFormatValue(value as StageFormat | "")}
+                items={FORMAT_SELECT_ITEMS}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No format set</SelectItem>
+                  <SelectItem value="">{NO_FORMAT_LABEL}</SelectItem>
                   {STAGE_FORMATS.map((format) => (
                     <SelectItem key={format} value={format}>
                       {STAGE_FORMAT_LABELS[format]}

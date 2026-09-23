@@ -16,7 +16,7 @@ import { EditDetailsDialog } from "@/components/job/edit-details-dialog";
 import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
 import { closeAction, reopenAction } from "@/app/(app)/board/actions";
-import { messageFor } from "@/lib/pipeline/messages";
+import { actionFailureMessage } from "@/lib/board/messages";
 import { focusWasLost } from "@/lib/dom/focus";
 import { CLOSED_REASON_LABELS } from "@/lib/pipeline/labels";
 import type { OpportunityStatus, ClosedReason, WorkMode } from "@/lib/pipeline/values";
@@ -78,23 +78,42 @@ export function JobHeader({ opportunity, companyName }: JobHeaderProps) {
 
   function handleConfirmClose(reason: ClosedReason) {
     React.startTransition(async () => {
-      const result = await closeAction(opportunity.id, reason);
-      if (!result.ok) {
-        toast.error(`Could not move ${opportunity.roleTitle} at ${companyName}. ${messageFor(result.code)}`);
-      } else {
+      const subject = { roleTitle: opportunity.roleTitle, companyName };
+      try {
+        const result = await closeAction(opportunity.id, reason);
+        if (!result.ok) {
+          toast.error(actionFailureMessage("close", subject, result.code));
+          return;
+        }
         announce(`Closed ${opportunity.roleTitle} at ${companyName}.`);
         setCloseOpen(false);
+      } catch (error) {
+        // closeAction can reject before ever returning a Result - for
+        // example requireUser()'s own session lookup throws when the
+        // database is unreachable (board.tsx's runMove/runClose document
+        // the same case for moveAction/closeAction). Without this catch,
+        // that would fail silently with no toast at all.
+        console.error("close failed", error);
+        toast.error(actionFailureMessage("close", subject, "unexpected"));
       }
     });
   }
 
   function handleReopen() {
     startReopenTransition(async () => {
-      const result = await reopenAction(opportunity.id);
-      if (!result.ok) {
-        toast.error(messageFor(result.code));
-      } else {
+      const subject = { roleTitle: opportunity.roleTitle, companyName };
+      try {
+        const result = await reopenAction(opportunity.id);
+        if (!result.ok) {
+          toast.error(actionFailureMessage("reopen", subject, result.code));
+          return;
+        }
         announce(`Reopened ${opportunity.roleTitle} at ${companyName}.`);
+      } catch (error) {
+        // See handleConfirmClose: reopenAction can also reject before
+        // returning a Result.
+        console.error("reopen failed", error);
+        toast.error(actionFailureMessage("reopen", subject, "unexpected"));
       }
     });
   }
