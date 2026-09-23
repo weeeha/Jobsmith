@@ -12,6 +12,7 @@ import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { toLocalInputValue } from "@/lib/time/local";
 import { messageFor } from "@/lib/pipeline/messages";
 import { focusWasLost } from "@/lib/dom/focus";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 
 interface NextActionBarProps {
@@ -166,7 +167,12 @@ function NextActionForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    // Finding 3 (Task 11 fix round 1): converted from <form
+    // action={formAction}> to submitViaTransition (lib/forms/submit.ts) -
+    // requestFormReset was wiping "What is next"/"When" back to
+    // initialOpportunity's values after a rejected save (for example a
+    // blank "What is next" with "When" filled in).
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
       {state?.ok === false ? (
         <p role="alert" className="text-sm text-destructive">
           {state.message}

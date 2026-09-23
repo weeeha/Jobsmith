@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { WorkMode } from "@/lib/pipeline/values";
 
@@ -89,7 +90,13 @@ function EditDetailsForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    // Finding 3 (Task 11 fix round 1): converted from <form action={formAction}>
+    // to submitViaTransition (lib/forms/submit.ts) - confirmed empirically
+    // (Task 11's report) that React 19's requestFormReset wipes every
+    // uncontrolled field back to its defaultValue after ANY <form action>
+    // dispatch settles, including a failed one (Role reverted to its
+    // pre-edit value on a rejected save).
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Edit details</DialogTitle>
       </DialogHeader>

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { STAGE_KINDS } from "@/lib/pipeline/kinds";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 
 // Task 10 fix round 1, Finding 3: Base UI's <Select.Value> resolves its
@@ -75,12 +76,20 @@ function AddJobForm({
   const companyListId = React.useId();
   const submitRef = React.useRef<HTMLButtonElement>(null);
 
+  // Finding 3 (Task 11 fix round 1): converted from <form action={formAction}>
+  // to submitViaTransition (lib/forms/submit.ts) - confirmed empirically
+  // (Task 11's report) that React 19's requestFormReset wipes every
+  // uncontrolled field back to its defaultValue after ANY <form action>
+  // dispatch settles, including a failed one, so Company/Role were being
+  // wiped on a rejected submit. lastSubmitted still reads the same FormData
+  // the same way; only the dispatch mechanism below changed.
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const data = new FormData(event.currentTarget);
     lastSubmitted.current = {
       companyName: String(data.get("companyName") ?? ""),
       roleTitle: String(data.get("roleTitle") ?? ""),
     };
+    submitViaTransition(event, formAction);
   }
 
   React.useEffect(() => {
@@ -108,7 +117,7 @@ function AddJobForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Add a job</DialogTitle>
       </DialogHeader>

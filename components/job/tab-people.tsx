@@ -30,13 +30,19 @@ export function TabPeople({
                 className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
               >
                 <div className="flex min-w-0 flex-col">
-                  <p className="text-sm font-medium text-foreground">
+                  {/* break-words (Task 11 fix round 1, Finding 1): an
+                      unbroken long name or title has no other wrap point
+                      inside this flex row and would otherwise force
+                      page-level horizontal overflow, the same risk
+                      tab-overview.tsx and tab-timeline.tsx already guard
+                      against. */}
+                  <p className="break-words text-sm font-medium text-foreground">
                     {link.person.name}
                     {link.person.title ? (
                       <span className="font-normal text-muted-foreground"> · {link.person.title}</span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="break-words text-xs text-muted-foreground">
                     {PERSON_ROLE_LABELS[link.role]}
                     {stageLabel ? ` · ${stageLabel}` : ""}
                   </p>

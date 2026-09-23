@@ -241,6 +241,8 @@ export async function updateOpportunityDetailsAction(
   return { ok: true };
 }
 
+const opportunityAndCompanyIdSchema = z.object({ opportunityId: opportunityIdSchema, companyId: z.uuid() });
+
 // Ruling 6: the Edit company dialog has no separate "clear" control either,
 // same as Edit details above - every field is blankToNull, not `|| undefined`,
 // so a blanked field actually clears the column (lib/pipeline/details.ts's
@@ -252,8 +254,13 @@ export async function updateCompanyDetailsAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const idParsed = opportunityIdSchema.safeParse(opportunityId);
-  if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
+  // Ruling 9 (Task 11 fix round 1): companyId flows straight into
+  // s.company.getById's raw uuid comparison - unvalidated, a malformed id
+  // throws a Postgres error instead of returning a Result, the same class
+  // of gap unlinkPersonAction's own combined id check already closes for
+  // linkId.
+  const idsParsed = opportunityAndCompanyIdSchema.safeParse({ opportunityId, companyId });
+  if (!idsParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
   const raw = {
     domain: blankToNull(formData.get("domain")),
     careersUrl: blankToNull(formData.get("careersUrl")),

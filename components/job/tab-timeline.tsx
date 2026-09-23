@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { LocalTime } from "@/components/local-time";
 import { eventText } from "@/lib/pipeline/event-text";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { EventRow } from "@/lib/db/scoped";
 
@@ -61,25 +62,13 @@ function NoteForm({ opportunityId }: { opportunityId: string }) {
   const formRef = React.useRef<HTMLFormElement>(null);
   const submitRef = React.useRef<HTMLButtonElement>(null);
 
-  // Named risk 1: same fix as edit-company-dialog.tsx/person-dialog.tsx -
-  // see EditCompanyForm's comment for the full explanation (confirmed
-  // empirically against add-job-dialog.tsx/edit-details-dialog.tsx: React 19
-  // runs requestFormReset after every <form action={fn}> dispatch, wiping
-  // every uncontrolled field back to its defaultValue). This form does not
-  // close on success (there is nothing to close - the frame just says it
-  // clears), so avoiding requestFormReset means the clearing it still needs
-  // has to be done explicitly below, rather than left to that same
-  // mechanism.
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    React.startTransition(() => {
-      formAction(formData);
-    });
-  }
-
   React.useEffect(() => {
     if (state === undefined) return;
+    // This form does not close on success (there is nothing to close - the
+    // frame just says it clears), and submitViaTransition (lib/forms/submit.ts)
+    // deliberately never goes through <form action>, so the requestFormReset
+    // that would otherwise have cleared it never fires either. The reset
+    // this form still needs on success is done explicitly here instead.
     if (state.ok) formRef.current?.reset();
     // Same Chromium disabled-focus-loss fix as every other form here: the
     // Add note button is disabled only while pending, never removed, so it
@@ -91,7 +80,7 @@ function NoteForm({ opportunityId }: { opportunityId: string }) {
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form ref={formRef} onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-2">
       {state?.ok === false ? (
         <p role="alert" className="text-sm text-destructive">
           {state.message}

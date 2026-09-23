@@ -17,6 +17,7 @@ import { columnTitle } from "@/lib/pipeline/labels";
 import { STAGE_FORMATS, type StageFormat } from "@/lib/pipeline/values";
 import { STAGE_FORMAT_LABELS } from "@/lib/pipeline/labels";
 import { actionFailureMessage } from "@/lib/board/messages";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { OpportunityStatus } from "@/lib/pipeline/values";
@@ -156,7 +157,18 @@ function StageDetailSheetBody({
           </Button>
         ) : null}
 
-        <form action={formAction} className="flex flex-col gap-3">
+        {/* Finding 3 (Task 11 fix round 1): converted from <form
+            action={formAction}> to submitViaTransition (lib/forms/submit.ts).
+            "Outcome notes" and "Date and time" below are uncontrolled
+            (defaultValue), and unlike the Format Select just above they were
+            never given the controlled-state fix, so React 19's
+            requestFormReset was wiping them back to their pre-save
+            defaultValue after EVERY save (success included, since this
+            sheet stays open and the same instance never remounts to pick up
+            a fresh defaultValue - see the Format Select's own comment for
+            why an already-mounted uncontrolled field ignores a later
+            defaultValue change). */}
+        <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
           {state?.ok === false ? (
             <p role="alert" className="text-sm text-destructive">
               {state.message}

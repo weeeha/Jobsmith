@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { CompanyRow } from "@/lib/db/scoped";
 
@@ -63,25 +64,6 @@ function EditCompanyForm({
   // uncontrolled FieldControl after being initialized" warning.
   const [initialCompany] = React.useState(company);
 
-  // Named risk 1: confirmed empirically against the existing, untouched
-  // add-job-dialog.tsx and edit-details-dialog.tsx (see the task report) -
-  // React 19 runs requestFormReset after every <form action={fn}> dispatch
-  // settles, wiping every uncontrolled field back to its defaultValue even
-  // on a validation failure, even though this dialog stays open on failure.
-  // Submitting through a plain onSubmit that builds FormData itself and
-  // calls the useActionState dispatch function directly, inside
-  // startTransition, never goes through that native form-action dispatch
-  // path, so requestFormReset never fires and every field keeps whatever the
-  // user typed after a failed save. Applied to all three of this task's own
-  // forms (this one, the person dialog, and the note form).
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    React.startTransition(() => {
-      formAction(formData);
-    });
-  }
-
   React.useEffect(() => {
     if (state?.ok) {
       onOpenChange(false);
@@ -97,7 +79,7 @@ function EditCompanyForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Edit company</DialogTitle>
       </DialogHeader>

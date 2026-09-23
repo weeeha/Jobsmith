@@ -20,6 +20,7 @@ import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { columnTitle } from "@/lib/pipeline/labels";
 import { messageFor } from "@/lib/pipeline/messages";
 import { focusWasLost } from "@/lib/dom/focus";
+import { submitViaTransition } from "@/lib/forms/submit";
 import type { StageControls } from "@/lib/pipeline/stage-controls";
 import type { StageStatus } from "@/lib/pipeline/values";
 import type { FormState } from "@/lib/forms/state";
@@ -274,7 +275,12 @@ function StageRow({
 
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2">
-      <form action={renameAction} className="min-w-0 flex-1">
+      {/* Finding 3 (Task 11 fix round 1): converted from <form
+          action={renameAction}> to submitViaTransition (lib/forms/submit.ts),
+          same as every other form here - the onBlur below still submits via
+          the native form.requestSubmit(), which now dispatches through this
+          onSubmit instead of the native action path. */}
+      <form onSubmit={(event) => submitViaTransition(event, renameAction)} className="min-w-0 flex-1">
         <Input
           ref={labelInputRef}
           name="label"
@@ -372,7 +378,12 @@ function AddStageSection({ opportunity }: { opportunity: { id: string } }) {
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-4">
       <h3 className="text-sm font-medium text-foreground">Add a stage</h3>
-      <form ref={formRef} action={formAction} className="flex flex-col gap-3">
+      {/* Finding 3 (Task 11 fix round 1): converted from <form
+          action={formAction}> to submitViaTransition (lib/forms/submit.ts) -
+          requestFormReset was reverting a chosen (non-default) "Kind" back
+          to ADDABLE_STAGE_KINDS[0] after a rejected submit (a blank Label,
+          say), not just leaving it as the user picked it. */}
+      <form ref={formRef} onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
         {state?.ok === false ? (
           <p role="alert" className="text-sm text-destructive">
             {state.message}

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { messageFor } from "@/lib/pipeline/messages";
 import { focusWasLost } from "@/lib/dom/focus";
+import { submitViaTransition } from "@/lib/forms/submit";
 import { PERSON_ROLES, type PersonRole } from "@/lib/pipeline/values";
 import { PERSON_ROLE_LABELS } from "@/lib/pipeline/labels";
 import type { FormState } from "@/lib/forms/state";
@@ -187,25 +188,6 @@ function PersonForm({
     ...Object.fromEntries(stages.map((stage) => [stage.id, stage.label])),
   };
 
-  // Named risk 1: same fix as edit-company-dialog.tsx's EditCompanyForm, see
-  // its comment for the full explanation (confirmed empirically against
-  // add-job-dialog.tsx/edit-details-dialog.tsx: React 19 runs
-  // requestFormReset after every <form action={fn}> dispatch, wiping every
-  // uncontrolled field back to its defaultValue even on a validation
-  // failure). `noValidate` on top: the Email field below keeps
-  // `type="email"` for its keyboard/semantic hint, but this app's own error
-  // presentation (the red hint text under a field, from `fieldErrors`) is
-  // the only validation UI a user should see here, matching every other
-  // field in this dialog - not a browser-native tooltip that would also
-  // block the submission before this handler, or the server, ever sees it.
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    React.startTransition(() => {
-      formAction(formData);
-    });
-  }
-
   React.useEffect(() => {
     if (state?.ok) {
       onOpenChange(false);
@@ -218,7 +200,14 @@ function PersonForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+    // noValidate: the Email field below keeps `type="email"` for its
+    // keyboard/semantic hint, but this app's own error presentation (the
+    // red hint text under a field, from `fieldErrors`) is the only
+    // validation UI a user should see here, matching every other field in
+    // this dialog - not a browser-native tooltip that would otherwise block
+    // the submission before submitViaTransition, or the server, ever sees
+    // it (see lib/forms/submit.ts for why that dispatch path is used).
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>{mode.mode === "add" ? "Add a person" : "Edit person"}</DialogTitle>
       </DialogHeader>
