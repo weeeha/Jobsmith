@@ -122,7 +122,15 @@ function AddJobForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    // noValidate: the Pay from/Pay to inputs' own `max` and the posting
+    // link's `type="url"` are real HTML constraints (a browser's native,
+    // inconsistently worded validation bubble would otherwise block the
+    // submit event before it ever reaches the server, the same class of gap
+    // person-dialog.tsx's own noValidate already closes for its Email
+    // field) - this app's own error presentation (the red hint text under a
+    // field, from `fieldErrors`) is the only validation UI a user should
+    // see here.
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Add a job</DialogTitle>
       </DialogHeader>

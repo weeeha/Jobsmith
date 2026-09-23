@@ -101,7 +101,12 @@ function EditDetailsForm({
     // uncontrolled field back to its defaultValue after ANY <form action>
     // dispatch settles, including a failed one (Role reverted to its
     // pre-edit value on a rejected save).
-    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-4">
+    // noValidate: same reasoning as add-job-dialog.tsx's identical form -
+    // the Pay from/Pay to inputs' own `max` and the posting link's
+    // `type="url"` are real HTML constraints that would otherwise let the
+    // browser's own native validation bubble block the submit event before
+    // the server, or this app's own field-level error text, ever sees it.
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Edit details</DialogTitle>
       </DialogHeader>
