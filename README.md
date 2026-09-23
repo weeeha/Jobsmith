@@ -48,6 +48,39 @@ Open `http://localhost:3000`. The first visit redirects to `/setup`, which
 creates the only account this instance will accept until you set
 `ALLOW_SIGNUP=true`.
 
+## Adding a job
+
+Click "Add job" on the board. Company and role are required; everything
+else (location, work mode, a link to the posting, pasted posting text, a
+pay range and currency, a pay note, what you plan to ask for, and which
+column it starts in) is optional. Retyping an existing company's name
+matches that company, so the same company across several roles stays one
+company record rather than several.
+
+Adding the same company and role again while the first one is still
+active shows "You already track this role at this company." with a link
+to open it, instead of creating a second copy.
+
+"Where is it now" defaults to Saved. The job is always created with all
+seven stages. Choosing Applied moves it there once. Choosing a column
+after Applied moves it to Applied first and then to the chosen column, so
+its history shows two moves, unlike the single drag you would get from
+adding it plain and moving the card afterward.
+
+## Keyboard shortcuts on the board
+
+Focus a card (its title is a link, reached by Tab in the normal reading
+order) and press a digit 1 to 7 to move it straight to that column, or
+`c` to close it and choose a reason. Every card also has a "Move to" menu
+listing the same seven columns and a Close item, for a mouse or a screen
+reader user who would rather not remember the numbers. A move that
+succeeds is confirmed out loud through a screen reader (a visually hidden
+live region); a move the server refuses shows why in a toast and leaves
+the card where it was.
+
+Below 768px wide the board is a list grouped by stage instead of columns;
+each row's "Move to" button opens the same seven choices in a sheet.
+
 ## Deploying
 
 On Vercel, the build command is `pnpm db:migrate && pnpm build` (see
@@ -138,12 +171,15 @@ stage's entered date, honored for every `stageKind` other than `saved`),
 `tests/fixtures/applications.sample.json` for a complete, fictional
 example.
 
-An entry whose company and role already exist for the target account is
-skipped, so running the same file twice changes nothing on the second run.
-`--email` chooses which account to import into: optional while the
-instance has exactly one account, required once it has more than one.
-`--dry-run` reports what would happen (created, skipped, and any entry it
-could not read, by its position in the file) without writing anything.
+An entry whose company and role already exist for the target account,
+active or closed, is skipped, so running the same file twice changes
+nothing, even after one of the imported jobs is later closed. `--email`
+chooses which account to import into: optional while the instance has
+exactly one account, required once it has more than one. Every run
+prints a summary: entries created, entries skipped as already tracked,
+and any entry that failed, by its position in the file - including a note
+or next action that failed to save after its job was already created.
+`--dry-run` prints the same summary without writing anything.
 
 ## Design system
 
