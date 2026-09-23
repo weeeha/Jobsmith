@@ -50,5 +50,5 @@ next-env.d.ts
 .agents/
 skills-lock.json
 
-# the owner's personal import mapping (owner-gated, Task 14), never committed
+# the owner's personal import mapping, owner-gated and never committed
 /local/

@@ -6,6 +6,12 @@ import { scoped } from "@/lib/db/scoped";
 import { user } from "@/lib/db/schema";
 import { parseApplications, importApplications } from "@/lib/import/applications";
 
+// A usage mistake (bad flags, no matching account), not a bug: raised inside
+// the try below so the pool still closes through `finally`, then caught by
+// main().catch, which prints only its message — no stack trace — to keep
+// that distinct from an unexpected failure.
+class UsageError extends Error {}
+
 function parseArgs(argv: string[]): { file: string; email?: string; dryRun: boolean } {
   const dryRun = argv.includes("--dry-run");
   const emailIndex = argv.indexOf("--email");
@@ -47,18 +53,15 @@ async function main() {
     if (email) {
       const match = users.find((u) => u.email === email);
       if (!match) {
-        console.error(`No user with email ${email}.`);
-        process.exit(1);
+        throw new UsageError(`No user with email ${email}.`);
       }
       chosen = match;
     } else if (users.length === 1) {
       chosen = users[0]!;
     } else if (users.length === 0) {
-      console.error("No users exist yet. Create an account first.");
-      process.exit(1);
+      throw new UsageError("No users exist yet. Create an account first.");
     } else {
-      console.error("Multiple accounts exist; pass --email <address>.");
-      process.exit(1);
+      throw new UsageError("Multiple accounts exist; pass --email <address>.");
     }
 
     const s = scoped(db, chosen.id);
@@ -85,6 +88,6 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error(error instanceof UsageError ? error.message : error);
     process.exit(1);
   });

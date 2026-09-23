@@ -38,8 +38,8 @@ export function parseApplications(json: unknown): Result<ImportEntry[], "invalid
   return ok(parsed.data);
 }
 
-// D14: an entry already tracked for this user — same company, same role,
-// in any status — is skipped rather than replayed, so a job the owner
+// An entry already tracked for this user — same company, same role, in
+// any status — is skipped rather than replayed, so a job the owner
 // imported and later closed does not come back as a new active job the
 // next time the same file runs. createOpportunity only treats an ACTIVE
 // match as a duplicate (it lets the owner knowingly re-apply to a role
