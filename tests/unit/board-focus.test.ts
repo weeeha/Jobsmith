@@ -3,7 +3,8 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   focusCardLink,
   focusCardButton,
-  focusColumnRegion,
+  focusColumnCardOrRegion,
+  focusGroupCardOrFallback,
   focusClosedViewToggle,
   nextFocusCandidate,
 } from "@/lib/dom/board-focus";
@@ -58,13 +59,54 @@ describe("DOM focus helpers", () => {
     expect((document.activeElement as HTMLElement).tagName).toBe("BUTTON");
   });
 
-  it("focusColumnRegion focuses the empty-rail region for that column's fixed title", () => {
+  it("focusColumnCardOrRegion focuses a remaining card link inside the column when one exists", () => {
     document.body.innerHTML = `
-      <section aria-label="Recruiter, no jobs" tabindex="-1">Recruiter</section>
-      <section aria-label="Applied, no jobs" tabindex="-1">Applied</section>
+      <div data-column-kind="recruiter_screen" tabindex="-1">
+        <a data-card-id="card-9" href="/jobs/nine">Nine</a>
+      </div>
+      <div data-column-kind="applied" tabindex="-1"></div>
     `;
-    focusColumnRegion("recruiter_screen");
-    expect((document.activeElement as HTMLElement).getAttribute("aria-label")).toBe("Recruiter, no jobs");
+    focusColumnCardOrRegion("recruiter_screen");
+    expect((document.activeElement as HTMLElement).getAttribute("data-card-id")).toBe("card-9");
+  });
+
+  it("focusColumnCardOrRegion falls back to the column container itself when it has no cards", () => {
+    document.body.innerHTML = `<div data-column-kind="recruiter_screen" tabindex="-1"></div>`;
+    focusColumnCardOrRegion("recruiter_screen");
+    expect((document.activeElement as HTMLElement).getAttribute("data-column-kind")).toBe("recruiter_screen");
+  });
+
+  it("focusColumnCardOrRegion does nothing when the column itself is not in the DOM", () => {
+    document.body.innerHTML = "";
+    focusColumnCardOrRegion("recruiter_screen");
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("focusGroupCardOrFallback focuses a remaining card button inside the group when one exists", () => {
+    document.body.innerHTML = `
+      <section data-group-kind="recruiter_screen">
+        <button data-card-id="card-9">Move to</button>
+      </section>
+    `;
+    const fallback = document.createElement("button");
+    document.body.appendChild(fallback);
+    focusGroupCardOrFallback("recruiter_screen", fallback);
+    expect((document.activeElement as HTMLElement).getAttribute("data-card-id")).toBe("card-9");
+  });
+
+  it("focusGroupCardOrFallback uses the given fallback when the group has vanished entirely", () => {
+    document.body.innerHTML = "";
+    const fallback = document.createElement("button");
+    fallback.textContent = "Add job";
+    document.body.appendChild(fallback);
+    focusGroupCardOrFallback("recruiter_screen", fallback);
+    expect(document.activeElement).toBe(fallback);
+  });
+
+  it("focusGroupCardOrFallback does nothing when the group is gone and there is no fallback either", () => {
+    document.body.innerHTML = "";
+    focusGroupCardOrFallback("recruiter_screen", null);
+    expect(document.activeElement).toBe(document.body);
   });
 
   it("focusClosedViewToggle focuses the mode-tabs item labeled Closed, not Active", () => {

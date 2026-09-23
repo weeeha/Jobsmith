@@ -17,8 +17,8 @@ import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
 import { daysInStage } from "@/lib/board/days";
 import { columnTitle } from "@/lib/pipeline/labels";
-import { focusCardButton, nextFocusCandidate } from "@/lib/dom/board-focus";
-import { focusWasLost } from "@/lib/dom/focus";
+import { focusCardButton, focusGroupCardOrFallback } from "@/lib/dom/board-focus";
+import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import type { BoardCard } from "@/lib/db/scoped";
 import type { MoveTarget } from "@/lib/pipeline/rules";
@@ -119,11 +119,13 @@ export function PhoneBoard({
         // that opened it (Sheet's own default), but that button belonged to
         // this card's row in its OLD group, which unmounted the instant the
         // optimistic dispatch above moved it - so that default landed
-        // nowhere. This sends it to the same button's replacement instead,
-        // now sitting in the card's new group.
-        if (focusWasLost()) {
-          focusCardButton(cardId);
-        }
+        // nowhere. correctFocusOnceLost, not a one-time focusWasLost()
+        // check: the sheet's own closing animation can still be holding
+        // focus on that (about to be removed) button at this exact point,
+        // same reasoning as board.tsx's identical fix for the desktop
+        // "Move to" menu. This sends it to the same button's replacement
+        // instead, now sitting in the card's new group.
+        correctFocusOnceLost(() => focusCardButton(cardId));
       } catch (error) {
         // moveAction can reject before ever returning a Result (board.tsx's
         // runMove hit this first - requireUser()'s own session lookup
@@ -139,11 +141,6 @@ export function PhoneBoard({
   function runClose(cardId: string, reason: ClosedReason) {
     const card = optimisticCards.find((c) => c.id === cardId);
     if (!card) return;
-    // Read before dispatching the removal below, same reasoning as
-    // board.tsx's runClose: a card's neighbors within its own group are
-    // only knowable from the list as it stood before that card left it.
-    const groupCards = optimisticCards.filter((c) => c.stage.kind === card.stage.kind);
-    const fallbackCard = nextFocusCandidate(groupCards, cardId);
     React.startTransition(async () => {
       dispatchOptimistic({ type: "remove", id: cardId });
       try {
@@ -155,11 +152,16 @@ export function PhoneBoard({
         announce(`Closed ${card.roleTitle} at ${card.companyName}.`);
         // Same reasoning as runMove above: the closed card's own row,
         // including its "Move to" button, unmounted the instant the
-        // optimistic removal above dropped it from the list.
-        if (focusWasLost()) {
-          if (fallbackCard) focusCardButton(fallbackCard.id);
-          else addJobButtonRef.current?.focus();
-        }
+        // optimistic removal above dropped it from the list, but the
+        // Close dialog's own closing animation can still be holding focus
+        // on its "Close job" button at this exact point - correctFocusOnceLost
+        // keeps watching until that animation actually finishes and the
+        // loss really happens, the same reasoning as board.tsx's identical
+        // fix. focusGroupCardOrFallback reads the group's current contents
+        // live, not a list captured before this await, for the same reason
+        // its own comment gives: the board is shared with whatever else is
+        // running concurrently.
+        correctFocusOnceLost(() => focusGroupCardOrFallback(card.stage.kind, addJobButtonRef.current));
       } catch (error) {
         // See runMove's matching catch above.
         console.error("close failed", error);
@@ -207,7 +209,14 @@ export function PhoneBoard({
             if (stageCards.length === 0) return null;
             const title = columnTitle(stage.kind);
             return (
-              <section key={stage.kind}>
+              // data-group-kind: lib/dom/board-focus.ts's
+              // focusGroupCardOrFallback reads this group's live contents
+              // after a close, to find another remaining card here to
+              // focus. This section unmounts entirely once stageCards is
+              // empty (the check above), unlike the desktop board's own
+              // column, which stays mounted as an empty rail - that
+              // fallback function accounts for the difference.
+              <section key={stage.kind} data-group-kind={stage.kind}>
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-medium">{title}</h2>
                   <span className="text-xs tabular-nums opacity-70">{stageCards.length}</span>

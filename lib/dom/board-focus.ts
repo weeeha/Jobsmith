@@ -1,4 +1,3 @@
-import { columnTitle } from "@/lib/pipeline/labels";
 import type { StageKind } from "@/lib/pipeline/kinds";
 
 /**
@@ -9,6 +8,14 @@ import type { StageKind } from "@/lib/pipeline/kinds";
  * the browser puts focus anywhere in particular afterward. These functions
  * find the right element to send it to instead, once the move, close or
  * reopen the caller is recovering from has actually landed.
+ *
+ * Every lookup here runs against the live DOM at the moment focus is
+ * actually being restored, never against a list snapshot taken before the
+ * close or move's own round trip to the server: the three browser projects
+ * share one board and one account, so another one's own card can land in
+ * or leave the very column being checked while that round trip is in
+ * flight, and a decision made ahead of time about "is this column about to
+ * be empty" can already be wrong by the time it is acted on.
  */
 
 /** The moved card's own title link, in whichever column it now sits in (job-card.tsx's own data-card-id marker). */
@@ -28,9 +35,33 @@ export function focusCardButton(cardId: string): void {
   document.querySelector<HTMLElement>(`button[data-card-id="${cardId}"]`)?.focus();
 }
 
-/** A column's own empty-rail region (board-column.tsx), once a close leaves nothing else in it. */
-export function focusColumnRegion(kind: StageKind): void {
-  document.querySelector<HTMLElement>(`[aria-label="${columnTitle(kind)}, no jobs"]`)?.focus();
+/**
+ * After a close on the desktop board: whichever card is currently first in
+ * the given column (board-column.tsx's own data-column-kind marker), or
+ * the column's own container when the column has nothing left in it right
+ * now. The container carries tabIndex={-1} in both its populated and empty
+ * states for exactly this fallback.
+ */
+export function focusColumnCardOrRegion(kind: StageKind): void {
+  const column = document.querySelector<HTMLElement>(`[data-column-kind="${kind}"]`);
+  if (!column) return;
+  const card = column.querySelector<HTMLElement>("a[data-card-id]");
+  (card ?? column).focus();
+}
+
+/**
+ * After a close on the phone board: whichever card is currently first in
+ * the given stage group (phone-board.tsx's own data-group-kind marker), or
+ * `fallback` when the group has nothing left in it right now. Unlike the
+ * desktop column above, a phone group's own <section> is not rendered at
+ * all once it has no cards (phone-board.tsx hides empty groups), so there
+ * is no persistent container of its own to fall back to - the caller
+ * supplies one instead (its own "Add job" button).
+ */
+export function focusGroupCardOrFallback(kind: StageKind, fallback: HTMLElement | null): void {
+  const group = document.querySelector<HTMLElement>(`[data-group-kind="${kind}"]`);
+  const card = group?.querySelector<HTMLElement>("button[data-card-id]") ?? null;
+  (card ?? fallback)?.focus();
 }
 
 /** The "Closed" board-view toggle (board.tsx's BoardViewSwitch), once reopening leaves the closed list empty. */

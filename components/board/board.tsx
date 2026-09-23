@@ -28,8 +28,8 @@ import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
 import { columnTitle } from "@/lib/pipeline/labels";
-import { focusCardLink, focusColumnRegion, nextFocusCandidate } from "@/lib/dom/board-focus";
-import { focusWasLost } from "@/lib/dom/focus";
+import { focusCardLink, focusColumnCardOrRegion } from "@/lib/dom/board-focus";
+import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { cn } from "@/lib/utils";
 import type { BoardCard } from "@/lib/db/scoped";
@@ -138,12 +138,14 @@ export function Board({
         announce(`Moved ${card.roleTitle} at ${card.companyName} to ${columnTitle(result.data.to.kind)}.`);
         // The moved card's old title link (or its Move menu trigger, itself
         // inside the same card) unmounted the instant the optimistic dispatch
-        // above swapped it into its new column - the browser dropped focus
-        // to <body> right then, well before this await resolved, so this is
-        // recovering focus lost earlier, not causing a fresh loss now.
-        if (focusWasLost()) {
-          focusCardLink(cardId);
-        }
+        // above swapped it into its new column. correctFocusOnceLost, not a
+        // one-time focusWasLost() check: when the move was triggered through
+        // the "Move to" menu, that menu's own popup is still mid closing
+        // animation right here, holding focus on its own (about to be
+        // removed) trigger - a check made now would see focus as not lost
+        // yet and miss the loss that happens once that animation actually
+        // finishes.
+        correctFocusOnceLost(() => focusCardLink(cardId));
       } catch (error) {
         // moveAction itself can reject before ever returning a Result - for
         // example requireUser()'s own session lookup throws when the
@@ -165,11 +167,6 @@ export function Board({
   function runClose(cardId: string, reason: ClosedReason) {
     const card = optimisticCards.find((c) => c.id === cardId);
     if (!card) return;
-    // Read before dispatching the removal below: a card's neighbors within
-    // its own column are only knowable from the list as it stood before
-    // that card left it.
-    const columnCards = optimisticCards.filter((c) => c.stage.kind === card.stage.kind);
-    const fallbackCard = nextFocusCandidate(columnCards, cardId);
     React.startTransition(async () => {
       dispatchOptimistic({ type: "remove", id: cardId });
       try {
@@ -179,14 +176,20 @@ export function Board({
           return;
         }
         announce(`Closed ${card.roleTitle} at ${card.companyName}.`);
-        // Same reasoning as runMove above: the closed card's own title link
-        // (wherever focus was within it - the link itself, its Move menu
-        // trigger) unmounted the instant the optimistic removal above
-        // dropped it from the board, well before this await resolved.
-        if (focusWasLost()) {
-          if (fallbackCard) focusCardLink(fallbackCard.id);
-          else focusColumnRegion(card.stage.kind);
-        }
+        // The Close dialog is still mid closing animation right here,
+        // holding focus on its own "Close job" button - same reasoning as
+        // runMove's identical correctFocusOnceLost above, confirmed
+        // empirically against this exact dialog: a one-time focusWasLost()
+        // check made now sees focus as not lost yet, and the dialog's own
+        // focus-restoration (queued behind that animation) then fails to
+        // find its original target - the closed card's title link, long
+        // gone - and falls back to <body> once the animation actually
+        // finishes, uncaught by a check that already ran. Reads the
+        // column's current contents live, not a list captured before this
+        // await, for the same reason focusColumnCardOrRegion's own comment
+        // gives: the board is shared with whatever else is running
+        // concurrently.
+        correctFocusOnceLost(() => focusColumnCardOrRegion(card.stage.kind));
       } catch (error) {
         // See runMove's matching catch: closeAction can also reject before
         // returning a Result.

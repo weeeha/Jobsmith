@@ -34,8 +34,19 @@ export function BoardColumn({ kind, cards, children }: BoardColumnProps) {
   return (
     <div
       ref={setNodeRef}
+      // data-column-kind, and tabIndex so it is a valid focus target either
+      // way: board.tsx looks inside this exact node for a remaining card to
+      // focus after a close, or falls back to focusing the node itself, once
+      // closing a job leaves nothing else in this column
+      // (lib/dom/board-focus.ts's focusColumnCardOrRegion). Present in both
+      // branches below and read live at that moment, not decided ahead of
+      // time, because the board is shared with whatever else is running
+      // concurrently and this column's own contents can change before the
+      // close this file started even finishes.
+      data-column-kind={kind}
+      tabIndex={-1}
       className={cn(
-        "h-full shrink-0 overflow-hidden transition-all duration-base ease-standard",
+        "h-full shrink-0 overflow-hidden rounded-lg transition-all duration-base ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         rail ? "w-12" : "w-64",
       )}
     >
@@ -46,12 +57,7 @@ export function BoardColumn({ kind, cards, children }: BoardColumnProps) {
       ) : (
         <section
           aria-label={`${title}, no jobs`}
-          // -1: not part of the normal Tab order, but a valid target for
-          // board.tsx to send focus to once closing a job leaves this column
-          // with nothing left in it to focus instead (lib/dom/board-focus.ts's
-          // focusColumnRegion).
-          tabIndex={-1}
-          className="flex h-full flex-col items-center gap-2 rounded-lg border bg-muted/40 px-1 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-full flex-col items-center gap-2 rounded-lg border bg-muted/40 px-1 py-2"
         >
           <h2 className="truncate text-sm font-medium">{title}</h2>
           <span className="text-xs tabular-nums opacity-70">0</span>
