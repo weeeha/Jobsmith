@@ -81,10 +81,14 @@ function emptyToUndefined(value: FormDataEntryValue | null): string | undefined 
   return value;
 }
 
+// A blank value means "not given" (undefined). A non-blank value that fails
+// to parse is passed through as NaN rather than folded into that same
+// undefined, which would add the job with the figure silently dropped.
+// createOpportunitySchema's compMin/compMax reject NaN on their own, so this
+// reaches the user as a normal field error.
 function toNumberOrUndefined(value: FormDataEntryValue | null): number | undefined {
   if (typeof value !== "string" || value.trim() === "") return undefined;
-  const n = Number(value);
-  return Number.isNaN(n) ? undefined : n;
+  return Number(value);
 }
 
 function isStageKind(value: string): value is StageKind {
