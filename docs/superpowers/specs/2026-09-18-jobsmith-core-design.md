@@ -149,6 +149,8 @@ Board interaction:
 
 A card shows company, role, fit score, a chip for a custom stage label, days in the current stage (from `entered_at`) and the next action.
 
+**Milestone 2 notes.** Decision D8 (the "Move to" menu, above) is already noted inline. Rule 6's offer to set the next action after a move is not built in Milestone 2; it arrives with Home in Milestone 5, which owns next-action prompting.
+
 ### 5.2 Job page
 
 Route `/jobs/[slug]`. The header has the role, company, location, fit chip, a link to the original posting and a menu with Close and Reopen. Below it sit the stage stepper with "Edit stages" and the next action bar with Done and Edit.
