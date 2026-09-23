@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { LocalDateTimeInput } from "@/components/local-datetime-input";
-import { toLocalInputValue } from "@/lib/time/local";
 import { columnTitle } from "@/lib/pipeline/labels";
 import { STAGE_FORMATS, type StageFormat } from "@/lib/pipeline/values";
 import { STAGE_FORMAT_LABELS } from "@/lib/pipeline/labels";
@@ -191,7 +190,16 @@ function StageDetailSheetBody({
               <LocalDateTimeInput
                 id={id}
                 name="scheduledAt"
-                defaultValue={stage.scheduledAt ? toLocalInputValue(stage.scheduledAt.toISOString()) : null}
+                // The ISO instant itself, not a pre-converted local value:
+                // LocalDateTimeInput's own defaultValue contract is an ISO
+                // instant (it runs toLocalInputValue on it internally to
+                // seed the visible field) - passing an already-local value
+                // here double-converted it, which happened to look right
+                // only because the browser's own time zone is the only one
+                // in play today, and would silently shift every date shown
+                // here the moment a later milestone adds a stored profile
+                // time zone that differs from the viewer's own.
+                defaultValue={stage.scheduledAt ? stage.scheduledAt.toISOString() : null}
                 disabled={isReadOnly}
                 aria-describedby={describedBy}
               />

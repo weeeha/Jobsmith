@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocalTime } from "@/components/local-time";
 import { LocalDateTimeInput } from "@/components/local-datetime-input";
-import { toLocalInputValue } from "@/lib/time/local";
 import { messageFor } from "@/lib/pipeline/messages";
 import { focusWasLost } from "@/lib/dom/focus";
 import { submitViaTransition } from "@/lib/forms/submit";
@@ -197,7 +196,11 @@ function NextActionForm({
           <LocalDateTimeInput
             id={id}
             name="at"
-            defaultValue={initialOpportunity.nextActionAt ? toLocalInputValue(initialOpportunity.nextActionAt.toISOString()) : null}
+            // The ISO instant itself: see stage-detail-sheet.tsx's
+            // identical fix for why running it through toLocalInputValue
+            // here first was wrong - LocalDateTimeInput already does that
+            // conversion internally.
+            defaultValue={initialOpportunity.nextActionAt ? initialOpportunity.nextActionAt.toISOString() : null}
             aria-describedby={describedBy}
           />
         )}
