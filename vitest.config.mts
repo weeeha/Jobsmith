@@ -32,6 +32,14 @@ export default defineConfig({
     // not raise this to "fix" a timeout - that hides contention, it doesn't
     // remove it.
     maxWorkers: 4,
+    // Every integration test file boots its own PGlite (a WASM Postgres)
+    // and runs every migration before its first test body even starts
+    // (tests/helpers/db.ts's makeTestDb) - real wall-clock work, not test
+    // logic, and on a loaded machine it alone can exceed Vitest's 5s
+    // default, failing the first test in a file with a plain timeout rather
+    // than an assertion. Raised for that fixed cost, not to paper over a
+    // genuinely slow test.
+    testTimeout: 20000,
   },
   resolve: {
     alias: {
