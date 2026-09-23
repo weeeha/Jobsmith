@@ -29,14 +29,14 @@ const ADDABLE_STAGE_KINDS = STAGE_KINDS.filter(
   (k) => k.kind !== "saved" && k.kind !== "applied" && k.kind !== "offer",
 );
 
-// Finding 3 (Task 10 fix round 1): Base UI's <Select.Value> resolves its
-// label purely from the Root's own `items` prop (node_modules/@base-ui/
-// react/select/value/SelectValue.js: resolveSelectedLabel(value, items) -
-// verified by reading the source, not guessed), never from having once
-// rendered a matching <Select.Item>. Without it, a closed Select shows the
-// raw value ("recruiter_screen") until the user opens the popup at least
-// once. `columnTitle` is already imported for the option list below; this
-// is the same map, keyed for `items` instead of iterated for children.
+// Base UI's <Select.Value> resolves its label purely from the Root's own
+// `items` prop (node_modules/@base-ui/react/select/value/SelectValue.js:
+// resolveSelectedLabel(value, items) - verified by reading the source, not
+// guessed), never from having once rendered a matching <Select.Item>.
+// Without it, a closed Select shows the raw value ("recruiter_screen")
+// until the user opens the popup at least once. `columnTitle` is already
+// imported for the option list below; this is the same map, keyed for
+// `items` instead of iterated for children.
 const ADDABLE_STAGE_KIND_ITEMS: Record<string, string> = Object.fromEntries(
   ADDABLE_STAGE_KINDS.map((entry) => [entry.kind, columnTitle(entry.kind)]),
 );
@@ -275,11 +275,11 @@ function StageRow({
 
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2">
-      {/* Finding 3 (Task 11 fix round 1): converted from <form
-          action={renameAction}> to submitViaTransition (lib/forms/submit.ts),
-          same as every other form here - the onBlur below still submits via
-          the native form.requestSubmit(), which now dispatches through this
-          onSubmit instead of the native action path. */}
+      {/* Converted from <form action={renameAction}> to submitViaTransition
+          (lib/forms/submit.ts), same as every other form here - the onBlur
+          below still submits via the native form.requestSubmit(), which
+          now dispatches through this onSubmit instead of the native
+          action path. */}
       <form onSubmit={(event) => submitViaTransition(event, renameAction)} className="min-w-0 flex-1">
         <Input
           ref={labelInputRef}
@@ -378,11 +378,11 @@ function AddStageSection({ opportunity }: { opportunity: { id: string } }) {
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-4">
       <h3 className="text-sm font-medium text-foreground">Add a stage</h3>
-      {/* Finding 3 (Task 11 fix round 1): converted from <form
-          action={formAction}> to submitViaTransition (lib/forms/submit.ts) -
-          requestFormReset was reverting a chosen (non-default) "Kind" back
-          to ADDABLE_STAGE_KINDS[0] after a rejected submit (a blank Label,
-          say), not just leaving it as the user picked it. */}
+      {/* Converted from <form action={formAction}> to submitViaTransition
+          (lib/forms/submit.ts) - requestFormReset was reverting a chosen
+          (non-default) "Kind" back to ADDABLE_STAGE_KINDS[0] after a
+          rejected submit (a blank Label, say), not just leaving it as the
+          user picked it. */}
       <form ref={formRef} onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
         {state?.ok === false ? (
           <p role="alert" className="text-sm text-destructive">

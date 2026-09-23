@@ -14,7 +14,7 @@ interface MoveSheetProps {
 }
 
 /**
- * D8: the phone twin of move-menu.tsx's "Move to" dropdown - the same eight
+ * The phone twin of move-menu.tsx's "Move to" dropdown - the same eight
  * actions (seven columns plus "Close job"), reached through a bottom Sheet
  * instead of a hover-oriented popover, which is a poor fit for touch. Calls
  * the identical onMove/onRequestClose callbacks a drop, the number keys and

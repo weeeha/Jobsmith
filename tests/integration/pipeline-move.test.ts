@@ -63,13 +63,13 @@ describe("moveOpportunity", () => {
       const before = await s.stage.listForOpportunity(id);
       expect(before).toHaveLength(7);
 
-      // Remove portfolio_case and panel_final directly through the Task 2
-      // primitive (not the pipeline-level removeStage, which this task also
-      // defines but in a different file: using it here would make this
-      // test's own failing run, in Step 9, depend on that file existing
-      // too). This leaves gaps in `position`, which is fine: planMove and
-      // stage.renumber both work off array order, not raw position values,
-      // and the move below ends by renumbering the whole opportunity anyway.
+      // Remove portfolio_case and panel_final directly through the scoped
+      // stage primitive, not the pipeline-level removeStage: this test's
+      // own use of moveOpportunity below should not depend on removeStage
+      // living in another file too. This leaves gaps in `position`, which
+      // is fine: planMove and stage.renumber both work off array order, not
+      // raw position values, and the move below ends by renumbering the
+      // whole opportunity anyway.
       const byKind = await stageIdsByKind(s, id);
       await s.stage.remove(byKind.panel_final);
       await s.stage.remove(byKind.portfolio_case);

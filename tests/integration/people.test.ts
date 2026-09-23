@@ -125,8 +125,8 @@ describe("updateLinkedPerson and unlinkPerson", () => {
     }
   });
 
-  // Ruling 6 (Task 11): the person dialog has no separate "clear" control
-  // either, same as Edit details/Edit company - a blank optional field is
+  // The person dialog has no separate "clear" control either, same as Edit
+  // details/Edit company - a blank optional field is
   // sent as `null` and clears the column. name and role stay required.
   it("stores null for title and email when sent as null, clearing them, but still rejects a blank name", async () => {
     const { db, close } = await makeTestDb();

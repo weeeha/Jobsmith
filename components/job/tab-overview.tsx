@@ -76,10 +76,10 @@ export function TabOverview({
                 Captured <LocalTime value={opportunity.postingCapturedAt} mode="date" />.
               </p>
             ) : null}
-            {/* D10: plain text, line breaks kept, no markdown rendering until
-                Milestone 3. break-words: an unbroken long string (named risk
-                3, e.g. a pasted URL with no spaces) has no other wrap point
-                and would otherwise force page-level horizontal overflow. */}
+            {/* Plain text, line breaks kept, no markdown rendering until
+                Milestone 3. break-words: an unbroken long string (e.g. a
+                pasted URL with no spaces) has no other wrap point and
+                would otherwise force page-level horizontal overflow. */}
             <div className="whitespace-pre-wrap break-words text-sm text-foreground">{opportunity.postingMd}</div>
           </>
         ) : (

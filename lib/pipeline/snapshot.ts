@@ -26,8 +26,8 @@ export async function loadState(
 
   // Non-null assertion: every opportunity gets a currentStageId at creation
   // (createOpportunity) and it is never cleared afterward. The column is
-  // nullable only for the circular-pointer FK mechanics (D2), not because a
-  // real opportunity can lack a current stage.
+  // nullable only for the circular-pointer FK mechanics between opportunity
+  // and stage, not because a real opportunity can lack a current stage.
   const state: OpportunityState = {
     status: row.status as OpportunityStatus,
     currentStageId: row.currentStageId!,

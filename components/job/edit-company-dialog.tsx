@@ -29,10 +29,9 @@ export function EditCompanyDialogTrigger({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           {/* Separate component inside DialogContent, same reasoning as
-              edit-details-dialog.tsx's EditDetailsForm (Task 10): the Popup
-              unmounts its children while closed, so every reopen starts a
-              fresh useActionState instead of a previous attempt's stale
-              error. */}
+              edit-details-dialog.tsx's EditDetailsForm: the Popup unmounts
+              its children while closed, so every reopen starts a fresh
+              useActionState instead of a previous attempt's stale error. */}
           <EditCompanyForm onOpenChange={setOpen} company={company} opportunityId={opportunityId} />
         </DialogContent>
       </Dialog>

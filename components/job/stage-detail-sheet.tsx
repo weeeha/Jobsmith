@@ -21,14 +21,13 @@ import type { FormState } from "@/lib/forms/state";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { OpportunityStatus } from "@/lib/pipeline/values";
 
-// Finding 3 (Task 10 fix round 1): Base UI's <Select.Value> resolves its
-// label purely from the Root's own `items` prop (node_modules/@base-ui/
-// react/select/value/SelectValue.js: resolveSelectedLabel(value, items)),
-// never from having once rendered a matching <Select.Item> - without it, a
-// closed Select shows the raw stored value ("video") until the popup has
-// been opened at least once. Includes the empty "no format" option, whose
-// own visible label ("No format set") lives here too so there is exactly
-// one place that names it.
+// Base UI's <Select.Value> resolves its label purely from the Root's own
+// `items` prop (node_modules/@base-ui/react/select/value/SelectValue.js:
+// resolveSelectedLabel(value, items)), never from having once rendered a
+// matching <Select.Item> - without it, a closed Select shows the raw
+// stored value ("video") until the popup has been opened at least once.
+// Includes the empty "no format" option, whose own visible label ("No
+// format set") lives here too so there is exactly one place that names it.
 const NO_FORMAT_LABEL = "No format set";
 const FORMAT_SELECT_ITEMS: Record<string, string> = {
   "": NO_FORMAT_LABEL,
@@ -168,10 +167,9 @@ function StageDetailSheetBody({
           </Button>
         ) : null}
 
-        {/* Finding 3 (Task 11 fix round 1): converted from <form
-            action={formAction}> to submitViaTransition (lib/forms/submit.ts).
-            "Outcome notes" and "Date and time" below are uncontrolled
-            (defaultValue) and, unlike the Format Select above, never given
+        {/* Converted from <form action={formAction}> to submitViaTransition
+            (lib/forms/submit.ts). "Outcome notes" and "Date and time" below
+            are uncontrolled (defaultValue) and, unlike the Format Select above, never given
             the controlled-state fix, so React 19's requestFormReset was
             wiping them back to their pre-save defaultValue on a REJECTED
             save - the one case that leaves this same instance mounted with

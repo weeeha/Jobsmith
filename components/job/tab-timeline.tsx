@@ -13,9 +13,9 @@ import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { EventRow } from "@/lib/db/scoped";
 
-// The whole file is "use client", the same shape as next-action-bar.tsx
-// (Task 10): a mostly-static list with one small interactive form nested
-// inside it, in one exported component's tree. `events` is already
+// The whole file is "use client", the same shape as next-action-bar.tsx: a
+// mostly-static list with one small interactive form nested inside it, in
+// one exported component's tree. `events` is already
 // server-fetched, plain, serializable data by the time it reaches here (like
 // NextActionBar's own `opportunity` prop or board.tsx's `cards`), so there
 // is nothing server-only left for a separate server wrapper to do.
@@ -25,7 +25,7 @@ export function TabTimeline({
 }: {
   opportunityId: string;
   // Already newest-first, per s.event.listForOpportunity's own contract
-  // (occurred_at desc, then created_at desc, Task 2) - never re-sorted here.
+  // (occurred_at desc, then created_at desc) - never re-sorted here.
   events: EventRow[];
 }) {
   return (

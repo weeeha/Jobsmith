@@ -16,11 +16,11 @@ export async function getJobView(s: Scoped, slug: string): Promise<JobView | nul
   }
 
   // Non-null assertion: every opportunity's companyId points at a company
-  // row owned by the same user, enforced by the composite foreign key from
-  // Task 1 (opportunity_company_fk).
+  // row owned by the same user, enforced by the composite foreign key
+  // (opportunity_company_fk).
   const company = (await s.company.getById(opportunity.companyId))!;
   const stages = await s.stage.listForOpportunity(opportunity.id);
-  // Non-null assertion: same reasoning as loadState (Task 4) — every real
+  // Non-null assertion: same reasoning as loadState — every real
   // opportunity has a currentStageId that points at one of its own stages.
   const currentStage = stages.find((st) => st.id === opportunity.currentStageId)!;
   const people = await s.opportunityPerson.listForOpportunity(opportunity.id);

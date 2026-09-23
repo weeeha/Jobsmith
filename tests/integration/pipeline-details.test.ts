@@ -39,8 +39,8 @@ describe("updateOpportunityDetails", () => {
     }
   });
 
-  // Ruling 1 (Task 10): a blank optional field on the Edit details form
-  // means "clear this column", not "leave unchanged" - so the schema and
+  // A blank optional field on the Edit details form means "clear this
+  // column", not "leave unchanged" - so the schema and
   // the function's input type accept `null` for every optional column.
   // roleTitle is excluded: it has no clearing gesture in the UI and stays
   // required-when-given and non-empty.
@@ -144,11 +144,11 @@ describe("updateCompanyDetails", () => {
     }
   });
 
-  // Ruling 6 (Task 11): the Edit company dialog has no separate "clear"
-  // control either, same as Edit details (Ruling 1, Task 10) - a blank
-  // optional field is sent as `null` and clears the column, not silently
-  // ignored. Every field here (domain, careersUrl, size, industry, hq,
-  // notesMd) accepts `null` for exactly that reason.
+  // The Edit company dialog has no separate "clear" control either, same
+  // as Edit details above - a blank optional field is sent as `null` and
+  // clears the column, not silently ignored. Every field here (domain,
+  // careersUrl, size, industry, hq, notesMd) accepts `null` for exactly
+  // that reason.
   it("stores null for careersUrl and hq when sent as null, clearing them", async () => {
     const { db, close } = await makeTestDb();
     try {

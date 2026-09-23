@@ -81,7 +81,7 @@ export const opportunity = pgTable(
     fit: jsonb("fit"),
     fitStatus: text("fit_status", { enum: FIT_STATUSES }).notNull().default("none"),
     needsReview: boolean("needs_review").notNull().default(false),
-    // Circular pointer (D2): stage is declared after opportunity, so this
+    // Circular pointer: stage is declared after opportunity, so this
     // forward reference is boxed as AnyPgColumn to keep TypeScript from
     // needing stage's own type while it is still being defined. NO ACTION
     // is Drizzle's default when no onDelete is given.

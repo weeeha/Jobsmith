@@ -46,28 +46,28 @@ function daysLabel(days: number): string {
 }
 
 /**
- * The phone twin of Board (Task 7): a grouped list instead of seven
+ * The phone twin of Board: a grouped list instead of seven
  * horizontally-scrolling columns. Root wrapper carries `flex md:hidden`,
  * the opposite of Board's `hidden md:flex`, so exactly one of the two trees
  * is ever exposed to the accessibility tree at a given viewport width - the
  * other's `display: none` removes it entirely, which is also why this
  * file's rows can reuse JobCard's exact "<role> at <company>" accessible
- * name without clashing (Task 9 brief).
+ * name without clashing.
  *
  * Owns its own useOptimistic over `cards`, its own moveSheetCardId /
  * pendingCloseId / addOpen state, and its own runMove/runClose - the same
  * shape as Board's, including Board's own same-column no-op guard and its
- * try/catch around each awaited action (Task 7 review rounds 1 and 3).
- * This duplicates Board's state rather than sharing it, because Board and
- * PhoneBoard are separate mounted component trees with no shared client
- * parent (app/(app)/board/page.tsx is a server component and cannot hold
- * state); only one tree is ever visible at a given viewport width, so the
+ * try/catch around each awaited action. This duplicates Board's state
+ * rather than sharing it, because Board and PhoneBoard are separate
+ * mounted component trees with no shared client parent
+ * (app/(app)/board/page.tsx is a server component and cannot hold state);
+ * only one tree is ever visible at a given viewport width, so the
  * duplication costs nothing a user can observe.
  *
  * actionFailureMessage (lib/board/messages.ts), not a raw messageFor call:
- * this is the exact helper Board's own runMove/runClose call today (Task 7
- * review finding 2 - a close/reopen failure must not say "move"), so both
- * boards produce byte-identical failure toasts for the same failure.
+ * this is the exact helper Board's own runMove/runClose call today (a
+ * close/reopen failure must not say "move"), so both boards produce
+ * byte-identical failure toasts for the same failure.
  */
 export function PhoneBoard({
   cards,
@@ -103,8 +103,8 @@ export function PhoneBoard({
     // Same guard, same reasoning as board.tsx's runMove: a move to the
     // card's own column is a silent no-op no matter which trigger asks for
     // it, including MoveSheet's own "current column" row, which - unlike
-    // MoveMenu's matching item - is not visually disabled (Task 9 brief);
-    // this guard is what makes choosing it harmless either way.
+    // MoveMenu's matching item - is not visually disabled; this guard is
+    // what makes choosing it harmless either way.
     if ("kind" in target && target.kind === card.stage.kind) return;
     React.startTransition(async () => {
       if ("kind" in target) dispatchOptimistic({ type: "move", id: cardId, toKind: target.kind });
@@ -293,15 +293,14 @@ export function PhoneBoard({
         onConfirm={handleConfirmClose}
       />
       {/* Its own, independent AddJobDialog mount - a second instance of the
-          same dialog component Board renders, not shared with it (Task 9
-          brief). Written once here, as a stable sibling outside the
-          isEmpty/non-empty branches above and not nested inside either one:
-          a card being added is exactly the moment cards.length flips 0 to
-          1, which flips isEmpty too, and nesting this inside a branch that
-          can flip mid-submission is the exact bug board.tsx's own comment
-          documents (Task 7 review) - one call site at a fixed position
-          keeps this instance mounted across that transition, so its state
-          survives. */}
+          same dialog component Board renders, not shared with it. Written
+          once here, as a stable sibling outside the isEmpty/non-empty
+          branches above and not nested inside either one: a card being
+          added is exactly the moment cards.length flips 0 to 1, which
+          flips isEmpty too, and nesting this inside a branch that can flip
+          mid-submission is the exact bug board.tsx's own comment documents
+          - one call site at a fixed position keeps this instance mounted
+          across that transition, so its state survives. */}
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} companyNames={companyNames} />
     </div>
   );

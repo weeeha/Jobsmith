@@ -25,8 +25,8 @@ export function toOpportunityState(view: Pick<JobView, "opportunity" | "stages">
     }));
   return {
     status: view.opportunity.status,
-    // Non-null assertion: mirrors loadState's own (Task 4, Step 5) — every
-    // real opportunity has a currentStageId from creation onward.
+    // Non-null assertion: mirrors loadState's own — every real opportunity
+    // has a currentStageId from creation onward.
     currentStageId: view.opportunity.currentStageId!,
     stages,
   };

@@ -4,10 +4,10 @@ import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 
-// Ruling 7: an error boundary with a retry for every signed-in route (spec
-// section 6). Placed at app/(app)/ so it wraps every route in that group,
-// the same layout.tsx segment as AppShell. `retry` (not `reset`) is this
-// Next.js version's stable prop (v16.3.0, node_modules/next/dist/docs/01-app/
+// An error boundary with a retry for every signed-in route (spec section 6).
+// Placed at app/(app)/ so it wraps every route in that group, the same
+// layout.tsx segment as AppShell. `retry` (not `reset`) is this Next.js
+// version's stable prop (v16.3.0, node_modules/next/dist/docs/01-app/
 // 03-api-reference/03-file-conventions/error.md) - it re-fetches and
 // re-renders the segment, which `reset` does not.
 export default function Error({

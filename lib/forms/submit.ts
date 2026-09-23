@@ -7,7 +7,7 @@ import { startTransition, type FormEvent } from "react";
  * success or failure, which resets every uncontrolled field back to its
  * `defaultValue` - wiping whatever the user typed even when the server
  * rejected the submission (confirmed empirically against add-job-dialog.tsx
- * and edit-details-dialog.tsx: Task 11's report). Calling `dispatch`
+ * and edit-details-dialog.tsx). Calling `dispatch`
  * directly, inside a transition, instead of wiring it to the form's own
  * `action` prop, never enters that native dispatch path, so
  * `requestFormReset` never fires.

@@ -14,7 +14,7 @@ function defaultLabelFor(kind: StageKind): string {
  * real enteredAt, so stage.id becomes the kind itself, a value nothing
  * downstream keys on, and enteredAt is left as it was. Both are corrected
  * within moments by the server round trip: the optimistic value is dropped
- * when the transition ends and the revalidated page data takes over (D6).
+ * when the transition ends and the revalidated page data takes over.
  */
 export function applyMove(cards: BoardCard[], move: { id: string; toKind: StageKind }): BoardCard[] {
   return cards.map((card) =>

@@ -18,12 +18,12 @@ import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
 import type { StageFormat } from "@/lib/pipeline/values";
 import { fail, type Result } from "@/lib/result";
 
-// Ruling 1 (Task 10): a blank optional field on the Edit details form
-// means "clear this column" - it is sent as `null`, not swallowed into
-// `undefined` ("leave unchanged"), so a wrong posting link or pay figure
-// can actually be removed, not just replaced. See lib/pipeline/details.ts
-// for the matching schema change; roleTitle has no clearing gesture, so it
-// is read as a plain (possibly blank, and then rejected) string instead.
+// A blank optional field on the Edit details form means "clear this
+// column" - it is sent as `null`, not swallowed into `undefined` ("leave
+// unchanged"), so a wrong posting link or pay figure can actually be
+// removed, not just replaced. See lib/pipeline/details.ts for the matching
+// schema change; roleTitle has no clearing gesture, so it is read as a
+// plain (possibly blank, and then rejected) string instead.
 function blankToNull(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string" || value.trim() === "") return null;
   return value;
@@ -235,9 +235,9 @@ export async function updateOpportunityDetailsAction(
 
 const opportunityAndCompanyIdSchema = z.object({ opportunityId: opportunityIdSchema, companyId: z.uuid() });
 
-// Ruling 6: the Edit company dialog has no separate "clear" control either,
-// same as Edit details above - every field is blankToNull, not `|| undefined`,
-// so a blanked field actually clears the column (lib/pipeline/details.ts's
+// The Edit company dialog has no separate "clear" control either, same as
+// Edit details above - every field is blankToNull, not `|| undefined`, so a
+// blanked field actually clears the column (lib/pipeline/details.ts's
 // updateCompanyDetailsSchema accepts null for exactly that reason).
 export async function updateCompanyDetailsAction(
   companyId: string,
@@ -246,11 +246,10 @@ export async function updateCompanyDetailsAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  // Ruling 9 (Task 11 fix round 1): companyId flows straight into
-  // s.company.getById's raw uuid comparison - unvalidated, a malformed id
-  // throws a Postgres error instead of returning a Result, the same class
-  // of gap unlinkPersonAction's own combined id check already closes for
-  // linkId.
+  // companyId flows straight into s.company.getById's raw uuid comparison -
+  // unvalidated, a malformed id throws a Postgres error instead of
+  // returning a Result, the same class of gap unlinkPersonAction's own
+  // combined id check already closes for linkId.
   const idsParsed = opportunityAndCompanyIdSchema.safeParse({ opportunityId, companyId });
   if (!idsParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
   const raw = {
@@ -272,8 +271,8 @@ export async function updateCompanyDetailsAction(
   return { ok: true };
 }
 
-// Ruling 6: same reasoning as updateCompanyDetailsAction above - title,
-// linkedinUrl, email and notesMd are blankToNull, not `|| undefined`, so
+// Same reasoning as updateCompanyDetailsAction above - title, linkedinUrl,
+// email and notesMd are blankToNull, not `|| undefined`, so
 // editing a person can actually clear a previously-set field. name and role
 // are read as plain strings (no clearing gesture, both required); stageId's
 // own "" -> null mapping was already correct (an empty Select value already

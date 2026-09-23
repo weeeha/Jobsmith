@@ -54,8 +54,8 @@ export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
     label: "Saved",
     position: 0,
   });
-  // Mirrors createOpportunity's own wiring (Task 4, plan Step 6.12): every
-  // real opportunity gets a currentStageId as soon as its first stage
+  // Mirrors createOpportunity's own wiring: every real opportunity gets a
+  // currentStageId as soon as its first stage
   // exists, so listBoard's join on current_stage_id can find it. Without
   // this, the seeded opportunity would be indistinguishable from one with no
   // stage at all, which is not a state a real opportunity is ever in.

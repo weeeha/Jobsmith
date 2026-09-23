@@ -43,9 +43,9 @@ export function EditDetailsDialog({ open, onOpenChange, opportunity }: EditDetai
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         {/* Separate component inside DialogContent, same reasoning as
-            AddJobDialog/AddJobForm (Task 8): useActionState lives in
-            content that unmounts on close, so every reopen starts with a
-            fresh form instead of a previous attempt's stale error. */}
+            AddJobDialog/AddJobForm: useActionState lives in content that
+            unmounts on close, so every reopen starts with a fresh form
+            instead of a previous attempt's stale error. */}
         <EditDetailsForm onOpenChange={onOpenChange} opportunity={opportunity} />
       </DialogContent>
     </Dialog>
@@ -83,11 +83,11 @@ function EditDetailsForm({
     if (state?.ok) {
       onOpenChange(false);
     } else if (state?.ok === false) {
-      // Same Chromium focus-loss fix as AddJobForm (Task 8 review finding
-      // 1): disabling the just-clicked submit button while `pending`
-      // clears drops focus to <body>, and the dialog's focus trap only
-      // recaptures a Tab/Shift+Tab escape, not this. Putting focus back on
-      // the control the user just activated keeps it inside the dialog.
+      // Same Chromium focus-loss fix as AddJobForm: disabling the
+      // just-clicked submit button while `pending` clears drops focus to
+      // <body>, and the dialog's focus trap only recaptures a Tab/Shift+Tab
+      // escape, not this. Putting focus back on the control the user just
+      // activated keeps it inside the dialog.
       submitRef.current?.focus();
     }
   }, [state, onOpenChange]);
@@ -95,12 +95,11 @@ function EditDetailsForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    // Finding 3 (Task 11 fix round 1): converted from <form action={formAction}>
-    // to submitViaTransition (lib/forms/submit.ts) - confirmed empirically
-    // (Task 11's report) that React 19's requestFormReset wipes every
-    // uncontrolled field back to its defaultValue after ANY <form action>
-    // dispatch settles, including a failed one (Role reverted to its
-    // pre-edit value on a rejected save).
+    // Converted from <form action={formAction}> to submitViaTransition
+    // (lib/forms/submit.ts) - confirmed empirically that React 19's
+    // requestFormReset wipes every uncontrolled field back to its
+    // defaultValue after ANY <form action> dispatch settles, including a
+    // failed one (Role reverted to its pre-edit value on a rejected save).
     // noValidate: same reasoning as add-job-dialog.tsx's identical form -
     // the Pay from/Pay to inputs' own `max` and the posting link's
     // `type="url"` are real HTML constraints that would otherwise let the

@@ -17,13 +17,12 @@ import { STAGE_KINDS } from "@/lib/pipeline/kinds";
 import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 
-// Task 10 fix round 1, Finding 3: Base UI's <Select.Value> resolves its
-// label purely from the Root's own `items` prop (node_modules/@base-ui/
-// react/select/value/SelectValue.js: resolveSelectedLabel(value, items)),
-// never from having once rendered a matching <Select.Item> - without it, a
-// closed Select shows the raw stored value ("saved") until the popup has
-// been opened at least once. Fixed here (a Task 8 file) so every Select in
-// the app follows the same pattern, not only the two Task 10 introduced.
+// Base UI's <Select.Value> resolves its label purely from the Root's own
+// `items` prop (node_modules/@base-ui/react/select/value/SelectValue.js:
+// resolveSelectedLabel(value, items)), never from having once rendered a
+// matching <Select.Item> - without it, a closed Select shows the raw
+// stored value ("saved") until the popup has been opened at least once.
+// Fixed here so every Select in the app follows the same pattern.
 const STAGE_KIND_ITEMS: Record<string, string> = Object.fromEntries(
   STAGE_KINDS.map((stage) => [stage.kind, stage.columnTitle]),
 );
@@ -45,12 +44,11 @@ export function AddJobDialog({ open, onOpenChange, companyNames }: AddJobDialogP
       <DialogContent>
         {/*
           AddJobForm owns useActionState and is a genuinely separate
-          component, not inline JSX here, on purpose (Task 8 review
-          finding 1). AddJobDialog itself is a stable sibling in
-          board.tsx that never unmounts - that is what fixed an earlier
-          remount bug and must stay that way - so a hook called directly
-          in ITS body would keep its state forever, surviving every
-          close/reopen. Base UI's DialogPortal, by contrast, genuinely
+          component, not inline JSX here, on purpose. AddJobDialog itself
+          is a stable sibling in board.tsx that never unmounts - that is
+          what fixed an earlier remount bug and must stay that way - so a
+          hook called directly in ITS body would keep its state forever,
+          surviving every close/reopen. Base UI's DialogPortal, by contrast, genuinely
           unmounts whatever is inside DialogContent once closed
           (`shouldRender = mounted || keepMounted`, keepMounted defaults
           to false - see node_modules/@base-ui/react/dialog/portal/
@@ -81,13 +79,13 @@ function AddJobForm({
   const companyListId = React.useId();
   const submitRef = React.useRef<HTMLButtonElement>(null);
 
-  // Finding 3 (Task 11 fix round 1): converted from <form action={formAction}>
-  // to submitViaTransition (lib/forms/submit.ts) - confirmed empirically
-  // (Task 11's report) that React 19's requestFormReset wipes every
-  // uncontrolled field back to its defaultValue after ANY <form action>
-  // dispatch settles, including a failed one, so Company/Role were being
-  // wiped on a rejected submit. lastSubmitted still reads the same FormData
-  // the same way; only the dispatch mechanism below changed.
+  // Converted from <form action={formAction}> to submitViaTransition
+  // (lib/forms/submit.ts) - confirmed empirically that React 19's
+  // requestFormReset wipes every uncontrolled field back to its
+  // defaultValue after ANY <form action> dispatch settles, including a
+  // failed one, so Company/Role were being wiped on a rejected submit.
+  // lastSubmitted still reads the same FormData the same way; only the
+  // dispatch mechanism below changed.
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const data = new FormData(event.currentTarget);
     lastSubmitted.current = {
@@ -211,8 +209,7 @@ function AddJobForm({
               // the <fieldset> is `contents` (out of the box model
               // entirely), so FieldRow's own visible "Work mode" label is
               // still the only copy a sighted user sees - this row's
-              // layout matches every other FieldRow here exactly
-              // (Task 8 review finding 3).
+              // layout matches every other FieldRow here exactly.
               <fieldset className="contents">
                 <legend id={legendId} className="sr-only">
                   Work mode

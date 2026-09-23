@@ -4,8 +4,8 @@ import { type Result, ok, fail } from "@/lib/result";
 import { WORK_MODES, type WorkMode } from "@/lib/pipeline/values";
 import type { CreateOpportunityInput } from "@/lib/pipeline/create";
 
-// Ruling 1 (Task 10): every optional field here is nullable, not just
-// optional. `undefined` (the key is left out of the input) still means
+// Every optional field here is nullable, not just optional. `undefined`
+// (the key is left out of the input) still means
 // "leave this column unchanged" - the update below only ever assigns keys
 // actually present on `parsed.data`. `null` is new: the Edit details
 // dialog has no separate "clear" control, so a field the user blanked out
@@ -52,10 +52,10 @@ export const updateOpportunityDetailsSchema = z
     { message: "Pay to must be at least pay from.", path: ["compMax"] },
   );
 
-// Ruling 6 (Task 11): the Edit company dialog has no separate "clear"
-// control either, same reasoning as updateOpportunityDetailsSchema above -
-// every field is nullable, not just optional, so a blanked field can
-// actually clear the column instead of being silently ignored.
+// The Edit company dialog has no separate "clear" control either, same
+// reasoning as updateOpportunityDetailsSchema above - every field is
+// nullable, not just optional, so a blanked field can actually clear the
+// column instead of being silently ignored.
 export const updateCompanyDetailsSchema = z.object({
   domain: z.string().trim().min(1, "Enter a website.").nullable().optional(),
   careersUrl: z

@@ -5,8 +5,8 @@ import type { MoveError } from "@/lib/pipeline/rules";
 import type { StageKind } from "@/lib/pipeline/kinds";
 
 // The only way a job is ever placed somewhere other than Saved: the add
-// dialog (Task 8), the import (Task 12) and the seed (Task 13) all call this
-// rather than moveOpportunity directly. Routing every placement through
+// dialog, the import script and the seed all call this rather than
+// moveOpportunity directly. Routing every placement through
 // Applied first keeps history truthful — a job that sits at the recruiter
 // screen was applied to first, so jumping there straight from Saved would
 // mark Applied as skipped, which is wrong.

@@ -20,9 +20,9 @@ export function CloseDialog({ open, onOpenChange, job, onConfirm }: CloseDialogP
   const [reason, setReason] = React.useState<ClosedReason | undefined>(undefined);
   // Both the legend's own id and every radio item's id below are derived
   // from this one React.useId() call, not literal strings: this dialog is
-  // now mounted twice at once - once under Board, once under PhoneBoard
-  // (Task 9) - and a display:none ancestor on whichever tree the current
-  // viewport hides does not remove its DOM nodes, only hide them, so a
+  // now mounted twice at once - once under Board, once under PhoneBoard -
+  // and a display:none ancestor on whichever tree the current viewport
+  // hides does not remove its DOM nodes, only hide them, so a
   // hardcoded id here would be a real duplicate id in the document the
   // moment both instances were open together, not just a theoretical one.
   // useId() is unique per mounted instance regardless of how many trees are

@@ -47,7 +47,7 @@ export function stageQueries(db: Db, userId: string) {
         .returning();
       return row ?? null;
     },
-    // D4: a single `position = position + 1` update violates the
+    // A single `position = position + 1` update violates the
     // unique(opportunity_id, position) constraint the moment two rows' new
     // positions collide with each other's old ones. Two statements instead:
     // first move every row for this opportunity far out of the way, then set

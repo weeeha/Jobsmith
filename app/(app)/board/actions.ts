@@ -18,10 +18,9 @@ import { companyNameKey } from "@/lib/companies/name-key";
 import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
 
 // Every board action concerns exactly one opportunity, which may also be
-// open as a job page in another tab, so both routes are revalidated
-// (Task 6's action convention). The job's slug is not part of any of these
-// actions' own return values, so it is re-read here; a not-found id simply
-// yields no second revalidation.
+// open as a job page in another tab, so both routes are revalidated. The
+// job's slug is not part of any of these actions' own return values, so it
+// is re-read here; a not-found id simply yields no second revalidation.
 async function revalidateBoardAndJob(s: Scoped, opportunityId: string) {
   revalidatePath("/board");
   const opportunity = await s.opportunity.getById(opportunityId);
@@ -139,9 +138,9 @@ export async function createOpportunityAction(prev: FormState, formData: FormDat
     return { ok: false, code: result.code, message: messageFor(result.code) };
   }
 
-  // placeOpportunity (part A, Task 5), not moveOpportunity directly: a job
-  // that is already at a later stage was applied to first, so Applied must
-  // not end up skipped.
+  // placeOpportunity, not moveOpportunity directly: a job that is already
+  // at a later stage was applied to first, so Applied must not end up
+  // skipped.
   const whereIsItNow = formData.get("whereIsItNow");
   let placement: Result<null, MoveError> | undefined;
   if (typeof whereIsItNow === "string" && isStageKind(whereIsItNow)) {
@@ -154,10 +153,10 @@ export async function createOpportunityAction(prev: FormState, formData: FormDat
   // always inserts every STAGE_KIND, so none of MoveError's four cases can
   // fire for a just-created job. Checked anyway, and the failure surfaced
   // rather than discarded, because lib/pipeline/place.ts documents that the
-  // import (Task 12) and seed (Task 13) tasks reuse this same function, and
-  // nothing here would catch a regression that later breaks that invariant
-  // - without this check, this action would report `{ ok: true }` and the
-  // UI would announce the job as added at a stage it never reached.
+  // import script and the seed reuse this same function, and nothing here
+  // would catch a regression that later breaks that invariant - without
+  // this check, this action would report `{ ok: true }` and the UI would
+  // announce the job as added at a stage it never reached.
   revalidatePath("/board");
   if (placement && !placement.ok) {
     return { ok: false, code: placement.code, message: messageFor(placement.code) };

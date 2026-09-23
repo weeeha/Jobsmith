@@ -51,14 +51,14 @@ type OptimisticAction = { type: "move"; id: string; toKind: StageKind } | { type
 // produced "Draggable item <uuid> was dropped over droppable area
 // <stage-kind-slug>" alongside this file's own, human-readable "Moved
 // <role> at <company> to <column>." from useAnnounce). That default text
-// names raw ids rather than the job/column, and duplicates D6's one
-// intended announcement per move, so it is silenced here in favor of the
-// single message runMove/runClose already produce. The default
+// names raw ids rather than the job/column, and duplicates the one intended
+// announcement per move, so it is silenced here in favor of the single
+// message runMove/runClose already produce. The default
 // screenReaderInstructions text ("press the space bar... use the arrow
 // keys...") is also wrong for this board: dnd-kit's own keyboard sensor is
 // never registered below (number keys and the Move menu are this board's
-// keyboard path instead, per D8), so that instruction describes a gesture
-// this board does not support.
+// keyboard path instead), so that instruction describes a gesture this
+// board does not support.
 const silentAnnouncements: Announcements = {
   onDragStart: () => undefined,
   onDragOver: () => undefined,
@@ -123,9 +123,9 @@ export function Board({
     // optimistic dispatch, no request, no toast - no matter which of the
     // three triggers (a drop, a number key, the "Move to" menu) asks for it.
     // Living here rather than at each call site is what makes all three
-    // behave identically instead of only the one that remembers to check
-    // (Task 7 review finding 1). The menu also renders this same column
-    // `disabled` so the no-op is visible, not just silent.
+    // behave identically instead of only the one that remembers to check.
+    // The menu also renders this same column `disabled` so the no-op is
+    // visible, not just silent.
     if ("kind" in target && target.kind === card.stage.kind) return;
     React.startTransition(async () => {
       if ("kind" in target) dispatchOptimistic({ type: "move", id: cardId, toKind: target.kind });
@@ -149,7 +149,7 @@ export function Board({
         // example requireUser()'s own session lookup throws when the
         // database is unreachable, verified by manually stopping the
         // database mid-move. The optimistic card already reverts on its own
-        // once this transition ends (D6, tested the same way); without this
+        // once this transition ends (tested the same way); without this
         // catch, that revert would happen silently with no toast at all,
         // which is a worse failure than the one this file's Result-based
         // handling above already covers. Logged before the toast, matching
@@ -312,7 +312,7 @@ export function Board({
 /**
  * Only rendered while a card is being dragged (Board's `isDragging`), so a
  * pointer/touch drag is the one way to reach it; the keyboard path and the
- * "Move to" menu close a job through "Close job" instead (D8).
+ * "Move to" menu close a job through "Close job" instead.
  */
 function ClosedDropZone() {
   const { setNodeRef, isOver } = useDroppable({ id: CLOSED_DROPPABLE_ID });

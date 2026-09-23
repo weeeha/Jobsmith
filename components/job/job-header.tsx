@@ -22,13 +22,12 @@ import { CLOSED_REASON_LABELS } from "@/lib/pipeline/labels";
 import type { OpportunityStatus, ClosedReason, WorkMode } from "@/lib/pipeline/values";
 import { MoreVertical } from "lucide-react";
 
-// The brief's own JobHeader signature names only the fields JobHeader
-// renders itself (roleTitle, sourceUrl, location, status, closedReason,
-// closedAt). JobHeader also owns EditDetailsDialog locally (its "Edit
-// details" menu item opens it, per Step 7), and that dialog's own props
-// (Step 11) need the rest of the opportunity's editable columns, so this
-// type is the union of both: exactly what page.tsx's `view.opportunity`
-// (an `OpportunityRow`) already has, nothing invented.
+// JobHeaderProps names only the fields JobHeader renders itself (roleTitle,
+// sourceUrl, location, status, closedReason, closedAt). JobHeader also owns
+// EditDetailsDialog locally (its "Edit details" menu item opens it), and
+// that dialog's own props need the rest of the opportunity's editable
+// columns, so this type is the union of both: exactly what page.tsx's
+// `view.opportunity` (an `OpportunityRow`) already has, nothing invented.
 interface JobHeaderProps {
   opportunity: {
     id: string;

@@ -48,7 +48,7 @@ export function opportunityQueries(db: Db, userId: string) {
         .where(and(eq(schema.opportunity.slug, slug), eq(schema.opportunity.userId, userId)));
       return row ?? null;
     },
-    // Only has locking effect when called on a transaction's own `tx` (D5),
+    // Only has locking effect when called on a transaction's own `tx`,
     // never on the top-level `db` — Scoped.transaction is what supplies that
     // `tx`, wrapped back into a Scoped so callers never see a raw
     // transaction handle.
@@ -127,7 +127,7 @@ export function opportunityQueries(db: Db, userId: string) {
         slug: r.slug,
         roleTitle: r.roleTitle,
         companyName: r.companyName,
-        // Safe: opportunity_closed_consistency (Task 1) guarantees these are
+        // Safe: opportunity_closed_consistency guarantees these are
         // non-null whenever status = 'closed', which this query already filters on.
         closedReason: r.closedReason as ClosedReason,
         closedAt: r.closedAt as Date,
@@ -135,8 +135,8 @@ export function opportunityQueries(db: Db, userId: string) {
       }));
     },
     // Every caller in this milestone passes a `prefix` already produced by
-    // `baseSlug` (Task 3): ASCII kebab-case, so it can never itself contain a
-    // `%` or `_` wildcard character and needs no separate escaping step.
+    // `baseSlug`: ASCII kebab-case, so it can never itself contain a `%` or
+    // `_` wildcard character and needs no separate escaping step.
     // Drizzle's `like` binds `${prefix}%` as one parameter rather than
     // string-concatenating it into raw SQL.
     async listSlugsWithPrefix(prefix: string): Promise<string[]> {
@@ -151,8 +151,7 @@ export function opportunityQueries(db: Db, userId: string) {
     // Designer" over-matching a lookup for "UX_UI Designer"). Multiple
     // historical (closed) opportunities can share a company and role
     // (re-applying a year later, spec 5.5); this returns only the most
-    // recent match and leaves checking its `status` to `createOpportunity`
-    // (Task 4).
+    // recent match and leaves checking its `status` to `createOpportunity`.
     async findByCompanyAndRole(companyId: string, roleTitle: string): Promise<OpportunityRow | null> {
       const [row] = await db
         .select()
