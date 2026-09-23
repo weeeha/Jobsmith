@@ -61,12 +61,10 @@ export function StageStepper({ opportunity, companyName, stages, currentStageId,
                     type="button"
                     aria-current={isCurrent ? "step" : undefined}
                     aria-label={`${stage.label}, ${statusWord}`}
-                    disabled={isClosed}
                     onClick={() => setOpenStageId(stage.id)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-sm text-foreground",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      "disabled:cursor-not-allowed disabled:opacity-50",
                       // Current is marked by weight and a ring, not only the
                       // dot's color: bg-primary and bg-foreground (the
                       // current and done dot colors) render as

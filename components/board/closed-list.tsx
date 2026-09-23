@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -61,9 +62,16 @@ function ClosedListRow({ card }: { card: ClosedCard }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3">
       <div className="min-w-0">
-        <p className="truncate font-medium">
+        {/* I5: closed jobs were a dead end - this row showed the job's
+            name but gave no way to open it (ClosedCard.slug was fetched and
+            unused), so reading a stage's stored details meant reopening the
+            job first. */}
+        <Link
+          href={`/jobs/${card.slug}`}
+          className="block truncate rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           {card.roleTitle} at {card.companyName}
-        </p>
+        </Link>
         <p className="text-sm text-muted-foreground">
           {CLOSED_REASON_LABELS[card.closedReason]} · <LocalTime value={card.closedAt} mode="date" />
         </p>

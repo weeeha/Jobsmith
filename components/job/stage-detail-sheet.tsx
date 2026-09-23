@@ -148,6 +148,13 @@ function StageDetailSheetBody({
   }
 
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
+  // I5: a closed job's stage sheet is the only way to read a past stage's
+  // date, format and outcome notes without reopening the job first, so the
+  // step buttons that open it stay enabled on a closed job (stage-
+  // stepper.tsx) - but nothing here should still look editable: every field
+  // is disabled and there is no Save. "Move here" is already excluded by
+  // the `opportunity.status === "active"` check above.
+  const isReadOnly = opportunity.status === "closed";
 
   return (
     <>
@@ -185,6 +192,7 @@ function StageDetailSheetBody({
                 id={id}
                 name="scheduledAt"
                 defaultValue={stage.scheduledAt ? toLocalInputValue(stage.scheduledAt.toISOString()) : null}
+                disabled={isReadOnly}
                 aria-describedby={describedBy}
               />
             )}
@@ -198,6 +206,7 @@ function StageDetailSheetBody({
                 value={formatValue}
                 onValueChange={(value) => setFormatValue(value as StageFormat | "")}
                 items={FORMAT_SELECT_ITEMS}
+                disabled={isReadOnly}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -220,15 +229,18 @@ function StageDetailSheetBody({
                 id={id}
                 name="outcomeMd"
                 defaultValue={stage.outcomeMd ?? ""}
+                disabled={isReadOnly}
                 aria-describedby={describedBy}
                 aria-invalid={Boolean(fieldErrors?.outcomeMd)}
               />
             )}
           </FieldRow>
 
-          <Button ref={submitRef} type="submit" disabled={pending} className="self-end">
-            Save
-          </Button>
+          {isReadOnly ? null : (
+            <Button ref={submitRef} type="submit" disabled={pending} className="self-end">
+              Save
+            </Button>
+          )}
         </form>
       </div>
     </>

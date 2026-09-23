@@ -9,11 +9,13 @@ export function LocalDateTimeInput({
   id,
   name,
   defaultValue,
+  disabled,
   "aria-describedby": ariaDescribedBy,
 }: {
   id: string;
   name: string;
   defaultValue: string | null;
+  disabled?: boolean;
   "aria-describedby"?: string;
 }) {
   const [localValue, setLocalValue] = React.useState(() =>
@@ -29,10 +31,11 @@ export function LocalDateTimeInput({
         id={id}
         type="datetime-local"
         value={localValue}
+        disabled={disabled}
         aria-describedby={ariaDescribedBy}
         onChange={(event) => setLocalValue(event.target.value)}
       />
-      <input type="hidden" name={name} value={toInstant(localValue)} />
+      <input type="hidden" name={name} value={toInstant(localValue)} disabled={disabled} />
     </>
   );
 }
