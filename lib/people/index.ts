@@ -13,13 +13,16 @@ import { PERSON_ROLES, type PersonRole } from "@/lib/pipeline/values";
 // an add (addPersonToOpportunity has no previous value to leave alone).
 // name and role stay required; stageId already accepted null.
 export const personInputSchema = z.object({
-  name: z.string().trim().min(1),
-  title: z.string().trim().min(1).nullable().optional(),
-  linkedinUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
-  email: z.email().nullable().optional(),
+  name: z.string().trim().min(1, "Enter a name."),
+  title: z.string().trim().min(1, "Enter a title.").nullable().optional(),
+  linkedinUrl: z
+    .url({ protocol: /^https?$/, error: "Enter a link that starts with http or https." })
+    .nullable()
+    .optional(),
+  email: z.email({ error: "Enter a real email address." }).nullable().optional(),
   notesMd: z.string().nullable().optional(),
-  role: z.enum(PERSON_ROLES),
-  stageId: z.uuid().nullable().optional(),
+  role: z.enum(PERSON_ROLES, { error: "Choose a role." }),
+  stageId: z.uuid({ error: "Choose a valid stage." }).nullable().optional(),
 });
 
 export type PersonInput = {

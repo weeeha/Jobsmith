@@ -12,12 +12,11 @@ import { updateOpportunityDetails, updateOpportunityDetailsSchema, updateCompany
 import { addPersonToOpportunity, updateLinkedPerson, unlinkPerson, personInputSchema } from "@/lib/people";
 import { addNote, addNoteSchema } from "@/lib/pipeline/notes";
 import { opportunityIdSchema, stageIdSchema } from "@/lib/pipeline/action-schemas";
+import { renameStageFormSchema, addStageFormSchema, stageDetailFormSchema } from "@/lib/pipeline/stage-forms";
 import { messageFor } from "@/lib/pipeline/messages";
 import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
-import { STAGE_FORMATS, type StageFormat } from "@/lib/pipeline/values";
+import type { StageFormat } from "@/lib/pipeline/values";
 import { fail, type Result } from "@/lib/result";
-
-const ADDABLE_STAGE_KINDS = ["recruiter_screen", "hiring_manager", "portfolio_case", "panel_final"] as const;
 
 // Ruling 1 (Task 10): a blank optional field on the Edit details form
 // means "clear this column" - it is sent as `null`, not swallowed into
@@ -30,10 +29,16 @@ function blankToNull(value: FormDataEntryValue | null): string | null {
   return value;
 }
 
+// A blank value means "clear this field" (null, same as blankToNull above).
+// A non-blank value that fails to parse is passed through as NaN rather than
+// folded into that same null - null already means "clear it" to the schema
+// below, so treating unparseable text the same way would silently wipe the
+// field instead of rejecting the bad input. updateOpportunityDetailsSchema's
+// compMin/compMax reject NaN on their own (a plain z.number() check), so this
+// still reaches the user as a normal field error.
 function numberBlankToNull(value: FormDataEntryValue | null): number | null {
   if (typeof value !== "string" || value.trim() === "") return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
+  return Number(value);
 }
 
 async function revalidateJob(s: Scoped, opportunityId: string) {
@@ -96,8 +101,6 @@ export async function completeNextActionAction(opportunityId: string): Promise<R
   return result;
 }
 
-const renameStageFormSchema = z.object({ label: z.string().trim().min(1) });
-
 export async function renameStageAction(
   opportunityId: string,
   stageId: string,
@@ -118,11 +121,6 @@ export async function renameStageAction(
   return { ok: true };
 }
 
-const addStageFormSchema = z.object({
-  kind: z.enum(ADDABLE_STAGE_KINDS),
-  label: z.string().trim().min(1),
-});
-
 export async function addStageAction(opportunityId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const idParsed = opportunityIdSchema.safeParse(opportunityId);
@@ -137,12 +135,6 @@ export async function addStageAction(opportunityId: string, _prev: FormState, fo
   await revalidateJob(s, opportunityId);
   return { ok: true };
 }
-
-const stageDetailFormSchema = z.object({
-  scheduledAt: z.string(),
-  format: z.enum([...STAGE_FORMATS, ""]),
-  outcomeMd: z.string(),
-});
 
 export async function saveStageDetailAction(
   opportunityId: string,

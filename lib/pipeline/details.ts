@@ -15,15 +15,30 @@ import type { CreateOpportunityInput } from "@/lib/pipeline/create";
 // actually clear a previously-set value. roleTitle is deliberately left
 // out of this: it has no blank/clear affordance in the UI and the column
 // is NOT NULL, so it stays required-when-given and non-empty.
+// Same Postgres `integer` bound as createOpportunitySchema (comp_min/comp_max
+// top out at 2,147,483,647) - kept as its own copy rather than an import
+// because it is a nullable variant (this form can clear the field), while
+// createOpportunitySchema's is optional-only (this form has no clear
+// gesture for a brand-new job).
+const MAX_COMP = 2_147_483_647;
+const compFigureSchema = z
+  .number({ error: "Enter a number." })
+  .int("Enter a whole number.")
+  .nonnegative("Enter a number that is zero or more.")
+  .max(MAX_COMP, `Enter a number no greater than ${MAX_COMP.toLocaleString("en-US")}.`);
+
 export const updateOpportunityDetailsSchema = z
   .object({
-    roleTitle: z.string().trim().min(1).optional(),
-    location: z.string().trim().min(1).nullable().optional(),
-    workMode: z.enum(WORK_MODES).nullable().optional(),
-    sourceUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
-    compMin: z.number().int().nonnegative().nullable().optional(),
-    compMax: z.number().int().nonnegative().nullable().optional(),
-    compCurrency: z.string().trim().min(1).nullable().optional(),
+    roleTitle: z.string().trim().min(1, "Enter a role.").optional(),
+    location: z.string().trim().min(1, "Enter a location.").nullable().optional(),
+    workMode: z.enum(WORK_MODES, { error: "Choose a work mode." }).nullable().optional(),
+    sourceUrl: z
+      .url({ protocol: /^https?$/, error: "Enter a link that starts with http or https." })
+      .nullable()
+      .optional(),
+    compMin: compFigureSchema.nullable().optional(),
+    compMax: compFigureSchema.nullable().optional(),
+    compCurrency: z.string().trim().min(1, "Enter a currency.").nullable().optional(),
     compNote: z.string().nullable().optional(),
     myAsk: z.string().nullable().optional(),
   })
@@ -34,7 +49,7 @@ export const updateOpportunityDetailsSchema = z
       v.compMax === undefined ||
       v.compMax === null ||
       v.compMin <= v.compMax,
-    { message: "compMin must be less than or equal to compMax", path: ["compMax"] },
+    { message: "Pay to must be at least pay from.", path: ["compMax"] },
   );
 
 // Ruling 6 (Task 11): the Edit company dialog has no separate "clear"
@@ -42,11 +57,14 @@ export const updateOpportunityDetailsSchema = z
 // every field is nullable, not just optional, so a blanked field can
 // actually clear the column instead of being silently ignored.
 export const updateCompanyDetailsSchema = z.object({
-  domain: z.string().trim().min(1).nullable().optional(),
-  careersUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
-  size: z.string().trim().min(1).nullable().optional(),
-  industry: z.string().trim().min(1).nullable().optional(),
-  hq: z.string().trim().min(1).nullable().optional(),
+  domain: z.string().trim().min(1, "Enter a website.").nullable().optional(),
+  careersUrl: z
+    .url({ protocol: /^https?$/, error: "Enter a link that starts with http or https." })
+    .nullable()
+    .optional(),
+  size: z.string().trim().min(1, "Enter a company size.").nullable().optional(),
+  industry: z.string().trim().min(1, "Enter an industry.").nullable().optional(),
+  hq: z.string().trim().min(1, "Enter a headquarters location.").nullable().optional(),
   notesMd: z.string().nullable().optional(),
 });
 

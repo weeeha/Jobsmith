@@ -3,7 +3,7 @@ import type { Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 
 export const addNoteSchema = z.object({
-  body: z.string().trim().min(1),
+  body: z.string().trim().min(1, "Enter a note."),
 });
 
 export async function addNote(

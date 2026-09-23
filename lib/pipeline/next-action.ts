@@ -3,8 +3,8 @@ import type { Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 
 export const setNextActionSchema = z.object({
-  text: z.string().trim().min(1),
-  at: z.date().nullable(),
+  text: z.string().trim().min(1, "Enter what is next."),
+  at: z.date({ error: "Enter a real date and time." }).nullable(),
 });
 
 export async function setNextAction(

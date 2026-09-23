@@ -14,6 +14,11 @@ import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 import type { WorkMode } from "@/lib/pipeline/values";
 
+// Postgres's `integer` columns (comp_min, comp_max) top out here - matches
+// the bound updateOpportunityDetailsSchema enforces server-side; the input's
+// own `max` gives the browser's native stepper/validation the same ceiling.
+const MAX_COMP = 2_147_483_647;
+
 interface EditDetailsDialogOpportunity {
   id: string;
   roleTitle: string;
@@ -189,6 +194,7 @@ function EditDetailsForm({
               id={id}
               type="number"
               name="compMin"
+              max={MAX_COMP}
               defaultValue={initialOpportunity.compMin ?? undefined}
               aria-describedby={describedBy}
               aria-invalid={Boolean(fieldErrors?.compMin)}
@@ -202,6 +208,7 @@ function EditDetailsForm({
               id={id}
               type="number"
               name="compMax"
+              max={MAX_COMP}
               defaultValue={initialOpportunity.compMax ?? undefined}
               aria-describedby={describedBy}
               aria-invalid={Boolean(fieldErrors?.compMax)}

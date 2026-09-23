@@ -124,6 +124,24 @@ describe("createOpportunity", () => {
     }
   });
 
+  // I3: comp_min/comp_max are Postgres `integer` columns (max
+  // 2,147,483,647). 3,000,000,000 is a valid JS safe integer, so without a
+  // matching Zod bound this reached the insert and Postgres itself threw -
+  // this proves it now comes back as an ordinary `invalid` result instead.
+  it("rejects a pay figure above Postgres's integer maximum without throwing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "owner-overflow@example.com");
+      const s = scoped(db, user.id);
+      expectFail(
+        await createOpportunity(s, { companyName: "Acme", roleTitle: "Designer", compMax: 3_000_000_000 }, NOW),
+        "invalid",
+      );
+    } finally {
+      await close();
+    }
+  });
+
   it("keeps two users' companies and opportunities from colliding", async () => {
     const { db, close } = await makeTestDb();
     try {

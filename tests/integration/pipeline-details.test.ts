@@ -89,6 +89,21 @@ describe("updateOpportunityDetails", () => {
       await close();
     }
   });
+
+  // I3: same Postgres `integer` overflow as createOpportunity's matching
+  // test - proves the Edit details path also returns `invalid` instead of
+  // reaching the database with a figure Postgres cannot store.
+  it("rejects a pay figure above Postgres's integer maximum without throwing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ranger-overflow@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s);
+      expectFail(await updateOpportunityDetails(s, id, { compMax: 3_000_000_000 }), "invalid");
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe("updateCompanyDetails", () => {

@@ -28,6 +28,11 @@ const STAGE_KIND_ITEMS: Record<string, string> = Object.fromEntries(
   STAGE_KINDS.map((stage) => [stage.kind, stage.columnTitle]),
 );
 
+// Postgres's `integer` columns (comp_min, comp_max) top out here - matches
+// the bound createOpportunitySchema enforces server-side; the input's own
+// `max` gives the browser's native stepper/validation the same ceiling.
+const MAX_COMP = 2_147_483_647;
+
 interface AddJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -258,6 +263,7 @@ function AddJobForm({
               id={id}
               type="number"
               name="compMin"
+              max={MAX_COMP}
               aria-describedby={describedBy}
               aria-invalid={Boolean(fieldErrors?.compMin)}
             />
@@ -270,6 +276,7 @@ function AddJobForm({
               id={id}
               type="number"
               name="compMax"
+              max={MAX_COMP}
               aria-describedby={describedBy}
               aria-invalid={Boolean(fieldErrors?.compMax)}
             />
