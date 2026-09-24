@@ -10,7 +10,7 @@ import { bridgeFetch } from "../helpers/bridge-fetch";
 import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
 import { defaultStages } from "@/lib/pipeline/rules";
 import { run } from "@/cli/src/main";
-import { configPath } from "@/cli/src/config";
+import { configPath, readCredentials } from "@/cli/src/config";
 import { USAGE } from "@/cli/src/args";
 import type { CliIo } from "@/cli/src/io";
 
@@ -105,6 +105,31 @@ describe("jobsmith login", () => {
       await close();
     }
   });
+
+  it("refuses a 200 answer that is not a Jobsmith opportunities list, and saves nothing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const home = await testHome();
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { XDG_CONFIG_HOME: path.join(home, "config") },
+        homedir: home,
+        // A proxy redirected the login request to an HTML sign-in page,
+        // which answered 200 before fetch had a chance to notice anything
+        // was wrong: this is the same shape a login --url pointed at a page
+        // path (rather than the bare origin) would see.
+        fetch: (async () => new Response("<html><body>Sign in</body></html>", { status: 200 })) as typeof fetch,
+        readSecret: async () => `jsm_${"A".repeat(43)}\n`,
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["login", "--url", "http://test.local/settings"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe("That URL did not answer like Jobsmith. Check the address.\n");
+      expect(await readCredentials(io)).toBeNull();
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe("jobsmith list / pull / push", () => {
@@ -122,6 +147,24 @@ describe("jobsmith list / pull / push", () => {
       expect(code).toBe(0);
       expect(out.join("")).toContain("nwl-designer");
       expect(out.join("")).toContain("Product Designer at Northwind Labs");
+    } finally {
+      await close();
+    }
+  });
+
+  it("list reports a non-JSON 200 body as an unreadable reply rather than throwing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "nwl-designer", email: "list2@example.com" });
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        fetch: (async () => new Response("not json", { status: 200 })) as typeof fetch,
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["list"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe("Error: the server sent a reply the CLI could not read.\n");
     } finally {
       await close();
     }
@@ -174,6 +217,23 @@ describe("jobsmith list / pull / push", () => {
       expect(companyDocuments.map((d) => d.key)).toEqual(["recon"]);
       const events = await s.event.listForOpportunity(opportunity.id);
       expect(events.filter((e) => e.kind === "artifact_pushed")).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it("push reports a non-JSON 200 body as an unreadable reply rather than throwing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: "placeholder-token" },
+        fetch: (async () => new Response("not json", { status: 200 })) as typeof fetch,
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe("Error: the server sent a reply the CLI could not read.\n");
     } finally {
       await close();
     }

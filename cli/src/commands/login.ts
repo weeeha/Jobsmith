@@ -1,5 +1,5 @@
 import { TOKEN_PATTERN } from "@/lib/bridge/wire";
-import { bridgeRequest } from "../http";
+import { bridgeRequest, parseJson } from "../http";
 import { writeCredentials } from "../config";
 import type { CliIo } from "../io";
 
@@ -22,6 +22,20 @@ export async function runLogin(io: CliIo, command: { url: string }): Promise<num
     // the way list/pull/push do: there is nothing else logging in could
     // partially succeed at, so any non-200 status is treated the same way.
     io.stderr("The server refused this token.\n");
+    return 1;
+  }
+
+  // A 200 alone is not proof this is the bridge: a URL that points at a page
+  // rather than the bare origin can get redirected to a sign-in page that
+  // also answers 200. Requiring the opportunities list shape catches that
+  // before anything is saved.
+  const parsed = parseJson(response.text);
+  const opportunities =
+    parsed.ok && typeof parsed.value === "object" && parsed.value !== null
+      ? (parsed.value as { opportunities?: unknown }).opportunities
+      : undefined;
+  if (!Array.isArray(opportunities)) {
+    io.stderr("That URL did not answer like Jobsmith. Check the address.\n");
     return 1;
   }
 

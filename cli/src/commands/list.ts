@@ -1,5 +1,5 @@
 import type { WireListResponse } from "@/lib/bridge/wire";
-import { bridgeRequest, extractServerMessage } from "../http";
+import { bridgeRequest, extractServerMessage, parseJson } from "../http";
 import { formatList } from "../output";
 import type { CliIo } from "../io";
 
@@ -19,7 +19,12 @@ export async function runList(io: CliIo, creds: { url: string; token: string }):
     return 1;
   }
 
-  const body = JSON.parse(response.text) as WireListResponse;
+  const parsed = parseJson(response.text);
+  if (!parsed.ok) {
+    io.stderr("Error: the server sent a reply the CLI could not read.\n");
+    return 1;
+  }
+  const body = parsed.value as WireListResponse;
   io.stdout(formatList(body.opportunities));
   return 0;
 }

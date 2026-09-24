@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { WirePushResponse } from "@/lib/bridge/wire";
-import { bridgeRequest, extractServerMessage } from "../http";
+import { bridgeRequest, extractServerMessage, parseJson } from "../http";
 import { collectPacket } from "../collect";
 import { batchArtifacts } from "../batch";
 import { formatPushReport } from "../output";
@@ -58,7 +58,12 @@ export async function runPush(
       io.stderr(`Error: ${message}\n`);
       return 1;
     }
-    responses.push(JSON.parse(response.text) as WirePushResponse);
+    const parsed = parseJson(response.text);
+    if (!parsed.ok) {
+      io.stderr("Error: the server sent a reply the CLI could not read.\n");
+      return 1;
+    }
+    responses.push(parsed.value as WirePushResponse);
   }
 
   io.stdout(formatPushReport(responses, command.dryRun));
