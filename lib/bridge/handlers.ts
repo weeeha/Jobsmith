@@ -126,7 +126,7 @@ export async function handlePushArtifacts(deps: BridgeDeps, request: Request, sl
     }
 
     // A minimal shape peek to short-circuit an oversize array before the full
-    // Zod schema runs; Step 7's safeParse already validates the shape
+    // Zod schema runs; the schema's safeParse below validates the shape
     // completely, so this only needs to be defensive enough to read `.length`.
     const rawData = bodyResult.data;
     if (
