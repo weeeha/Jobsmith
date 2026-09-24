@@ -32,3 +32,20 @@ export async function bridgeRequest(
     return { ok: false, message: error instanceof Error ? error.message : String(error), refused: true };
   }
 }
+
+// Shared by list, pull and push: try to read the server's own error message
+// out of the body, and fall back to the raw text when the shape is not what
+// is expected, so a response this CLI did not anticipate (an upstream
+// proxy's own HTML error page, for example) still prints something rather
+// than throwing out of the command.
+export function extractServerMessage(text: string): string {
+  try {
+    const parsed = JSON.parse(text) as { error?: { message?: unknown } };
+    if (typeof parsed.error?.message === "string") {
+      return parsed.error.message;
+    }
+    return text;
+  } catch {
+    return text;
+  }
+}

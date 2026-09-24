@@ -1,27 +1,10 @@
 import path from "node:path";
 import type { WirePushResponse } from "@/lib/bridge/wire";
-import { bridgeRequest } from "../http";
+import { bridgeRequest, extractServerMessage } from "../http";
 import { collectPacket } from "../collect";
 import { batchArtifacts } from "../batch";
 import { formatPushReport } from "../output";
 import type { CliIo } from "../io";
-
-// The same extraction as list and pull use: try to read the server's own
-// error message out of the body, and fall back to the raw text when the
-// shape is not what is expected, so a response this CLI did not anticipate
-// (an upstream proxy's own HTML error page, for example) still prints
-// something rather than throwing out of the command.
-function extractServerMessage(text: string): string {
-  try {
-    const parsed = JSON.parse(text) as { error?: { message?: unknown } };
-    if (typeof parsed.error?.message === "string") {
-      return parsed.error.message;
-    }
-    return text;
-  } catch {
-    return text;
-  }
-}
 
 export async function runPush(
   io: CliIo,
