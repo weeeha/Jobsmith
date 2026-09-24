@@ -8,7 +8,12 @@ export async function runPull(
   creds: { url: string; token: string },
   command: { slug: string; out: string | null },
 ): Promise<number> {
-  const response = await bridgeRequest(io, creds, "GET", `/api/bridge/opportunities/${command.slug}/context`);
+  const response = await bridgeRequest(
+    io,
+    creds,
+    "GET",
+    `/api/bridge/opportunities/${encodeURIComponent(command.slug)}/context`,
+  );
   if (!response.ok) {
     io.stderr(`Could not reach ${creds.url}: ${response.message}.\n`);
     return 1;

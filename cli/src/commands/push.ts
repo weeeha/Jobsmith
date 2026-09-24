@@ -41,7 +41,7 @@ export async function runPush(
       io,
       creds,
       "PUT",
-      `/api/bridge/opportunities/${command.slug}/artifacts${query}`,
+      `/api/bridge/opportunities/${encodeURIComponent(command.slug)}/artifacts${query}`,
       { artifacts: batch },
     );
     if (!response.ok) {

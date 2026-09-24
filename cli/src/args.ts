@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { SLUG_PATTERN } from "@/lib/bridge/wire";
 
 export type Command =
   | { name: "login"; url: string }
@@ -72,11 +73,20 @@ export function parseCommand(argv: string[]): { ok: true; command: Command } | {
         if (!slug) {
           return { ok: false, message: USAGE };
         }
+        // Checked here, before any request or file write, so a slug shaped
+        // like a path (a "/" or a ".." segment) can never reach the server's
+        // URL path or the file this command writes under --out.
+        if (!SLUG_PATTERN.test(slug)) {
+          return { ok: false, message: USAGE };
+        }
         return { ok: true, command: { name: "pull", slug, out: values.out ?? null } };
       }
       case "push": {
         const slug = rest[0];
         if (!slug) {
+          return { ok: false, message: USAGE };
+        }
+        if (!SLUG_PATTERN.test(slug)) {
           return { ok: false, message: USAGE };
         }
         return {

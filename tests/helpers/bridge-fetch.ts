@@ -11,11 +11,15 @@ export function bridgeFetch(deps: BridgeDeps): typeof fetch {
     }
     const contextMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/context$/.exec(url.pathname);
     if (request.method === "GET" && contextMatch) {
-      return handleGetContext(deps, request, contextMatch[1]!);
+      // Next's own dynamic route params come back decoded (ctx.params in the
+      // real route handlers); this stub decodes the matched segment too, so
+      // a slug the CLI encoded to build the URL reaches the handler the same
+      // way it would in production.
+      return handleGetContext(deps, request, decodeURIComponent(contextMatch[1]!));
     }
     const artifactsMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/artifacts$/.exec(url.pathname);
     if (request.method === "PUT" && artifactsMatch) {
-      return handlePushArtifacts(deps, request, artifactsMatch[1]!);
+      return handlePushArtifacts(deps, request, decodeURIComponent(artifactsMatch[1]!));
     }
     return new Response("Not Found", { status: 404 });
   }) as typeof fetch;

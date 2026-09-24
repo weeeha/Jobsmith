@@ -39,6 +39,17 @@ describe("parseCommand", () => {
     expect(parseCommand(["pull"])).toEqual({ ok: false, message: USAGE });
   });
 
+  it("parses pull with a slug that keeps a non-ASCII letter", () => {
+    expect(parseCommand(["pull", "ørsted-product-designer"])).toEqual({
+      ok: true,
+      command: { name: "pull", slug: "ørsted-product-designer", out: null },
+    });
+  });
+
+  it("pull with a slug shaped like a path traversal is a usage error", () => {
+    expect(parseCommand(["pull", "../x"])).toEqual({ ok: false, message: USAGE });
+  });
+
   it("parses push with every option set", () => {
     expect(parseCommand(["push", "acme-designer", "--dir", "./packet", "--prefix", "nwl", "--dry-run"])).toEqual({
       ok: true,
@@ -55,6 +66,17 @@ describe("parseCommand", () => {
 
   it("push without a slug is a usage error", () => {
     expect(parseCommand(["push"])).toEqual({ ok: false, message: USAGE });
+  });
+
+  it("parses push with a slug that keeps a non-ASCII letter", () => {
+    expect(parseCommand(["push", "ørsted-product-designer"])).toEqual({
+      ok: true,
+      command: { name: "push", slug: "ørsted-product-designer", dir: null, prefix: null, dryRun: false },
+    });
+  });
+
+  it("push with a slug shaped like a path traversal is a usage error", () => {
+    expect(parseCommand(["push", "../x"])).toEqual({ ok: false, message: USAGE });
   });
 
   it("an unknown command name is a usage error", () => {

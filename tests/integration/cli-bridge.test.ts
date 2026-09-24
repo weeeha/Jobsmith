@@ -11,6 +11,7 @@ import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
 import { defaultStages } from "@/lib/pipeline/rules";
 import { run } from "@/cli/src/main";
 import { configPath } from "@/cli/src/config";
+import { USAGE } from "@/cli/src/args";
 import type { CliIo } from "@/cli/src/io";
 
 const PACKET_DIR = path.resolve(import.meta.dirname, "../fixtures/packet");
@@ -262,6 +263,70 @@ describe("jobsmith list / pull / push", () => {
         expect(await run(argv, io), argv.join(" ")).toBe(1);
         expect(err.join(""), argv.join(" ")).toBe("Not logged in. Run jobsmith login first.\n");
       }
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("jobsmith pull / push slug handling", () => {
+  it("pull and push work against a job whose slug keeps a non-ASCII letter", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, opportunity, token } = await seedJob(db, {
+        slug: "ørsted-product-designer",
+        email: "slug1@example.com",
+      });
+      const outDir = await mkdtemp(path.join(os.tmpdir(), "jobsmith-pull-"));
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        cwd: outDir,
+      });
+
+      const pullCode = await run(["pull", "ørsted-product-designer", "--out", "."], io);
+      expect(pullCode).toBe(0);
+      const filePath = path.join(outDir, "ørsted-product-designer-context.md");
+      expect(await readFile(filePath, "utf8")).toContain("jobsmith: context/v1");
+
+      const pushCode = await run(["push", "ørsted-product-designer", "--dir", PACKET_DIR, "--prefix", "nwl"], io);
+      expect(pushCode).toBe(0);
+      expect(await s.artifact.listLatestForOpportunity(opportunity.id)).toHaveLength(10);
+    } finally {
+      await close();
+    }
+  });
+
+  it("rejects a slug shaped like a path traversal before any request or file write", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { deps } = testDeps(db);
+      const { token } = await seedJob(db, { slug: "nwl-designer", email: "slug2@example.com" });
+      const outDir = await mkdtemp(path.join(os.tmpdir(), "jobsmith-pull-"));
+      let fetchCalls = 0;
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        cwd: outDir,
+        fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+          fetchCalls++;
+          return bridgeFetch(deps)(input, init);
+        }) as typeof fetch,
+      });
+
+      const err: string[] = [];
+      const pullCode = await run(["pull", "../x", "--out", "."], { ...io, stderr: (t) => err.push(t) });
+      expect(pullCode).toBe(2);
+      expect(err.join("")).toBe(`${USAGE}\n`);
+      expect(fetchCalls).toBe(0);
+      await expect(stat(path.resolve(outDir, "..", "x-context.md"))).rejects.toThrow();
+
+      const pushErr: string[] = [];
+      const pushCode = await run(
+        ["push", "../x", "--dir", PACKET_DIR, "--prefix", "nwl"],
+        { ...io, stderr: (t) => pushErr.push(t) },
+      );
+      expect(pushCode).toBe(2);
+      expect(pushErr.join("")).toBe(`${USAGE}\n`);
+      expect(fetchCalls).toBe(0);
     } finally {
       await close();
     }
