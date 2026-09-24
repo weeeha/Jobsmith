@@ -89,11 +89,18 @@ test("the CLI pushes a real packet, a second push changes nothing, the app reads
     await expect(page.getByRole("link", { name: "Northwind Labs: people in the loop" })).toBeVisible();
     await expect(page.getByRole("heading", { name: `Shared with every job at ${company}` })).toBeVisible();
     await expect(page.getByRole("link", { name: "Northwind Labs: company recon" })).toBeVisible();
+    // Opens the shared recon document itself, not just its link, so this
+    // proves the pushed body actually renders rather than merely landing a
+    // row with the right title.
+    await page.getByRole("link", { name: "Northwind Labs: company recon" }).click();
+    await expect(page.getByText("Northwind Labs sells scheduling software to clinics.")).toBeVisible();
     await scanForViolations(page, "research tab with documents", testInfo);
 
     await page.goto(`/jobs/${slug}?tab=documents`);
     await expect(page.getByRole("link", { name: "CV for Northwind Labs" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Cover letter for Northwind Labs" })).toBeVisible();
+    await page.getByRole("link", { name: "CV for Northwind Labs" }).click();
+    await expect(page.getByText("Led a design system used by four product teams.")).toBeVisible();
     await scanForViolations(page, "documents tab with documents", testInfo);
 
     await page.goto(`/jobs/${slug}?tab=prep`);
@@ -104,6 +111,13 @@ test("the CLI pushes a real packet, a second push changes nothing, the app reads
     await expect(page.getByRole("link", { name: "Northwind Labs: hiring manager call card" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Portfolio walkthrough pitch" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Northwind Labs: round two debrief" })).toBeVisible();
+    await page.getByRole("link", { name: "Northwind Labs: hiring manager call card" }).click();
+    await expect(page.getByText("Open with the onboarding redesign story.")).toBeVisible();
+    // The pitch carries its own title and stage in frontmatter rather than
+    // the usual derived-from-filename kind, so opening it proves that path
+    // too, alongside the body itself landing under Prep.
+    await page.getByRole("link", { name: "Portfolio walkthrough pitch" }).click();
+    await expect(page.getByText("One sentence framing of the case study.")).toBeVisible();
     await scanForViolations(page, "prep tab with documents", testInfo);
   });
 
