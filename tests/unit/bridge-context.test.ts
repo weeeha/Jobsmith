@@ -221,8 +221,8 @@ describe("buildContextDocument, a rich fixture", () => {
         "",
         "| Key | Kind | Scope | Stage | Version | Updated |",
         "|---|---|---|---|---|---|",
-        "| cv | CV | job |  | 2 | 2026-09-05T12:00:00.000Z |",
-        "| recon | Research | company |  | 1 | 2026-09-02T08:00:00.000Z |",
+        "| cv | cv | job |  | 2 | 2026-09-05T12:00:00.000Z |",
+        "| recon | research | company |  | 1 | 2026-09-02T08:00:00.000Z |",
         "",
       ].join("\n"),
     );

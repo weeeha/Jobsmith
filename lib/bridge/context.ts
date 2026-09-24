@@ -1,6 +1,5 @@
 import type { JobView } from "@/lib/pipeline/read";
 import type { ArtifactMeta } from "@/lib/db/scoped";
-import { kindInfo } from "@/lib/artifacts/kinds";
 import { PERSON_ROLE_LABELS } from "@/lib/pipeline/labels";
 
 export type ContextInput = { view: JobView; companyDocuments: ArtifactMeta[]; generatedAt: Date };
@@ -131,7 +130,7 @@ export function buildContextDocument(input: ContextInput): string {
       const linkedStage = doc.stageId ? view.stages.find((stage) => stage.id === doc.stageId) : undefined;
       const stageLabel = linkedStage ? linkedStage.label : "";
       lines.push(
-        `| ${escapeCell(doc.key)} | ${kindInfo(doc.kind).label} | ${scopeTag} | ${escapeCell(stageLabel)} | ${doc.version} | ${doc.updatedAt.toISOString()} |`,
+        `| ${escapeCell(doc.key)} | ${doc.kind} | ${scopeTag} | ${escapeCell(stageLabel)} | ${doc.version} | ${doc.updatedAt.toISOString()} |`,
       );
     }
   }
