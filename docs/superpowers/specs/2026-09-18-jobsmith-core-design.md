@@ -145,8 +145,11 @@ Board interaction:
 - Columns with no cards collapse to narrow rails.
 - Cards are sorted by next action date, then by last update. There is no manual ordering inside a column.
 - Below 768px wide the board renders as a list grouped by stage, with a "Move to" sheet that calls the same function.
+- Every card also has a "Move to" menu (Milestone 2, decision D8) listing the seven columns plus Close. It calls the same function a drag, a keyboard digit or the phone sheet does, so every input method reaches every stage.
 
 A card shows company, role, fit score, a chip for a custom stage label, days in the current stage (from `entered_at`) and the next action.
+
+**Milestone 2 notes.** Decision D8 (the "Move to" menu, above) is already noted inline. Rule 6's offer to set the next action after a move is not built in Milestone 2; it arrives with Home in Milestone 5, which owns next-action prompting.
 
 ### 5.2 Job page
 
@@ -160,6 +163,8 @@ Route `/jobs/[slug]`. The header has the role, company, location, fit chip, a li
 | Documents | artifacts of kind `cv`, `cover_letter`, `message_draft`, with version list, editor and "Mark as sent" |
 | Timeline | events, newest first, plus "Add note" |
 | Prep | artifacts of kind `question_bank`, `call_card`, `pitch`, `glossary`, `debrief`, `other`, grouped by stage, with a General group for unstaged ones. Rendered read-only. A panel shows the pull and push commands for this job and a "Paste markdown" button. |
+
+**Milestone 2 notes.** Decision D13: this milestone ships only the Overview, People and Timeline rows above; Research, Documents and Prep arrive in Milestone 3, and Overview's fit card stays hidden while `fit_score` is null (Milestone 5). Decision D10: Overview's posting snapshot renders as plain text with line breaks kept, not through the sanitized markdown renderer in section 5.3, which arrives with artifacts in Milestone 3.
 
 ### 5.3 Artifacts
 
@@ -271,6 +276,7 @@ Profile (headline, resume text as markdown, timezone), API tokens (create, revea
 - Bridge: the payload is validated as a whole (size, count, shape) and rejected with 400 when malformed. Inside a valid push, problems per artifact are warnings and the rest still saves. 401 for a missing or revoked token, 404 for an unknown slug, 413 for oversize.
 - Each route segment has an error boundary with a retry. Logs carry a request id and no posting text, resume text or tokens.
 - Times are stored as `timestamptz` (UTC instants) and shown in the profile timezone.
+- Milestone 2 note (decision D7): there is no Settings page and no stored profile time zone until Milestone 5. Until then, every timestamp shown in the UI is rendered and entered in the browser's own time zone, through `components/local-time.tsx` and `components/local-datetime-input.tsx` only, so adding the real profile time zone later touches just those two files.
 
 ## 7. Security and privacy
 

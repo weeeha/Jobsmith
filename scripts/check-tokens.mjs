@@ -49,7 +49,7 @@ const SCAN_ROOTS = ["app", "components"];
 const EXCLUDE_FILES = new Set([path.join("app", "globals.css")]);
 // Both are vendored registry code, never hand-edited for token compliance:
 // components/ui/ is shadcn's own primitives, components/super-ai/ is the
-// Super AI Components registry installed on top of them (Task 7).
+// Super AI Components registry installed on top of them.
 const EXCLUDE_DIRS = [path.join("components", "ui"), path.join("components", "super-ai")];
 const SCAN_EXTENSIONS = new Set([".ts", ".tsx", ".css", ".mjs"]);
 

@@ -220,6 +220,14 @@
     --tw-duration: var(--motion-ambient);
     transition-duration: var(--motion-ambient);
 }
+@utility pb-safe {
+    /* max(), not env() alone: on a device with no safe area (env() falls
+       back to 0px), a bare env() would zero out the bottom padding entirely.
+       0.5rem matches the bottom nav bar's own py-2, so a caller
+       replaces py-2 with pt-2 pb-safe and gets an unchanged result on a
+       device with no inset and a larger one where the inset needs it. */
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
 
 :root {
     /* Native controls (scrollbars, select popups, date pickers, the caret,
