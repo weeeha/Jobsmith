@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { parseBearer, readJsonCapped, bridgeJson, bridgeError } from "./http";
 import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
 import { buildContextDocument } from "./context";
@@ -8,6 +9,23 @@ import { authenticateBearer } from "@/lib/auth/api-token";
 import { scoped, type Scoped } from "@/lib/db/scoped";
 import type { Db } from "@/lib/db/client";
 import { getJobView } from "@/lib/pipeline/read";
+
+// The request id and error name only, never a message: drizzle wraps every
+// driver error in a DrizzleQueryError whose own message is the full SQL text
+// plus every bound parameter, which for a push can be the document itself.
+// The cause's code and constraint (a Postgres error carries both) are the
+// only extra detail worth the log line.
+function logBridgeError(requestId: string, error: unknown): void {
+  // error.constructor.name rather than error.name: DrizzleQueryError never
+  // sets the latter, so it would otherwise log as the unhelpful "Error".
+  const name = error instanceof Error ? error.constructor.name : "UnknownError";
+  if (error instanceof DrizzleQueryError) {
+    const cause = error.cause as { code?: string; constraint?: string } | undefined;
+    console.error("[bridge]", requestId, name, { code: cause?.code, constraint: cause?.constraint });
+    return;
+  }
+  console.error("[bridge]", requestId, name);
+}
 
 export type BridgeDeps = { db: Db; now(): Date; revalidate(path: string): void; requestId(): string };
 
@@ -65,7 +83,7 @@ export async function handleListOpportunities(deps: BridgeDeps, request: Request
     }));
     return bridgeJson({ opportunities, requestId }, { requestId });
   } catch (error) {
-    console.error("[bridge]", requestId, error);
+    logBridgeError(requestId, error);
     return bridgeError("server_error", requestId);
   }
 }
@@ -92,7 +110,7 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },
     });
   } catch (error) {
-    console.error("[bridge]", requestId, error);
+    logBridgeError(requestId, error);
     return bridgeError("server_error", requestId);
   }
 }
@@ -194,7 +212,7 @@ export async function handlePushArtifacts(deps: BridgeDeps, request: Request, sl
 
     return bridgeJson({ dryRun, results, warnings: outcome.data.warnings, requestId }, { requestId });
   } catch (error) {
-    console.error("[bridge]", requestId, error);
+    logBridgeError(requestId, error);
     return bridgeError("server_error", requestId);
   }
 }

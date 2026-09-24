@@ -8,7 +8,11 @@ const KEY_MAX = 60;
 const H1_LINE = /^#(?!#)\s+(.*)$/;
 
 export function normalizeBody(raw: string): string {
-  const withoutBom = raw.codePointAt(0) === 0xfeff ? raw.slice(1) : raw;
+  // Postgres text columns cannot hold a NUL byte at all (an insert throws),
+  // so this has to come out here rather than being left for the database to
+  // reject - a UTF-16 file read as UTF-8 is full of these.
+  const withoutNul = raw.replace(/\u0000/g, "");
+  const withoutBom = withoutNul.codePointAt(0) === 0xfeff ? withoutNul.slice(1) : withoutNul;
   const withLf = withoutBom.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = withLf.split("\n").map((line) => line.replace(/[ \t]+$/, ""));
   while (lines.length > 0 && lines[lines.length - 1] === "") {
@@ -26,7 +30,9 @@ export function utf8Bytes(value: string): number {
 }
 
 export function deriveTitle(input: { title?: string | null; bodyMd: string; key: string }): string {
-  const given = input.title?.trim();
+  // Same reason as normalizeBody: a title also lands in a Postgres text
+  // column, so a NUL byte in either source has to go before it gets there.
+  const given = input.title?.replace(/\u0000/g, "").trim();
   if (given) {
     return given.slice(0, TITLE_MAX);
   }
@@ -35,7 +41,7 @@ export function deriveTitle(input: { title?: string | null; bodyMd: string; key:
   for (const line of lines) {
     const match = H1_LINE.exec(line);
     if (match) {
-      const heading = match[1].trimEnd().replace(/\s*#+$/, "");
+      const heading = match[1].replace(/\u0000/g, "").trimEnd().replace(/\s*#+$/, "");
       return heading.slice(0, TITLE_MAX);
     }
   }

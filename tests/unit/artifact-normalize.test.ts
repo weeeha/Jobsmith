@@ -29,6 +29,10 @@ describe("normalizeBody", () => {
   it("leaves an already-normalized body unchanged", () => {
     expect(normalizeBody("# Title\n\nBody text.")).toBe("# Title\n\nBody text.");
   });
+
+  it("strips NUL characters, which Postgres text columns cannot store", () => {
+    expect(normalizeBody("# Title\u0000\nBody\u0000 text.")).toBe("# Title\nBody text.");
+  });
 });
 
 describe("hashBody", () => {
@@ -75,6 +79,11 @@ describe("deriveTitle", () => {
   it("clips to 200 characters regardless of which source won", () => {
     expect(deriveTitle({ title: "T".repeat(250), bodyMd: "", key: "k" })).toHaveLength(200);
     expect(deriveTitle({ bodyMd: `# ${"H".repeat(250)}`, key: "k" })).toHaveLength(200);
+  });
+
+  it("strips a NUL character from a given title or an H1-derived one", () => {
+    expect(deriveTitle({ title: "CV\u0000 final", bodyMd: "", key: "k" })).toBe("CV final");
+    expect(deriveTitle({ bodyMd: "# Title\u0000 here", key: "k" })).toBe("Title here");
   });
 });
 

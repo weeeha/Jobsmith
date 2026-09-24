@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { DrizzleQueryError } from "drizzle-orm";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import type { Db } from "@/lib/db/client";
@@ -7,6 +8,31 @@ import { handleListOpportunities, handleGetContext, handlePushArtifacts } from "
 import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
 import { defaultStages } from "@/lib/pipeline/rules";
 import { RATE_LIMIT_PER_MINUTE } from "@/lib/bridge/wire";
+
+// Wraps a real db so that any `.insert(...)` call, at any nesting depth
+// (including inside a transaction's own tx), throws instead of writing. Used
+// to force a handler failure deterministically, without racing PGlite's own
+// single-connection transactions against each other.
+function dbThatFailsOnInsert(real: Db, makeError: () => Error): Db {
+  const wrap = (obj: object): object =>
+    new Proxy(obj, {
+      get(target, prop, receiver) {
+        if (prop === "insert") {
+          return () => {
+            throw makeError();
+          };
+        }
+        if (prop === "transaction") {
+          return (callback: (tx: unknown) => unknown) =>
+            (target as { transaction: (cb: (tx: unknown) => unknown) => unknown }).transaction((tx) =>
+              callback(wrap(tx as object)),
+            );
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+  return wrap(real) as Db;
+}
 
 const BASE = "http://test.local";
 
@@ -674,6 +700,69 @@ describe("handlePushArtifacts, applying a push", () => {
       expect(response.status).toBe(404);
       expect((await response.json()).error.code).toBe("not_found");
       expect(await sa.artifact.listLatestForOpportunity(opportunity.id)).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("strips a NUL character from a pushed body instead of failing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, token, opportunity } = await seedJob(db, { slug: "acme-designer", email: "nul1@example.com" });
+      const { deps } = testDeps(db);
+      const request = new Request(`${BASE}/api/bridge/opportunities/acme-designer/artifacts`, {
+        method: "PUT",
+        headers: { authorization: `Bearer ${token}` },
+        body: JSON.stringify({ artifacts: [{ key: "cv", kind: "cv", body_md: "# CV\u0000\nBody" }] }),
+      });
+      const response = await handlePushArtifacts(deps, request, "acme-designer");
+      expect(response.status).toBe(200);
+      const stored = await s.artifact.getLatest({ opportunityId: opportunity.id }, "cv");
+      expect(stored?.bodyMd).toBe("# CV\nBody");
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("handlePushArtifacts, error logging", () => {
+  it("logs the request id and error name, plus a DrizzleQueryError's code and constraint, never the query or its bound values", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "acme-designer", email: "log1@example.com" });
+      const sensitive = "SENSITIVE-DOCUMENT-TEXT-must-never-reach-the-log";
+      const cause = Object.assign(new Error('duplicate key value violates unique constraint "artifact_key"'), {
+        code: "23505",
+        constraint: "artifact_opportunity_key_version_key",
+      });
+      const failingDb = dbThatFailsOnInsert(
+        db,
+        () => new DrizzleQueryError(`insert into "artifact" ("body_md") values ($1) -- ${sensitive}`, [sensitive], cause),
+      );
+      const calls: unknown[][] = [];
+      const errorSpy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+        calls.push(args);
+      });
+      try {
+        const { deps } = testDeps(failingDb);
+        const request = new Request(`${BASE}/api/bridge/opportunities/acme-designer/artifacts`, {
+          method: "PUT",
+          headers: { authorization: `Bearer ${token}` },
+          body: JSON.stringify({ artifacts: [{ key: "cv", kind: "cv", body_md: "# CV\nOrdinary body" }] }),
+        });
+        const response = await handlePushArtifacts(deps, request, "acme-designer");
+        expect(response.status).toBe(500);
+        expect((await response.json()).error.code).toBe("server_error");
+
+        const logged = JSON.stringify(calls);
+        expect(logged).not.toContain(sensitive);
+        expect(logged).not.toContain("# CV\nOrdinary body");
+        expect(logged).toContain("DrizzleQueryError");
+        expect(logged).toContain("23505");
+        expect(logged).toContain("artifact_opportunity_key_version_key");
+      } finally {
+        errorSpy.mockRestore();
+      }
     } finally {
       await close();
     }
