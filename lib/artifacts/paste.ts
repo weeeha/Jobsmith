@@ -5,7 +5,7 @@ import { kindInfo, type ArtifactKind, type ArtifactTab } from "@/lib/artifacts/k
 import { keyFromTitle, normalizeBody, utf8Bytes } from "@/lib/artifacts/normalize";
 import { applyUpserts, type IncomingArtifact, type UpsertResult } from "./upsert";
 import type { ArtifactScope } from "./values";
-import { MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
+import { KEY_PATTERN, MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
 
 export type PasteTarget = { mode: "new" } | { mode: "version"; scope: ArtifactScope; key: string };
 export type PasteInput = { target: PasteTarget; title: string; kind: ArtifactKind; stageId: string | null; bodyMd: string };
@@ -34,7 +34,12 @@ export async function pasteArtifact(
       // versioning an existing company-scoped document.
       scope = "opportunity";
       const jobKeys = await tx.artifact.listKeys({ opportunityId: opportunity.id });
-      key = uniqueSlug(keyFromTitle(input.title), jobKeys);
+      // keyFromTitle already produces an ASCII kebab-case key, so this is a
+      // backstop rather than the normal path: it only matters if some future
+      // title shape slips past it.
+      const derivedKey = keyFromTitle(input.title);
+      const safeKey = KEY_PATTERN.test(derivedKey) ? derivedKey : "document";
+      key = uniqueSlug(safeKey, jobKeys);
     } else {
       scope = input.target.scope;
       key = input.target.key;

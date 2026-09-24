@@ -49,11 +49,35 @@ export function deriveTitle(input: { title?: string | null; bodyMd: string; key:
   return input.key.slice(0, TITLE_MAX);
 }
 
+// These letters have no ASCII decomposition through NFKD (unlike, say, an
+// accented e), so they survive normalization as themselves unless mapped by
+// hand. The title is already lowercased before this map runs, so only the
+// lowercase form of each needs an entry.
+const NON_ASCII_LETTERS: Record<string, string> = {
+  ß: "ss",
+  æ: "ae",
+  œ: "oe",
+  ø: "o",
+  ł: "l",
+  đ: "d",
+  ð: "d",
+  þ: "th",
+  ı: "i",
+};
+
 export function keyFromTitle(title: string): string {
-  const slug = title
+  const ascii = title
     .normalize("NFKD")
     .toLowerCase()
+    // Ordinary punctuation and combining marks (accents NFKD peeled off)
+    // just vanish, the same as before.
     .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/[ßæœøłđðþı]/g, (ch) => NON_ASCII_LETTERS[ch])
+    // Anything left that is still not ASCII is a letter or digit from a
+    // script with no ASCII form (Cyrillic, CJK, and so on): it becomes a
+    // separator instead of surviving into the key verbatim.
+    .replace(/[^a-z0-9\s-]/gu, " ");
+  const slug = ascii
     .trim()
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");

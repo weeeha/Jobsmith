@@ -106,4 +106,15 @@ describe("keyFromTitle", () => {
     expect(key.length).toBeLessThanOrEqual(60);
     expect(key.endsWith("-")).toBe(false);
   });
+
+  it("maps letters with no ASCII decomposition to a plain ASCII spelling", () => {
+    expect(keyFromTitle("Łódź notes")).toBe("lodz-notes");
+    expect(keyFromTitle("Straße plan")).toBe("strasse-plan");
+    expect(keyFromTitle("Ørsted CV")).toBe("orsted-cv");
+  });
+
+  it("falls back to document for a title with no ASCII letters, and drops a run of them as one separator between words that do have some", () => {
+    expect(keyFromTitle("Привет")).toBe("document");
+    expect(keyFromTitle("CV Привет 2026")).toBe("cv-2026");
+  });
 });

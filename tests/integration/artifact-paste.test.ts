@@ -98,6 +98,20 @@ describe("pasteArtifact", () => {
     }
   });
 
+  it("a title with no ASCII letters still gets an editable, findable key", async () => {
+    const { s, close, opportunityId } = await setup("paste8@example.com");
+    try {
+      const result = expectOk(
+        await pasteArtifact(s, opportunityId, { target: { mode: "new" }, title: "Привет", kind: "cv", stageId: null, bodyMd: "# CV\nBody" }),
+      );
+      expect(result.key).toBe("document");
+      const row = await s.artifact.getLatest({ opportunityId }, "document");
+      expect(row).not.toBeNull();
+    } finally {
+      await close();
+    }
+  });
+
   it("returns artifact_not_found for a version-mode target whose key does not exist", async () => {
     const { s, close, opportunityId } = await setup("paste6@example.com");
     try {
