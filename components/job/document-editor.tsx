@@ -24,29 +24,30 @@ export function DocumentEditor(props: {
   title: string;
 }): React.ReactElement {
   const [editing, setEditing] = React.useState(false);
-  const [mode, setMode] = React.useState<"write" | "preview">("write");
-  const [draft, setDraft] = React.useState(props.bodyMd);
+  // Bumped every time Edit is clicked and used to key the form below, so
+  // each edit session gets its own fresh component instance instead of the
+  // same one carrying state over from the last session. A save that failed
+  // left its validation error (and aria-invalid) sitting in that instance's
+  // useActionState forever otherwise - the instance itself never went away
+  // between edits, only the surrounding markup toggled.
+  const [session, setSession] = React.useState(0);
   // Captured when Edit opens, not read live from props.version: a push can
   // land a newer version in the background while this form stays open, and
   // the save must still say which version it was edited against.
   const [baseVersion, setBaseVersion] = React.useState(props.version);
-  const action = saveDocumentEditAction.bind(null, props.opportunityId, props.documentKey, baseVersion);
-  const [state, formAction, pending] = React.useActionState<EditFormState, FormData>(action, undefined);
-  const announce = useAnnounce();
   const editRef = React.useRef<HTMLButtonElement>(null);
-  const submitRef = React.useRef<HTMLButtonElement>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // "Edit" unmounts itself the instant it is clicked (the branch below
   // switches to the form), so a naive "focus the thing that was just
   // clicked" cannot work for either direction - the same idiom
-  // next-action-bar.tsx uses for its own editing toggle, where opening
-  // moves focus into the form's first field and closing moves it back.
+  // next-action-bar.tsx uses for its own editing toggle. Closing moves
+  // focus back to Edit, handled here; opening moves focus into the form,
+  // handled by the form's own mount below, since a fresh instance is
+  // exactly what clicking Edit now produces.
   const wasEditing = React.useRef(false);
   React.useEffect(() => {
     if (editing) {
       wasEditing.current = true;
-      textareaRef.current?.focus();
       return;
     }
     if (wasEditing.current) {
@@ -55,37 +56,7 @@ export function DocumentEditor(props: {
     }
   }, [editing]);
 
-  React.useEffect(() => {
-    if (state?.ok) {
-      const sentence =
-        state.data.status === "edited"
-          ? `Saved ${state.data.title}.`
-          : state.data.status === "versioned"
-            ? `Saved ${state.data.title} as version ${state.data.version}.`
-            : "No changes to save.";
-      announce(sentence);
-      // Closing the editor here is a reaction to the save request settling,
-      // not state derivable from a prop during render - and unlike
-      // next-action-bar.tsx's own editing toggle, there is no parent
-      // component here to own an "onSaved" callback instead: this component
-      // owns both the toggle and the save request that resolves it.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEditing(false);
-    } else if (state?.ok === false) {
-      if (state.code !== "invalid") {
-        // Not a field the user can fix by looking at this form - the job or
-        // the document itself vanished under the user, an unusual
-        // concurrent-edit case rather than something a person typed wrong.
-        toast.error(`Could not save the document. ${messageFor(state.code)}`);
-      }
-      // Chromium disabled-focus-loss fix, same as every other form here:
-      // Save is disabled only while pending, never removed, so it stays
-      // reachable to refocus on every failure, field-level or not.
-      submitRef.current?.focus();
-    }
-  }, [state, announce]);
-
-  const fieldError = state?.ok === false ? state.fieldErrors?.bodyMd : undefined;
+  const closeEditor = React.useCallback(() => setEditing(false), []);
 
   if (!editing) {
     return (
@@ -99,12 +70,8 @@ export function DocumentEditor(props: {
             data-document-edit=""
             aria-label={`Edit ${props.title}`}
             onClick={() => {
-              setDraft(props.bodyMd);
               setBaseVersion(props.version);
-              // Always reopens on Write, never wherever a previous session
-              // left it - Preview shows the live draft, and the first thing
-              // a fresh session needs is somewhere to type it.
-              setMode("write");
+              setSession((current) => current + 1);
               setEditing(true);
             }}
           >
@@ -114,6 +81,78 @@ export function DocumentEditor(props: {
       </div>
     );
   }
+
+  return (
+    <EditForm
+      key={session}
+      opportunityId={props.opportunityId}
+      documentKey={props.documentKey}
+      baseVersion={baseVersion}
+      bodyMd={props.bodyMd}
+      version={props.version}
+      isSent={props.isSent}
+      onClose={closeEditor}
+    />
+  );
+}
+
+function EditForm({
+  opportunityId,
+  documentKey,
+  baseVersion,
+  bodyMd,
+  version,
+  isSent,
+  onClose,
+}: {
+  opportunityId: string;
+  documentKey: string;
+  baseVersion: number;
+  bodyMd: string;
+  version: number;
+  isSent: boolean;
+  onClose: () => void;
+}): React.ReactElement {
+  const [mode, setMode] = React.useState<"write" | "preview">("write");
+  const [draft, setDraft] = React.useState(bodyMd);
+  const action = saveDocumentEditAction.bind(null, opportunityId, documentKey, baseVersion);
+  const [state, formAction, pending] = React.useActionState<EditFormState, FormData>(action, undefined);
+  const announce = useAnnounce();
+  const submitRef = React.useRef<HTMLButtonElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // This component only ever exists because Edit was just clicked - the
+  // parent gives it a fresh key for every session - so the textarea always
+  // wants focus the moment it mounts, with no condition to check.
+  React.useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  React.useEffect(() => {
+    if (state?.ok) {
+      const sentence =
+        state.data.status === "edited"
+          ? `Saved ${state.data.title}.`
+          : state.data.status === "versioned"
+            ? `Saved ${state.data.title} as version ${state.data.version}.`
+            : "No changes to save.";
+      announce(sentence);
+      onClose();
+    } else if (state?.ok === false) {
+      if (state.code !== "invalid") {
+        // Not a field the user can fix by looking at this form - the job or
+        // the document itself vanished under the user, an unusual
+        // concurrent-edit case rather than something a person typed wrong.
+        toast.error(`Could not save the document. ${messageFor(state.code)}`);
+      }
+      // Chromium disabled-focus-loss fix, same as every other form here:
+      // Save is disabled only while pending, never removed, so it stays
+      // reachable to refocus on every failure, field-level or not.
+      submitRef.current?.focus();
+    }
+  }, [state, announce, onClose]);
+
+  const fieldError = state?.ok === false ? state.fieldErrors?.bodyMd : undefined;
 
   return (
     <form
@@ -169,9 +208,9 @@ export function DocumentEditor(props: {
         </>
       )}
 
-      {props.isSent ? (
+      {isSent ? (
         <p className="text-sm text-muted-foreground">
-          {`Version ${props.version} was sent. Saving creates version ${props.version + 1}.`}
+          {`Version ${version} was sent. Saving creates version ${version + 1}.`}
         </p>
       ) : null}
 
@@ -179,15 +218,7 @@ export function DocumentEditor(props: {
         <Button ref={submitRef} type="submit" disabled={pending}>
           Save
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setDraft(props.bodyMd);
-            setMode("write");
-            setEditing(false);
-          }}
-        >
+        <Button type="button" variant="outline" onClick={() => onClose()}>
           Cancel
         </Button>
       </div>
