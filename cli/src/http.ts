@@ -20,6 +20,10 @@ export async function bridgeRequest(
         authorization: `Bearer ${creds.token}`,
         "user-agent": `jobsmith-cli/${CLI_VERSION}`,
         accept: "application/json",
+        // fetch's own default for a string body is text/plain, which the
+        // server happens to accept today only because its JSON reader
+        // ignores content-type, not because text/plain is correct.
+        ...(body !== undefined ? { "content-type": "application/json" } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(30_000),

@@ -46,6 +46,24 @@ describe("bridgeRequest", () => {
     const result = await bridgeRequest(io, { url: "http://test.local", token: "t" }, "GET", "/x");
     expect(result).toEqual({ ok: true, status: 200, text: '{"a":1}' });
   });
+
+  it("sends content-type: application/json only on a request with a body", async () => {
+    const calls: RequestInit[] = [];
+    const io = testIo({
+      fetch: (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push(init!);
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch,
+    });
+
+    await bridgeRequest(io, { url: "http://test.local", token: "t" }, "GET", "/x");
+    await bridgeRequest(io, { url: "http://test.local", token: "t" }, "PUT", "/x", { artifacts: [] });
+
+    const getHeaders = calls[0]!.headers as Record<string, string>;
+    const putHeaders = calls[1]!.headers as Record<string, string>;
+    expect(getHeaders["content-type"]).toBeUndefined();
+    expect(putHeaders["content-type"]).toBe("application/json");
+  });
 });
 
 describe("extractServerMessage", () => {
