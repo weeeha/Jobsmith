@@ -1,9 +1,9 @@
-import { and, desc, eq, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
 import type { StageKind } from "@/lib/pipeline/kinds";
-import type { ClosedReason } from "@/lib/pipeline/values";
+import type { ClosedReason, OpportunityStatus } from "@/lib/pipeline/values";
 
 export type OpportunityRow = typeof schema.opportunity.$inferSelect;
 export type OpportunityFields = Omit<
@@ -30,6 +30,13 @@ export type ClosedCard = {
   closedReason: ClosedReason;
   closedAt: Date;
   closedStageLabel: string | null;
+};
+export type OpportunitySummary = {
+  slug: string;
+  roleTitle: string;
+  companyName: string;
+  status: OpportunityStatus;
+  stage: { kind: StageKind; label: string };
 };
 
 export function opportunityQueries(db: Db, userId: string) {
@@ -166,6 +173,45 @@ export function opportunityQueries(db: Db, userId: string) {
         .orderBy(desc(schema.opportunity.createdAt))
         .limit(1);
       return row ?? null;
+    },
+    async listSlugsForCompany(companyId: string): Promise<string[]> {
+      const rows = await db
+        .select({ slug: schema.opportunity.slug })
+        .from(schema.opportunity)
+        .where(and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.companyId, companyId)));
+      return rows.map((r) => r.slug);
+    },
+    async listSummaries(status: "active" | "closed" | "all"): Promise<OpportunitySummary[]> {
+      const rows = await db
+        .select({
+          slug: schema.opportunity.slug,
+          roleTitle: schema.opportunity.roleTitle,
+          companyName: schema.company.name,
+          status: schema.opportunity.status,
+          stageKind: schema.stage.kind,
+          stageLabel: schema.stage.label,
+        })
+        .from(schema.opportunity)
+        .innerJoin(
+          schema.company,
+          and(eq(schema.company.userId, userId), eq(schema.company.id, schema.opportunity.companyId)),
+        )
+        .innerJoin(
+          schema.stage,
+          and(eq(schema.stage.userId, userId), eq(schema.stage.id, schema.opportunity.currentStageId)),
+        )
+        .where(
+          and(eq(schema.opportunity.userId, userId), status === "all" ? undefined : eq(schema.opportunity.status, status)),
+        )
+        .orderBy(asc(schema.company.name), asc(schema.opportunity.roleTitle));
+
+      return rows.map((r) => ({
+        slug: r.slug,
+        roleTitle: r.roleTitle,
+        companyName: r.companyName,
+        status: r.status,
+        stage: { kind: r.stageKind as StageKind, label: r.stageLabel },
+      }));
     },
     async insert(values: OpportunityFields): Promise<OpportunityRow> {
       const fields = stripScopedKeys(values);

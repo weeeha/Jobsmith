@@ -39,6 +39,8 @@ export type SeededIds = {
   personId: string;
   linkId: string;
   eventId: string;
+  artifactId: string;
+  apiTokenId: string;
 };
 
 export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
@@ -67,6 +69,20 @@ export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
     role: "recruiter",
   });
   const event = await s.event.insert({ opportunityId: opportunity.id, kind: "created" });
+  const artifact = await s.artifact.insert({
+    opportunityId: opportunity.id,
+    companyId: null,
+    stageId: null,
+    key: "cv",
+    version: 1,
+    kind: "cv",
+    title: "CV",
+    bodyMd: "# CV",
+    contentHash: "seed-hash",
+    sourceHash: "seed-hash",
+    origin: "pushed",
+  });
+  const apiToken = await s.apiToken.insert({ name: "Laptop", tokenHash: `seed-hash-${opportunity.id}`, prefix: "jsm_AAAA" });
   return {
     companyId: company.id,
     opportunityId: opportunity.id,
@@ -74,5 +90,7 @@ export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
     personId: person.id,
     linkId: link.id,
     eventId: event.id,
+    artifactId: artifact.id,
+    apiTokenId: apiToken.id,
   };
 }

@@ -6,6 +6,8 @@ import { stageQueries } from "./stage";
 import { personQueries } from "./person";
 import { opportunityPersonQueries } from "./opportunity-person";
 import { eventQueries } from "./event";
+import { artifactQueries } from "./artifact";
+import { apiTokenQueries } from "./api-token";
 import { getDb } from "../client";
 
 export * from "./strip";
@@ -16,6 +18,8 @@ export * from "./stage";
 export * from "./person";
 export * from "./opportunity-person";
 export * from "./event";
+export * from "./artifact";
+export * from "./api-token";
 
 // Declared explicitly rather than as `ReturnType<typeof scoped>`. That
 // inferred form is circular: `scoped`'s own `transaction` method takes a
@@ -40,6 +44,8 @@ export type Scoped = {
   person: ReturnType<typeof personQueries>;
   opportunityPerson: ReturnType<typeof opportunityPersonQueries>;
   event: ReturnType<typeof eventQueries>;
+  artifact: ReturnType<typeof artifactQueries>;
+  apiToken: ReturnType<typeof apiTokenQueries>;
 };
 
 export function scoped(db: Db, userId: string): Scoped {
@@ -55,6 +61,8 @@ export function scoped(db: Db, userId: string): Scoped {
     person: personQueries(db, userId),
     opportunityPerson: opportunityPersonQueries(db, userId),
     event: eventQueries(db, userId),
+    artifact: artifactQueries(db, userId),
+    apiToken: apiTokenQueries(db, userId),
   };
 }
 

@@ -258,6 +258,153 @@ const cases: Case[] = [
       expect(row.userId).toBe(a.userId);
     },
   },
+  {
+    name: "artifact.listLatestForOpportunity and listVersions hide A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.artifact.listLatestForOpportunity(ids.opportunityId)).toEqual([]);
+      expect(await b.artifact.listVersions({ opportunityId: ids.opportunityId }, "cv")).toEqual([]);
+      expect((await a.artifact.listLatestForOpportunity(ids.opportunityId)).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "artifact.listLatestForCompany hides A's company-scoped rows from B",
+    run: async (a, b, ids) => {
+      await a.artifact.insert({
+        opportunityId: null,
+        companyId: ids.companyId,
+        stageId: null,
+        key: "recon",
+        version: 1,
+        kind: "research",
+        title: "Recon",
+        bodyMd: "# Recon",
+        contentHash: "h",
+        sourceHash: "h",
+        origin: "pushed",
+      });
+      expect(await b.artifact.listLatestForCompany(ids.companyId)).toEqual([]);
+      expect((await a.artifact.listLatestForCompany(ids.companyId)).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "artifact.getVersion and getLatest hide A's row from B",
+    run: async (a, b, ids) => {
+      expect(await b.artifact.getVersion({ opportunityId: ids.opportunityId }, "cv", 1)).toBeNull();
+      expect(await b.artifact.getLatest({ opportunityId: ids.opportunityId }, "cv")).toBeNull();
+      expect(await a.artifact.getLatest({ opportunityId: ids.opportunityId }, "cv")).not.toBeNull();
+    },
+  },
+  {
+    name: "artifact.listKeys excludes A's keys for B",
+    run: async (a, b, ids) => {
+      expect(await b.artifact.listKeys({ opportunityId: ids.opportunityId })).toEqual([]);
+      expect(await a.artifact.listKeys({ opportunityId: ids.opportunityId })).toEqual(["cv"]);
+    },
+  },
+  {
+    name: "artifact.update cannot touch A's row from B",
+    run: async (a, b, ids) => {
+      expect(await b.artifact.update(ids.artifactId, { title: "Hacked" })).toBeNull();
+      expect((await a.artifact.getVersion({ opportunityId: ids.opportunityId }, "cv", 1))?.title).toBe("CV");
+    },
+  },
+  {
+    name: "artifact.insert ignores a smuggled userId and is rejected when it points at B's opportunity",
+    run: async (a, b, ids) => {
+      const row = await a.artifact.insert({
+        opportunityId: ids.opportunityId,
+        companyId: null,
+        stageId: null,
+        key: "cover-letter",
+        version: 1,
+        kind: "cover_letter",
+        title: "Cover letter",
+        bodyMd: "# Cover letter",
+        contentHash: "h2",
+        sourceHash: "h2",
+        origin: "pushed",
+        userId: b.userId,
+      } as never);
+      expect(row.userId).toBe(a.userId);
+
+      const bIds = await seedOneOfEach(b);
+      await expect(
+        a.artifact.insert({
+          opportunityId: bIds.opportunityId,
+          companyId: null,
+          stageId: null,
+          key: "smuggled",
+          version: 1,
+          kind: "cv",
+          title: "Smuggled",
+          bodyMd: "# x",
+          contentHash: "h3",
+          sourceHash: "h3",
+          origin: "pushed",
+        }),
+      ).rejects.toThrow();
+    },
+  },
+  {
+    name: "apiToken.list excludes A's tokens for B and never selects the hash",
+    run: async (a, b, ids) => {
+      expect(await b.apiToken.list()).toEqual([]);
+      const tokens = await a.apiToken.list();
+      expect(tokens.find((t) => t.id === ids.apiTokenId)).toBeDefined();
+      expect(tokens[0]).not.toHaveProperty("tokenHash");
+    },
+  },
+  {
+    name: "apiToken.revoke cannot touch A's token from B, and is idempotent for A",
+    run: async (a, b, ids) => {
+      expect(await b.apiToken.revoke(ids.apiTokenId, new Date())).toBeNull();
+      const now = new Date("2026-09-19T12:00:00.000Z");
+      const first = await a.apiToken.revoke(ids.apiTokenId, now);
+      expect(first?.revokedAt?.toISOString()).toBe(now.toISOString());
+      const second = await a.apiToken.revoke(ids.apiTokenId, new Date("2026-09-20T00:00:00.000Z"));
+      expect(second?.revokedAt?.toISOString()).toBe(now.toISOString());
+    },
+  },
+  {
+    name: "apiToken.insert ignores a smuggled userId",
+    run: async (a, b, ids) => {
+      void ids;
+      const row = await a.apiToken.insert({ name: "Phone", tokenHash: `phone-${a.userId}`, prefix: "jsm_BBBB", userId: b.userId } as never);
+      expect(row).not.toHaveProperty("tokenHash");
+      const list = await a.apiToken.list();
+      expect(list.find((t) => t.name === "Phone")).toBeDefined();
+      expect(await b.apiToken.list()).toEqual([]);
+    },
+  },
+  {
+    name: "opportunity.listSlugsForCompany excludes A's slugs for B",
+    run: async (a, b, ids) => {
+      expect(await b.opportunity.listSlugsForCompany(ids.companyId)).toEqual([]);
+      expect(await a.opportunity.listSlugsForCompany(ids.companyId)).toEqual(
+        expect.arrayContaining([expect.stringContaining("acme-designer")]),
+      );
+    },
+  },
+  {
+    name: "opportunity.listSummaries excludes A's rows for B, for every status",
+    run: async (a, b, ids) => {
+      void ids;
+      expect(await b.opportunity.listSummaries("active")).toEqual([]);
+      expect(await b.opportunity.listSummaries("closed")).toEqual([]);
+      expect(await b.opportunity.listSummaries("all")).toEqual([]);
+      const active = await a.opportunity.listSummaries("active");
+      expect(active.length).toBeGreaterThan(0);
+      expect(active[0]).toMatchObject({ companyName: "Acme Robotics", roleTitle: "Product Designer" });
+    },
+  },
+  {
+    name: "company.lockById hides A's row from B and returns A's row inside a transaction",
+    run: async (a, b, ids) => {
+      expect(await b.company.lockById(ids.companyId)).toBeNull();
+      const locked = await a.transaction(async (tx) => tx.company.lockById(ids.companyId));
+      expect(locked?.id).toBe(ids.companyId);
+    },
+  },
 ];
 
 describe("scoped tenant isolation", () => {
