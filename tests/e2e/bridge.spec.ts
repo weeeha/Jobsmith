@@ -1,13 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { scanForViolations } from "./axe";
 import { scanOpenOverlay } from "./scan-open";
 import { login, uniqueName, addJobAndOpen } from "./session";
 import { runCli } from "./cli";
 
-async function createToken(page: Page, name: string): Promise<string> {
+async function createToken(page: Page, name: string, testInfo: TestInfo): Promise<string> {
   await page.goto("/settings");
+  // The rest of this file only scans dialogs opened from Settings, so the
+  // plain page itself needs its own scan here, before anything is open.
+  await scanForViolations(page, "settings", testInfo);
   await page.getByRole("button", { name: "Create token" }).click();
   const dialog = page.getByRole("dialog", { name: "Create a token" });
   await expect(dialog).toBeVisible();
@@ -41,7 +44,7 @@ test("the CLI pushes a real packet, a second push changes nothing, the app reads
   const origin = new URL(page.url()).origin;
   const tokenName = uniqueName(testInfo, "CLI");
 
-  const token = await test.step("create a token in Settings", () => createToken(page, tokenName));
+  const token = await test.step("create a token in Settings", () => createToken(page, tokenName, testInfo));
 
   const configHome = testInfo.outputPath("cli-config");
 

@@ -159,8 +159,8 @@ test("switching documents while editing never carries the draft across", async (
   const slug = await addJobAndOpen(page, company, role);
   const titleA = uniqueName(testInfo, "Alpha CV");
   const titleB = uniqueName(testInfo, "Bravo CV");
-  const draftMarker = "ALPHA-DRAFT-NEVER-SAVED";
-  const savedMarker = "BRAVO-EDIT-SAVED-FOR-REAL";
+  const draftMarker = uniqueName(testInfo, "ALPHA-DRAFT-NEVER-SAVED");
+  const savedMarker = uniqueName(testInfo, "BRAVO-EDIT-SAVED-FOR-REAL");
 
   await page.goto(`/jobs/${slug}?tab=documents`);
 
@@ -197,17 +197,11 @@ test("switching documents while editing never carries the draft across", async (
   await page.getByRole("link", { name: titleB }).click();
   await expect(page.getByRole("article", { name: titleB })).toBeVisible();
 
-  const markdownField = page.getByLabel("Markdown", { exact: true });
-  if (await markdownField.isVisible()) {
-    // The editor only ever opens on the latest version by itself, so a
-    // visible Markdown field here would mean B's own editor opened - not a
-    // leftover instance still holding A's draft. Either way, A's text must
-    // not be the one on screen.
-    await expect(markdownField).not.toHaveValue(new RegExp(draftMarker));
-    await expect(markdownField).toHaveValue(new RegExp(`^# ${titleB}`));
-  } else {
-    await expect(page.getByRole("button", { name: `Edit ${titleB}` })).toBeVisible();
-  }
+  // Selecting B remounts the editor rather than reusing the open instance,
+  // so it closes instead of carrying over to B: B renders read-only, with
+  // its own Edit button back, not mid-edit with anyone's draft.
+  await expect(page.getByLabel("Markdown", { exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: `Edit ${titleB}` })).toBeVisible();
   await expect(page.getByText(draftMarker)).toHaveCount(0);
   await expect(page.getByRole("article", { name: titleB }).getByText("Original B body.")).toBeVisible();
 
