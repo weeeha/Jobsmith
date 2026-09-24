@@ -36,8 +36,11 @@ async function authenticate(deps: BridgeDeps, request: Request, requestId: strin
   return { ok: true, userId: auth.userId, s: scoped(deps.db, auth.userId) };
 }
 
+// Matches what lib/pipeline/slug.ts actually produces: letters and digits
+// from any script (a company or role name is not always ASCII), plus
+// hyphens, never a `/` so a slug can never smuggle in an extra path segment.
 function isValidSlugShape(slug: string): boolean {
-  return /^[a-z0-9-]{1,100}$/.test(slug);
+  return /^[\p{L}\p{N}-]{1,100}$/u.test(slug);
 }
 
 export async function handleListOpportunities(deps: BridgeDeps, request: Request): Promise<Response> {

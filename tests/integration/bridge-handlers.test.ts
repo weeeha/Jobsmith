@@ -160,6 +160,52 @@ describe("bridge rate limiting", () => {
   });
 });
 
+describe("a slug that kept a non-ASCII letter", () => {
+  it("list, context and push all work for an opportunity slugged ørsted-product-designer", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, token, opportunity } = await seedJob(db, {
+        slug: "ørsted-product-designer",
+        email: "unicode1@example.com",
+        companyName: "Ørsted",
+        nameKey: "orsted-unicode1",
+      });
+      const { deps } = testDeps(db);
+      const auth = { headers: { authorization: `Bearer ${token}` } };
+
+      const list = await handleListOpportunities(deps, new Request(`${BASE}/api/bridge/opportunities`, auth));
+      expect(list.status).toBe(200);
+      expect((await list.json()).opportunities).toEqual(
+        expect.arrayContaining([expect.objectContaining({ slug: "ørsted-product-designer" })]),
+      );
+
+      const context = await handleGetContext(
+        deps,
+        new Request(`${BASE}/api/bridge/opportunities/ørsted-product-designer/context`, auth),
+        "ørsted-product-designer",
+      );
+      expect(context.status).toBe(200);
+      expect(await context.text()).toContain('slug: "ørsted-product-designer"');
+
+      const push = await handlePushArtifacts(
+        deps,
+        new Request(`${BASE}/api/bridge/opportunities/ørsted-product-designer/artifacts`, {
+          method: "PUT",
+          headers: { authorization: `Bearer ${token}` },
+          body: JSON.stringify({ artifacts: [{ key: "cv", kind: "cv", body_md: "# CV" }] }),
+        }),
+        "ørsted-product-designer",
+      );
+      expect(push.status).toBe(200);
+      expect((await push.json()).results).toEqual([{ key: "cv", scope: "opportunity", status: "created", version: 1 }]);
+      const stored = await s.artifact.getLatest({ opportunityId: opportunity.id }, "cv");
+      expect(stored?.bodyMd).toBe("# CV");
+    } finally {
+      await close();
+    }
+  });
+});
+
 describe("handleListOpportunities", () => {
   it("lists active jobs by default and maps every field", async () => {
     const { db, close } = await makeTestDb();
