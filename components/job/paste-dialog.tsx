@@ -28,12 +28,13 @@ export function PasteDialogTrigger(props: {
   initial?: { title: string; kind: ArtifactKind; stageId: string | null };
   label: string;
   ariaLabel?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
 
   return (
     <>
-      <Button aria-label={props.ariaLabel ?? props.label} onClick={() => setOpen(true)}>
+      <Button variant={props.variant} aria-label={props.ariaLabel ?? props.label} onClick={() => setOpen(true)}>
         {props.label}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
