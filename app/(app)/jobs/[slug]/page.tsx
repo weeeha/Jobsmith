@@ -11,13 +11,20 @@ import { JobTabs, type JobTabId } from "@/components/job/job-tabs";
 import { TabOverview } from "@/components/job/tab-overview";
 import { TabResearch } from "@/components/job/tab-research";
 import { TabPeople } from "@/components/job/tab-people";
+import { TabDocuments } from "@/components/job/tab-documents";
 import { TabTimeline } from "@/components/job/tab-timeline";
 import { TabPrep } from "@/components/job/tab-prep";
 
-const TAB_IDS: readonly JobTabId[] = ["overview", "research", "people", "timeline", "prep"];
+const TAB_IDS: readonly JobTabId[] = ["overview", "research", "people", "documents", "timeline", "prep"];
 
 function resolveTab(value: string | string[] | undefined): JobTabId {
   return typeof value === "string" && (TAB_IDS as readonly string[]).includes(value) ? (value as JobTabId) : "overview";
+}
+
+function resolveVersion(value: string | string[] | undefined): number | undefined {
+  if (typeof value !== "string") return undefined;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 ? n : undefined;
 }
 
 export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
@@ -34,6 +41,7 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
   const controls = stageControlsFor(state, new Date());
   const tab = resolveTab(searchParams.tab);
   const docRef = parseDocRef(searchParams.doc);
+  const version = resolveVersion(searchParams.v);
   const stageOptions = view.stages.map((stage) => ({ id: stage.id, label: stage.label }));
   const basePath = `/jobs/${slug}`;
 
@@ -67,6 +75,18 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
         )}
         {tab === "people" && (
           <TabPeople opportunityId={view.opportunity.id} stages={stageOptions} people={view.people} />
+        )}
+        {tab === "documents" && (
+          <TabDocuments
+            s={s}
+            opportunityId={view.opportunity.id}
+            companyId={view.company.id}
+            jobDocuments={view.documents}
+            docRef={docRef}
+            version={version}
+            basePath={basePath}
+            stages={stageOptions}
+          />
         )}
         {tab === "timeline" && <TabTimeline opportunityId={view.opportunity.id} events={view.events} />}
         {tab === "prep" && (
