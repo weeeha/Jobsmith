@@ -50,10 +50,11 @@ export async function TabDocuments(props: {
     );
   }
 
+  const selectedRef: DocRef = { scope: "opportunity", key: selected.key };
   const doc = (await getDocument(
     props.s,
     { opportunityId: props.opportunityId, companyId: props.companyId },
-    { scope: "opportunity", key: selected.key },
+    selectedRef,
     props.version,
   ))!;
   const isLatest = doc.current.version === doc.latestVersion;
@@ -68,7 +69,7 @@ export async function TabDocuments(props: {
           <DocumentList
             label="Documents list"
             groups={groups}
-            selected={props.docRef}
+            selected={selectedRef}
             basePath={props.basePath}
             tab="documents"
           />
@@ -99,7 +100,18 @@ export async function TabDocuments(props: {
             stageLabel={stageLabel}
             actions={
               <>
+                {/* Keyed by the document, same reasoning as the editor
+                    below: a history navigation that lands back on this tree
+                    at the same position must not hand this dialog's open
+                    state, or its uncontrolled fields, to a different
+                    document. Each key below carries a prefix distinguishing
+                    it from its sibling's: two sibling elements sharing one
+                    key confuses React's reconciliation between renders
+                    (observed directly - swapping documents left a stale,
+                    orphaned trigger behind instead of removing it), even
+                    though the siblings are different component types. */}
                 <PasteDialogTrigger
+                  key={`paste:${formatDocRef(selectedRef)}`}
                   opportunityId={props.opportunityId}
                   target={{ mode: "version", scope: "opportunity", key: selected.key }}
                   defaultKind={doc.current.kind}
@@ -107,9 +119,11 @@ export async function TabDocuments(props: {
                   initial={{ title: doc.current.title, kind: doc.current.kind, stageId: doc.current.stageId }}
                   label="Paste a new version"
                   ariaLabel={`Paste a new version of ${doc.current.title}`}
+                  variant="outline"
                 />
                 {sendable && !doc.current.sentAt ? (
                   <MarkSentDialogTrigger
+                    key={`sent:${formatDocRef(selectedRef)}`}
                     opportunityId={props.opportunityId}
                     documentKey={selected.key}
                     version={doc.current.version}

@@ -1,5 +1,5 @@
 import { getDocument } from "@/lib/artifacts/read";
-import { researchGroups, scopeOf, selectDoc, type DocRef } from "@/lib/artifacts/tabs";
+import { formatDocRef, researchGroups, scopeOf, selectDoc, type DocRef } from "@/lib/artifacts/tabs";
 import { DEFAULT_KIND_FOR_TAB } from "@/lib/artifacts/kinds";
 import { DocumentList } from "@/components/job/document-list";
 import { DocumentView } from "@/components/job/document-view";
@@ -45,10 +45,11 @@ export async function TabResearch(props: {
   }
 
   const scope = scopeOf(selected);
+  const selectedRef: DocRef = { scope, key: selected.key };
   const doc = (await getDocument(
     props.s,
     { opportunityId: props.opportunityId, companyId: props.companyId },
-    { scope, key: selected.key },
+    selectedRef,
   ))!;
   const stageLabel = props.stages.find((st) => st.id === doc.current.stageId)?.label ?? null;
 
@@ -60,7 +61,7 @@ export async function TabResearch(props: {
           <DocumentList
             label="Research documents"
             groups={groups}
-            selected={props.docRef}
+            selected={selectedRef}
             basePath={props.basePath}
             tab="research"
           />
@@ -75,7 +76,13 @@ export async function TabResearch(props: {
             companyName={scope === "company" ? props.companyName : null}
             stageLabel={stageLabel}
             actions={
+              // Keyed by the document, same reasoning as the editor's own
+              // key on the Documents tab: a history navigation that lands
+              // back on this tree at the same position must not hand this
+              // dialog's open state, or its uncontrolled fields, to a
+              // different document.
               <PasteDialogTrigger
+                key={formatDocRef(selectedRef)}
                 opportunityId={props.opportunityId}
                 target={{ mode: "version", scope, key: selected.key }}
                 defaultKind={doc.current.kind}
@@ -83,6 +90,7 @@ export async function TabResearch(props: {
                 initial={{ title: doc.current.title, kind: doc.current.kind, stageId: doc.current.stageId }}
                 label="Paste a new version"
                 ariaLabel={`Paste a new version of ${doc.current.title}`}
+                variant="outline"
               />
             }
           />
