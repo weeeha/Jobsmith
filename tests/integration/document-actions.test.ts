@@ -3,7 +3,7 @@ import type { Db } from "@/lib/db/client";
 import { scoped } from "@/lib/db/scoped";
 import { createOpportunity } from "@/lib/pipeline/create";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
-import { saveDocumentEditAction } from "@/app/(app)/jobs/[slug]/document-actions";
+import { saveDocumentEditAction, markDocumentSentAction } from "@/app/(app)/jobs/[slug]/document-actions";
 import { makeTestDb, createTestUser } from "../helpers/db";
 
 // Both actions take a version number as a plain argument rather than reading
@@ -47,6 +47,30 @@ function editForm(bodyMd: string): FormData {
   formData.set("bodyMd", bodyMd);
   return formData;
 }
+
+describe("markDocumentSentAction", () => {
+  it.each([0, -1, 1.5, Number.NaN])("rejects a version of %s before it reaches SQL", async (badVersion) => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { opportunityId, key } = await jobWithACv(db, `sent-${badVersion}@example.com`);
+      const result = await markDocumentSentAction(opportunityId, key, badVersion);
+      expect(result).toEqual({ ok: false, code: "artifact_not_found", message: "This document no longer exists." });
+    } finally {
+      await close();
+    }
+  });
+
+  it("marks a valid version as sent", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { opportunityId, key } = await jobWithACv(db, "sent-ok@example.com");
+      const result = await markDocumentSentAction(opportunityId, key, 1);
+      expect(result.ok).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+});
 
 describe("saveDocumentEditAction", () => {
   it.each([0, -1, 1.5, Number.NaN])("rejects a base version of %s before saving", async (badVersion) => {

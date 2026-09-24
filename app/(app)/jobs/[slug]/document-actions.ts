@@ -25,7 +25,7 @@ import { type Result, fail } from "@/lib/result";
 // target job's own page and, for a company-scoped change, every other job
 // at that company, the same two-step lookup app/(app)/jobs/[slug]/actions.ts's
 // own revalidateJob does for a single job.
-export async function revalidateDocuments(s: Scoped, opportunityId: string, scope: ArtifactScope) {
+async function revalidateDocuments(s: Scoped, opportunityId: string, scope: ArtifactScope) {
   const opportunity = await s.opportunity.getById(opportunityId);
   if (!opportunity) return;
   revalidatePath(`/jobs/${opportunity.slug}`);
@@ -126,8 +126,10 @@ export async function markDocumentSentAction(
   const idParsed = z.uuid().safeParse(opportunityId);
   if (!idParsed.success) return fail("not_found", messageFor("not_found"));
   if (!KEY_PATTERN.test(key)) return fail("artifact_not_found", messageFor("artifact_not_found"));
+  const versionParsed = z.number().int().positive().safeParse(version);
+  if (!versionParsed.success) return fail("artifact_not_found", messageFor("artifact_not_found"));
   const s = scopedFor(user.id);
-  const result = await markArtifactSent(s, opportunityId, key, version);
+  const result = await markArtifactSent(s, opportunityId, key, versionParsed.data);
   if (!result.ok) return fail(result.code, messageFor(result.code));
   await revalidateDocuments(s, opportunityId, "opportunity");
   return { ok: true, data: null };
