@@ -1,0 +1,741 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* The theme axis answers to BOTH the .dark class (legacy, what ThemeProvider
+   and Storybook set today) and html[data-theme="dark"] (the declared axis
+   attribute in ds-architecture.config.json — axes are attributes there, and
+   the config must not claim a mechanism the CSS does not have). Keep the two
+   selector lists below in step: this variant drives dark: utilities, the
+   token block further down drives the variables. */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* These globs exist for CONSUMERS, not for us. Tailwind's automatic source
+   detection starts at the project root and never enters node_modules, so a
+   consuming app that only writes `@import "@weeeha/ui/globals.css"` would get
+   no utilities for any class living inside the kit's own components. These
+   lines put the installed package's component source back in the scan.
+   They are deliberately narrow: a consumer needs the classes its components
+   render, not the ones our stories and docs demo, and every extra file here is
+   dead CSS in someone else's bundle. Our own Storybook and docs site do not
+   read these globs at all; they are covered by automatic detection from the
+   repo root, which does see stories and mdx. */
+@source "../components/**/*.{ts,tsx}";
+@source not "../components/**/*.stories.tsx";
+@source "../lib/**/*.{ts,tsx}";
+@source "../hooks/**/*.{ts,tsx}";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKEN ARCHITECTURE — three tiers, one direction.
+
+     Layer 1 · Primitives   raw ramps. No component ever reads these.
+     Layer 2 · Semantic     the ONLY place light/dark values are decided.
+     Layer 3 · shadcn alias maps shadcn's names onto Layer 2.
+
+   The inversion that makes this work: the semantic layer owns the values and
+   shadcn's names are the alias — not the other way round. That is why any
+   stock shadcn component can be dropped in unmodified and inherit the theme.
+
+   To rebrand: replace the Layer 1 ramps, the two neutrals and the five hue
+   ramps under them. A neutral accent needs nothing more. A coloured accent
+   also picks its two steps in Layer 2 (--accent-solid, --accent-on-solid,
+   per mode), because a neutral accent inverts between modes and a coloured
+   one sits mid-ramp. Nothing else.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-chart-grid: var(--chart-grid);
+    --color-required: var(--required);
+    --color-required-foreground: var(--required-foreground);
+    /* Semantic layer → utilities (group-prefixed: bg-surface-card,
+       text-text-secondary, border-border-hover, bg-status-draft, …) */
+    --color-surface-page: var(--surface-page);
+    --color-surface-header: var(--surface-header);
+    --color-surface: var(--surface);
+    --color-surface-card: var(--surface-card);
+    --color-surface-input: var(--surface-input);
+    --color-surface-popover: var(--surface-popover);
+    --color-surface-hover: var(--surface-hover);
+    --color-surface-scrim: var(--surface-scrim);
+    --color-surface-thumb: var(--surface-thumb);
+    --color-surface-secondary: var(--surface-secondary);
+    --color-surface-tertiary: var(--surface-tertiary);
+    --color-surface-tooltip: var(--surface-tooltip);
+    --color-surface-sidebar: var(--surface-sidebar);
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-tertiary: var(--text-tertiary);
+    --color-text-inverted: var(--text-inverted);
+    --color-text-on-accent: var(--text-on-accent);
+    --color-text-on-secondary: var(--text-on-secondary);
+    --color-text-popover: var(--text-popover);
+    --color-text-tooltip: var(--text-tooltip);
+    --color-text-accent: var(--text-accent);
+    --color-text-disabled: var(--text-disabled);
+    --color-text-destructive: var(--text-destructive);
+    --color-icon-primary: var(--icon-primary);
+    --color-icon-secondary: var(--icon-secondary);
+    --color-icon-accent: var(--icon-accent);
+    --color-icon-inverted: var(--icon-inverted);
+    --color-icon-destructive: var(--icon-destructive);
+    --color-button-primary: var(--button-primary);
+    --color-button-secondary: var(--button-secondary);
+    --color-button-secondary-hover: var(--button-secondary-hover);
+    --color-button-tertiary: var(--button-tertiary);
+    --color-button-tertiary-foreground: var(--button-tertiary-foreground);
+    --color-button-destructive: var(--button-destructive);
+    --color-button-select-state: var(--button-select-state);
+    --color-secondary-accent: var(--secondary-accent);
+    --color-accent-color: var(--accent-color);
+    --color-accent-bold: var(--accent-bold);
+    --color-accent-secondary: var(--accent-secondary);
+    --color-accent-info: var(--accent-info);
+    --color-accent-critical: var(--accent-critical);
+    --color-accent-alert: var(--accent-alert);
+    --color-border-hover: var(--border-hover);
+    --color-border-focus-ring: var(--border-focus-ring);
+    --color-border-selected: var(--border-selected);
+    --color-status-approved: var(--status-approved);
+    --color-status-pending: var(--status-pending);
+    --color-status-action: var(--status-action);
+    --color-status-rejected: var(--status-rejected);
+    --color-status-expired: var(--status-expired);
+    --color-status-draft: var(--status-draft);
+    --color-status-approved-soft: var(--status-approved-soft);
+    --color-status-pending-soft: var(--status-pending-soft);
+    --color-status-action-soft: var(--status-action-soft);
+    --color-status-approved-border: var(--status-approved-border);
+    --color-status-pending-border: var(--status-pending-border);
+    --color-status-action-border: var(--status-action-border);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: var(--radius-button);     /* 8px — buttons, inputs, menus, popovers */
+    --radius-xl: var(--radius-card);       /* 16px — cards */
+    --radius-2xl: var(--radius-popup);     /* 24px — dialogs */
+    --radius-3xl: 32px;
+    --radius-4xl: 40px;
+    /* Elevation → utilities (shadow-card, shadow-popover, shadow-overlay).
+       The theme namespace is --shadow-*, so the semantic tokens are named
+       --elevation-* to avoid a self-referential var(). Tailwind's own
+       shadow-2xs…shadow-lg stay available and unchanged. */
+    /* tw-animate-css bakes 1.25s into its own --animate-caret-blink, so the
+       duration-ambient class beside it in input-otp.tsx set a transition
+       duration and nothing else: the caret ignored the motion token entirely.
+       Re-declared here to read --tw-duration the way tw-animate-css's own
+       animate-in does, so duration-ambient reaches it and the token means
+       something. Same shape of trap as duration-*, one layer further in. */
+    --animate-caret-blink: caret-blink
+      var(--tw-duration, var(--motion-ambient)) ease-out infinite;
+    --shadow-card: var(--elevation-card);
+    --shadow-popover: var(--elevation-popover);
+    --shadow-overlay: var(--elevation-overlay);
+    --font-sans: var(--font-sans);
+    --font-site: var(--font-site);
+    --font-serif: var(--font-serif);
+    /* Without this line the font-mono UTILITY inlines Tailwind's default
+       stack and never reads the custom property — Storybook and the docs
+       loaded Geist Mono and declared --font-mono for months while nothing
+       rendered it. Same trap as duration-*: written everywhere, in effect
+       nowhere. Gated by scripts/tokens-mirror.test.ts. */
+    --font-mono: var(--font-mono);
+    /* Reading the same names, so a host that declares its own faces still wins:
+       the three fallbacks live in @layer base near the bottom of this file,
+       and an unlayered declaration in a consuming app beats a layered one. */
+    /* Easing → utilities (ease-standard, ease-enter, ease-exit). Same
+       three-tier rule as colour: components read these names, never raw
+       cubic-beziers.
+
+       The duration half of the pair CANNOT live here — see the @utility
+       block below for why. Do not "restore" --duration-* to this block. */
+    --ease-standard: var(--motion-ease-standard);
+    --ease-enter: var(--motion-ease-enter);
+    --ease-exit: var(--motion-ease-exit);
+    /* Tailwind's own fallback for a `transition-*` written without a duration
+       is a hardcoded 150ms, and the prefers-reduced-motion block at the foot
+       of this file cannot reach it — that block only rewrites --motion-*.
+       Pointing the fallback at the token puts every duration-less transition
+       in the kit under the same guarantee as an explicit `duration-fast`.
+       Coordinated multi-element moves (the sidebar collapse) still name their
+       token explicitly; this only catches the in-place state changes. */
+    --default-transition-duration: var(--motion-fast);
+}
+
+/* Duration → utilities, declared the long way round on purpose.
+   Tailwind v4 has an --ease-* theme namespace, so `ease-standard` falls out
+   of @theme for free. It has NO --duration-* namespace: `duration-*` accepts
+   a bare number (duration-100), a bracket value, or a custom property, and
+   nothing else. A `--duration-fast: …` entry in @theme therefore generates no
+   utility at all — the class silently does not exist, every element wearing it
+   drops to --default-transition-duration, and `duration-base`/`duration-slow`
+   quietly become the fast value. That is how it read from 2026-08-11 until the
+   transition-all sweep found it: written everywhere, in effect nowhere.
+   @utility is the v4 mechanism for a name the theme namespaces do not cover.
+   --tw-duration is set alongside so these compose with the `transition`
+   shorthand exactly as Tailwind's own duration-<number> does. */
+@utility duration-fast {
+    --tw-duration: var(--motion-fast);
+    transition-duration: var(--motion-fast);
+}
+@utility duration-base {
+    --tw-duration: var(--motion-base);
+    transition-duration: var(--motion-base);
+}
+@utility duration-slow {
+    --tw-duration: var(--motion-slow);
+    transition-duration: var(--motion-slow);
+}
+@utility duration-ambient {
+    --tw-duration: var(--motion-ambient);
+    transition-duration: var(--motion-ambient);
+}
+@utility pb-safe {
+    /* max(), not env() alone: on a device with no safe area (env() falls
+       back to 0px), a bare env() would zero out the bottom padding entirely.
+       0.5rem matches the bottom nav bar's own py-2, so a caller
+       replaces py-2 with pt-2 pb-safe and gets an unchanged result on a
+       device with no inset and a larger one where the inset needs it. */
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+:root {
+    /* Native controls (scrollbars, select popups, date pickers, the caret,
+       autofill) read this and nothing else. Without it a consumer on the
+       data-theme axis, or anyone toggling .dark by hand, got light scrollbars
+       inside a dark page: next-themes sets it in JS, and the kit cannot
+       assume next-themes. */
+    color-scheme: light;
+
+    /* ═══ Motion ═══
+       The four durations already in use across the kit, named. Pick by what
+       is moving, not by how long it should take:
+
+         fast      state changes in place — hover, focus ring, colour swap
+         base      something appears or moves a short distance — dropdown,
+                   tooltip, popover, toast
+         slow      a large surface enters — dialog, sheet, accordion panel
+         ambient   looping, never waited on — shimmer, typing indicator
+
+       Easing: `standard` for anything that starts and ends on screen;
+       `enter` (decelerate) for things arriving; `exit` (accelerate) for
+       things leaving. */
+    --motion-fast: 100ms;
+    --motion-base: 200ms;
+    --motion-slow: 300ms;
+    --motion-ambient: 1000ms;
+    --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --motion-ease-enter: cubic-bezier(0, 0, 0, 1);
+    --motion-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+    /* ═══ Layer 1 · Primitives ═══
+       Two neutral ramps on purpose: --base drives surfaces, --ink drives
+       content (text, icons, borders). Splitting them lets you warm or cool the
+       surfaces without dragging the text along.
+
+       These are neutral placeholders. Replace both ramps with your project's
+       ramps and everything downstream re-themes. */
+    --base-0: #ffffff;   --base-50: #fafafa;  --base-100: #f5f5f5; --base-200: #e5e5e5; --base-300: #d4d4d4;
+    --base-400: #a3a3a3; --base-500: #737373; --base-600: #525252; --base-700: #404040;
+    --base-800: #262626; --base-900: #171717; --base-950: #0a0a0a;
+    --ink-50: #fafafa;   --ink-100: #f4f4f5;  --ink-200: #e4e4e7;  --ink-300: #d4d4d8;
+    --ink-400: #a1a1aa;  --ink-450: #94949b;  --ink-500: #71717a;  --ink-600: #52525b;  --ink-700: #3f3f46;
+    --ink-800: #27272a;  --ink-900: #18181b;  --ink-950: #09090b;
+
+    /* Hue ramps, added 2026-09-04. Every coloured value Layer 2 used to hold as
+       a literal now points at a step here, so a rebrand is a ramp swap for
+       colour too, not only for the neutrals. Values are Tailwind v4's published
+       sRGB hex for the palette named on each ramp. The steps Layer 2 reads are
+       the same bytes the literals were, checked by resolving every token before
+       and after the move; the four exceptions are recorded at their
+       declarations (icon-secondary, button-select-state, dark border-selected,
+       required-foreground), and none of the four had a shipped consumer.
+
+       --accent-* is the brand hue. It is neutral by default (Tailwind neutral,
+       the same values as --base-*) so the shipped kit stays brand-free, and by
+       default Layer 2 reads only its 900 and 50 steps, because a neutral accent
+       inverts between modes. A coloured brand replaces this ramp AND picks its
+       steps through --accent-solid / --accent-on-solid in Layer 2.
+
+       Ramp steps are exempt from check:liveness on purpose: a ramp is declared
+       whole, and Layer 2 is its only legitimate reader. Nothing else in :root
+       is exempt. */
+    --accent-50: #fafafa;   --accent-100: #f5f5f5; --accent-200: #e5e5e5; --accent-300: #d4d4d4;
+    --accent-400: #a3a3a3;  --accent-500: #737373; --accent-600: #525252; --accent-700: #404040;
+    --accent-800: #262626;  --accent-900: #171717; --accent-950: #0a0a0a;
+    /* critical: Tailwind red */
+    --critical-50: #fef2f2; --critical-100: #ffe2e2; --critical-200: #ffc9c9; --critical-300: #ffa2a2;
+    --critical-400: #ff6467; --critical-500: #fb2c36; --critical-600: #e7000b; --critical-700: #c10007;
+    --critical-800: #9f0712; --critical-900: #82181a; --critical-950: #460809;
+    /* positive: Tailwind green */
+    --positive-50: #f0fdf4; --positive-100: #dcfce7; --positive-200: #b9f8cf; --positive-300: #7bf1a8;
+    --positive-400: #05df72; --positive-500: #00c950; --positive-600: #00a63e; --positive-700: #008236;
+    --positive-800: #016630; --positive-900: #0d542b; --positive-950: #032e15;
+    /* warning: Tailwind amber */
+    --warning-50: #fffbeb;  --warning-100: #fef3c6; --warning-200: #fee685; --warning-300: #ffd230;
+    --warning-400: #ffb900; --warning-500: #fe9a00; --warning-600: #e17100; --warning-700: #bb4d00;
+    --warning-800: #973c00; --warning-900: #7b3306; --warning-950: #461901;
+    /* alert: Tailwind orange. Action needed, the --required family */
+    --alert-50: #fff7ed;    --alert-100: #ffedd4;  --alert-200: #ffd6a7;  --alert-300: #ffb86a;
+    --alert-400: #ff8904;   --alert-500: #ff6900;  --alert-600: #f54a00;  --alert-700: #ca3500;
+    --alert-800: #9f2d00;   --alert-900: #7e2a0c;  --alert-950: #441306;
+    /* info: Tailwind blue */
+    --info-50: #eff6ff;     --info-100: #dbeafe;   --info-200: #bedbff;   --info-300: #8ec5ff;
+    --info-400: #51a2ff;    --info-500: #2b7fff;   --info-600: #155dfc;   --info-700: #1447e6;
+    --info-800: #193cb8;    --info-900: #1c398e;   --info-950: #162456;
+
+    /* ═══ Layer 2 · Semantic tokens (Light mode).
+       Light/dark values live ONLY at this layer. ═══ */
+    /* Accent, the one brand decision. Every accent-coloured token below
+       (text-accent, icon-accent, button-primary, accent-bold, border-selected,
+       and the label token text-on-accent) derives from this pair, so a rebrand
+       cannot set part of the family and miss the rest: the consumer harness
+       shipped exactly that half-rebrand on 2026-08-18, back when the six were
+       independent literals. The default is the neutral inversion, 900 on light
+       and 50 on dark; a coloured brand points these at mid-ramp steps. */
+    --accent-solid: var(--accent-900);
+    --accent-on-solid: var(--accent-50);
+    /* Surface */
+    --surface-page: var(--base-50);
+    --surface-header: var(--base-50);
+    --surface: var(--base-0);
+    --surface-card: var(--base-0);
+    --surface-input: var(--base-0);
+    --surface-popover: var(--base-0);
+    --surface-hover: #09090b1a;            /* ink/950 @ 10% — translucent scrim over popover
+                                              surfaces (menu/list item hover). Literal alpha hex:
+                                              Figma cannot alias-with-alpha, so this stays a value */
+    --surface-secondary: var(--base-100);
+    --surface-tertiary: var(--base-200);
+    --surface-tooltip: var(--ink-800);     /* mode-invariant: declared once, never re-declared in dark */
+    /* The dim behind a modal surface. Mode-invariant on purpose: the scrim is
+       measured against the page it covers, and both modes want the same
+       darkening. Was bg-black/10 written into dialog, alert-dialog, sheet and
+       drawer, where no consumer could reach it — the palette rule missed it
+       because black carries no numeric step. Literal alpha hex for the same
+       reason as --surface-hover above. */
+    --surface-scrim: #0000001a;            /* black @ 10% (mode-invariant) */
+    /* The knob of a range control. White in both modes today, which is what
+       slider.tsx hardcoded; naming it is what makes it re-themable. Whether
+       dark should instead take --surface-card, the way Switch's thumb takes
+       --background, is an open design question and deliberately not decided
+       here: this token is pixel-identical to what shipped. */
+    --surface-thumb: #ffffff;              /* white (mode-invariant) */
+    --surface-sidebar: var(--base-50);     /* page-like in light, card-like in dark — no other
+                                              surface token matches it in BOTH modes */
+    /* Text */
+    --text-primary: var(--ink-950);
+    --text-secondary: var(--ink-600);
+    --text-tertiary: var(--ink-500);       /* NOT ink-400 (#a1a1aa), which reads 2.46:1 on
+                                              --base-50 against a 4.5:1 floor; the kit's biggest
+                                              contrast cluster traced here. ink-500: 4.63:1 on
+                                              --base-50, 4.83:1 on white. Dark declares its own. */
+    --text-inverted: var(--ink-50);
+    --text-popover: var(--ink-950);
+    --text-tooltip: var(--ink-50);         /* mode-invariant, like --surface-tooltip
+                                              above — the pair must not drift apart, which is
+                                              why this is a token and not text-zinc-50 inline.
+                                              15.6:1 on #27272a. NOT --text-inverted, which
+                                              flips per mode and would vanish in dark. */
+    --text-accent: var(--accent-solid);
+    --text-on-secondary: var(--ink-900);   /* Label on a secondary/muted fill. Inverts the
+                                              opposite way to --text-on-accent, which is why it cannot
+                                              reuse it */
+    --text-on-accent: var(--accent-on-solid); /* The label ON an accent fill, so it
+                                              inverts opposite --text-accent. NOT --text-inverted, whose
+                                              dark value is the ink ramp (#09090b), not the accent's */
+    --text-disabled: var(--ink-300);
+    --text-destructive: var(--critical-700); /* see --button-destructive */
+    /* Icon */
+    --icon-primary: var(--ink-950);
+    --icon-secondary: var(--ink-600);      /* Was a stone/600 literal (#57534d), the
+                                              one warm value in a neutral kit. No shipped component
+                                              reads it (liveness baseline); the docs site does.
+                                              Dark re-declares it below for contrast. */
+    --icon-accent: var(--accent-solid);
+    --icon-inverted: var(--ink-50);
+    --icon-destructive: var(--critical-700); /* see --button-destructive */
+    /* Button */
+    --button-primary: var(--accent-solid);
+    --button-secondary: var(--ink-100);
+    /* The hover step, declared rather than composed in button.tsx. Both modes
+       carry it because the two tokens it mixes flip, so a :root-only
+       declaration would keep the light mix inside a nested dark section. */
+    --button-secondary-hover: color-mix(in oklch, var(--button-secondary), var(--text-primary) 5%);
+    --button-tertiary: transparent;
+    --button-tertiary-foreground: var(--ink-950);
+    --button-destructive: var(--critical-700); /* NOT critical-600 (#e7000b), which failed AA at
+                                              3.82:1. The destructive button renders the label and
+                                              the fill from THIS ONE token (`bg-destructive/10
+                                              text-destructive`), so the pair is set by alpha math,
+                                              not by choosing two colours: the label sits on its own
+                                              10% tint, which composites to #f8e1e2 over --base-50.
+                                              red/700 takes that pair to 5.11:1. Darkening is the
+                                              only lever a single token has — if you ever need the
+                                              fill and the label to move independently, split the
+                                              token here first, never in the component.
+                                              Dark keeps critical-400: it already clears AA at 5.35:1.
+                                              --accent-critical stays critical-600 on purpose — it is
+                                              mode-invariant and not part of this family. */
+    --button-select-state: var(--info-600); /* Was sky/600 (#0084d1). Moved onto the info ramp on
+                                              2026-09-04 rather than adding a sky ramp for a token
+                                              nothing shipped reads (liveness baseline). Dark: info-800. */
+    /* Accent — --secondary-accent (soft neutral surface) and --accent-secondary
+       (warm) are deliberately distinct; check tokens.ts usage strings before
+       reaching for either. Also --accent (shadcn, = button-primary) ≠
+       --accent-color ≠ --accent-bold — all three differ in dark mode. */
+    --secondary-accent: var(--ink-100);
+    --accent-color: var(--ink-900);
+    --accent-bold: var(--accent-solid);
+    --accent-secondary: var(--warning-700); /* Was amber/600 (#e17100): 3.09:1 as text
+                                              on amber/50. Aligned with --status-pending; zero
+                                              component consumers today. Dark overrides below. */
+    --accent-info: var(--info-700);        /* info-600 (#155dfc) read 4.35:1 on its own
+                                              10% tint (an alpha pair, like --button-destructive);
+                                              /700 reads 5.58:1. No longer mode-invariant: dark
+                                              gets info-400, matching every status family. */
+    --accent-critical: var(--critical-600); /* mode-invariant */
+    --accent-alert: var(--alert-500);      /* mode-invariant */
+    /* Border — note: --border and --input double as the shadcn names (same token) */
+    --border: var(--ink-200);
+    --border-hover: var(--ink-300);
+    --input: var(--ink-200);
+    --border-focus-ring: var(--ink-500);   /* ink-400 read 2.46:1 on --base-50; focus indicators
+                                              are non-text UI (3:1 floor, WCAG 1.4.11). ink-500
+                                              clears it and matches dark, already ink-500. */
+    --border-selected: var(--accent-solid); /* the accent in BOTH modes since 2026-09-04. Dark was a
+                                              sky/600 literal with no shipped consumer, and both
+                                              re-themes (the harness, the docs' brand-warm) set it to
+                                              the brand in dark by hand, which is the intent. */
+    /* Charts (mode-invariant) */
+    --chart-1: #2b7fff;                    /* blue/500 */
+    --chart-2: #00a6f4;                    /* sky/500 */
+    --chart-3: #00bba7;                    /* teal/500 */
+    --chart-4: #8e51ff;                    /* violet/500 */
+    --chart-5: #f6339a;                    /* pink/500 */
+    /* Gridline behind the marks — the dimming lives HERE, not as a /50 in
+       chart.tsx, because dark --border is itself translucent (alpha on alpha)
+       and a component-level composite is invisible to every token gate. The
+       oklab mix is byte-identical to the stroke-border/50 it replaced; it
+       follows --border in both modes, so re-theming the ramps re-themes it. */
+    --chart-grid: color-mix(in oklab, var(--border) 50%, transparent);
+    /* Workflow status — generic states for any review/approval flow.
+       Aliases whose targets flip are RE-DECLARED in .dark (var() substitutes at
+       the declaring element, so a :root-only alias keeps its light value inside
+       a nested .dark wrapper — it is only coincidentally fine when .dark sits on
+       <html>). --status-expired is primitive-based and has an explicit override.
+       Light foregrounds are each family's /700 step: that is what clears AA on
+       the /50 tints (--button-destructive holds the worked receipt). Dark
+       pairs /400 on /950. */
+    --status-approved: var(--positive-700);
+    --status-pending: var(--warning-700);  /* Was amber/600 (#e17100): 3.09:1 on its
+                                              /50 tint. Now 4.85:1. */
+    --status-action: var(--alert-700);     /* Was orange/600 (#f54a00): 3.37:1 on its
+                                              /50 tint. Now 4.92:1. */
+    --status-rejected: var(--button-destructive);
+    --status-expired: var(--ink-500);
+    --status-draft: var(--surface-secondary);
+    /* Soft tints + borders for status chips/callouts. */
+    --status-approved-soft: var(--positive-50);
+    --status-pending-soft: var(--warning-50);
+    --status-action-soft: var(--alert-50);
+    --status-approved-border: var(--positive-200);
+    --status-pending-border: var(--warning-200);
+    --status-action-border: var(--alert-200);
+    /* Elevation — roles, not steps. The values are Tailwind's shadow-2xs / -md
+       / -lg byte-for-byte, and since 2026-08-21 the components render the ROLE
+       utilities (shadow-card / shadow-popover / shadow-overlay) — before that
+       the roles were declared here while every component still wrote the raw
+       step, so switching a mode could never move a shadow (the dead-token
+       failure check:liveness now gates). Submenu contents ride
+       --elevation-overlay because their shipped value was lg; whether a
+       submenu deserves its own role is open. One raw step remains by rule:
+       entity-card-grid's hover:shadow-lg is an interaction recipe, and states
+       are recipes, not tokens. Steps xs and sm stay unroled on both sides. */
+    --elevation-card: 0 1px rgb(0 0 0 / 0.05);
+    --elevation-popover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --elevation-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* ═══ Layer 3 · shadcn compatibility aliases.
+       Components consume these; values come from Layer 2. Tokens with no
+       semantic source keep literals and are marked. NOTE: var() substitution
+       happens at the declaring element, so aliases whose targets flip must be
+       re-declared in .dark to work inside nested .dark wrappers. ═══ */
+    --background: var(--surface-page);
+    --foreground: var(--text-primary);
+    --card: var(--surface-card);
+    --card-foreground: var(--text-primary);
+    --popover: var(--surface-popover);
+    --popover-foreground: var(--text-popover);
+    --primary: var(--button-primary);
+    --primary-foreground: var(--text-on-accent);
+    --secondary: var(--button-secondary);
+    --secondary-foreground: var(--text-on-secondary);
+    --muted: var(--surface-secondary);
+    --muted-foreground: var(--text-secondary);
+    --accent: var(--button-primary);       /* deliberate: brand accent = primary */
+    --accent-foreground: var(--text-on-accent);
+    --destructive: var(--button-destructive);
+    --ring: var(--border-focus-ring);
+    --required: var(--status-action);
+    --required-foreground: var(--alert-50); /* label on the --required fill. Reads a Layer 1 step
+                                              directly: no Layer 2 role exists for it and nothing
+                                              shipped reads it (liveness baseline). Was a #fffbf5
+                                              literal until 2026-09-04. */
+    --sidebar: var(--surface-sidebar);
+    --sidebar-foreground: var(--text-primary);
+    --sidebar-primary: var(--button-primary);
+    --sidebar-primary-foreground: var(--text-on-accent);
+    --sidebar-accent: var(--secondary-accent);
+    --sidebar-accent-foreground: var(--accent-color);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--border-focus-ring);
+
+    /* ═══ Dimension tokens ═══
+       Sizes only; colour tokens sharing these prefixes live in Layer 2 above.
+       Three radius roles, read by the @theme block above (rounded-lg/xl/2xl).
+
+       The 42 other dimension and weight roles that sat here until 2026-09-04
+       (--space-*, --control-*, --button-height-*, --icon-tiny..hero, the stroke
+       and border widths, --table-line-*, --page-*, --radius-control/rounded/
+       none, --weight-*) were declared for Figma parity and read by nothing:
+       components reach every size through Tailwind's scale, the same decision
+       tokens.ts records for type. They live on in Figma and are inventoried
+       there, in tokens.ts FIGMA_ONLY_FAMILIES. check:liveness now walks this
+       block too, so a role declared here has to be read by something. */
+    --radius-button: 8px;
+    --radius-card: 16px;
+    --radius-popup: 24px;
+
+    --radius: var(--radius-button);        /* base for the remaining var(--radius) refs */
+
+    /* --font-serif lives here (not only in @theme inline, which inlines values and
+       emits no runtime custom property) so var(--font-serif) resolves at runtime. */
+    --font-serif: Georgia, "Times New Roman", serif;
+}
+
+
+.dark, [data-theme="dark"] {
+    /* ═══ Layer 2 · Semantic tokens (Dark) ═══
+       Selector list matches the @custom-variant at the top of this file —
+       the class and the data-theme axis attribute are the same cell. */
+    color-scheme: dark;
+    /* The accent pair, dark half. The neutral default inverts: the solid is
+       the 50 step here and the label is the 900. A coloured brand overrides
+       both with mid-ramp steps in its own .dark block. */
+    --accent-solid: var(--accent-50);
+    --accent-on-solid: var(--accent-900);
+    --surface-page: var(--base-950);
+    --surface-header: var(--base-950);
+    --surface: var(--base-900);
+    --surface-card: var(--base-900);
+    --surface-input: var(--base-900);
+    --surface-popover: var(--base-900);
+    --surface-hover: #fafafa1a;            /* ink/50 @ 10% */
+    --surface-secondary: var(--base-800);  /* base/800 */
+    --surface-tertiary: var(--base-800);   /* base/800 */
+    --surface-sidebar: var(--base-900);
+    --text-primary: var(--ink-50);
+    --text-secondary: var(--ink-400);
+    --text-tertiary: var(--ink-450);       /* ink-450 exists for this slot: 500 misses AA on
+                                              every dark ground, 400 is what secondary wears.
+                                              6.57 page, 5.95 card, 5.02 secondary. */
+    --text-inverted: var(--ink-950);
+    --text-popover: var(--ink-50);
+    --text-accent: var(--accent-solid);    /* re-declared so nested .dark wrappers re-resolve it */
+    --text-on-secondary: var(--ink-50);
+    --text-on-accent: var(--accent-on-solid);
+    --text-disabled: var(--ink-700);
+    --text-destructive: var(--critical-400);
+    --icon-primary: var(--ink-50);
+    /* Was mode-invariant stone/600, which reads 2.59:1 on --surface-page,
+       2.35:1 on --surface-card and 1.98:1 on --surface-secondary: under the
+       3:1 floor for non-text on every dark ground. ink-400 is what
+       --text-secondary uses, and clears it on all three. */
+    --icon-secondary: var(--ink-400);
+    --icon-accent: var(--accent-solid);
+    --icon-inverted: var(--ink-950);
+    --icon-destructive: var(--critical-400);
+    --button-primary: var(--accent-solid);
+    --button-secondary: var(--ink-800);
+    --button-secondary-hover: color-mix(in oklch, var(--button-secondary), var(--text-primary) 5%);
+    --button-tertiary-foreground: var(--ink-50);
+    --button-destructive: var(--critical-400);
+    --button-select-state: var(--info-800); /* was sky/800, see the light declaration */
+    --secondary-accent: var(--ink-800);
+    --accent-color: var(--ink-50);
+    --accent-bold: var(--accent-solid);    /* follows the accent. In the neutral default that is
+                                              ink-50 anyway, which is what this read before; both
+                                              re-themes set it to the brand in dark by hand. */
+    --accent-secondary: var(--ink-50);
+    --accent-info: var(--info-400);        /* info-400 on dark, like every status family (light
+                                              is info-700). Was mode-invariant blue/600, which
+                                              read ~2.8:1 as text on its own dark tint. */
+    --border: #ffffff1a;                   /* white 10% */
+    --border-hover: #ffffff33;             /* white 20% — was white 10%, the
+                                              same value as --border, so a
+                                              hover border could not exist in
+                                              dark at all */
+    --input: #ffffff26;                    /* white 15% */
+    --border-focus-ring: var(--ink-500);
+    --border-selected: var(--accent-solid); /* the accent, as in light; see the light declaration */
+    /* Follows --border, which flips above — re-declared per the same rule as
+       the status aliases below. */
+    --chart-grid: color-mix(in oklab, var(--border) 50%, transparent);
+    /* Workflow status — re-declared here because var() substitutes at the
+       DECLARING element: a :root-only alias keeps its light value inside a
+       nested .dark wrapper. */
+    --status-approved: var(--positive-400);
+    --status-pending: var(--warning-400);
+    --status-action: var(--alert-400);
+    --status-rejected: var(--button-destructive);
+    --status-draft: var(--surface-secondary);
+    --status-expired: var(--ink-400);
+    --status-approved-soft: var(--positive-950);
+    --status-pending-soft: var(--warning-950);
+    --status-action-soft: var(--alert-950);
+    --status-approved-border: var(--positive-800);
+    --status-pending-border: var(--warning-800);
+    --status-action-border: var(--alert-800);
+    /* Elevation is deliberately NOT re-declared here. The values are literals
+       rather than aliases, so nothing breaks in a nested .dark wrapper — they
+       simply carry the light shadow into dark, which is what shipped before
+       these tokens existed and is why this is a no-op change. Whether a
+       pure-black shadow should read differently on a dark surface is a real
+       design decision, and having the roles named is what makes it a one-line
+       one. Left open on purpose rather than answered by an agent. */
+
+    /* ═══ Layer 3 · dark re-declarations ═══
+       Aliases whose Layer-2 targets flip are re-declared with the SAME var()
+       expression so they re-resolve at the .dark element — this is what makes
+       section-scoped dark wrappers (e.g. <section class="dark">) work; a
+       :root-only alias keeps its light value there. Plus dark values for
+       tokens with no semantic source. */
+    --background: var(--surface-page);
+    --foreground: var(--text-primary);
+    --card: var(--surface-card);
+    --card-foreground: var(--text-primary);
+    --popover: var(--surface-popover);
+    --popover-foreground: var(--text-popover);
+    --primary: var(--button-primary);
+    --secondary: var(--button-secondary);
+    --muted: var(--surface-secondary);
+    --muted-foreground: var(--text-secondary);
+    --accent: var(--button-primary);       /* deliberate: brand accent = primary */
+    --destructive: var(--button-destructive);
+    --ring: var(--border-focus-ring);
+    --secondary-foreground: var(--text-on-secondary);
+    --primary-foreground: var(--text-on-accent);
+    --accent-foreground: var(--text-on-accent);
+    /* --status-action flips between modes, so this alias has to re-resolve
+       here too. Without it a nested <section class="dark"> kept the light
+       orange/700 and painted text-required at 3.4:1 on a dark card. */
+    --required: var(--status-action);
+    --sidebar: var(--surface-sidebar);
+    --sidebar-foreground: var(--text-primary);
+    --sidebar-primary: var(--button-primary);
+    --sidebar-primary-foreground: var(--text-on-accent);
+    --sidebar-accent: var(--secondary-accent);
+    --sidebar-accent-foreground: var(--accent-color);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--border-focus-ring);
+}
+
+@layer base {
+  /* The three font families the @theme block names but never gives a value.
+     Storybook and the docs site declare Geist and Geist Mono in their own page
+     shells, so in this repo the utilities always resolved; a consumer who
+     imports globals.css and declares nothing got font-mono rendering in the
+     body sans face, silently, and the kit's own harness had exactly that bug.
+
+     They sit in @layer base rather than :root on purpose: an unlayered
+     declaration beats a layered one at the same specificity, so a host that
+     declares its own faces (Storybook's preview-head.html, the docs shell, a
+     consumer's app CSS) still wins, and this is only the floor. */
+  :root {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --font-site: var(--font-sans);
+  }
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+}
+
+@layer components {
+  .ai-response {
+    @apply text-foreground text-[15px] leading-relaxed;
+  }
+  .ai-response a { @apply text-primary underline underline-offset-2; }
+  .ai-response :not(pre) > code {
+    @apply bg-muted text-foreground rounded-[6px] px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+  .ai-response pre {
+    @apply bg-muted text-foreground overflow-x-auto rounded-lg p-3 text-sm;
+  }
+  .ai-response ul { @apply my-2 flex list-disc flex-col gap-1.5 ps-5; }
+  .ai-response ol { @apply my-2 flex list-decimal flex-col gap-1.5 ps-5; }
+  .ai-response p:not(:last-child) { @apply mb-3; }
+  .ai-response h1, .ai-response h2, .ai-response h3 {
+    @apply font-sans text-foreground mt-4 mb-2 font-medium;
+  }
+  .ai-response blockquote { @apply border-foreground/30 text-muted-foreground border-l-2 ps-3; }
+}
+
+/* Text shimmer sweep used by the AI Shimmer component. */
+@keyframes shimmer {
+  0% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+/* The reason motion is tokenised: one query, and every transition in the kit
+   respects the OS setting — including components written after this line.
+   Not zero, because 1ms still fires transitionend; layouts that wait on it
+   keep working. Looping decoration stops outright. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+    --motion-ambient: 1ms;
+  }
+  [class*="animate-"] {
+    animation: none !important;
+  }
+}

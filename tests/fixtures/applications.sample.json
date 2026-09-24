@@ -1,0 +1,49 @@
+[
+  {
+    "company": "Acme Robotics",
+    "roleTitle": "Senior Product Designer",
+    "stageKind": "saved"
+  },
+  {
+    "company": "Acme Robotics",
+    "roleTitle": "Staff Product Designer",
+    "stageKind": "applied",
+    "appliedAt": "2026-08-01",
+    "notes": "Applied through the referral form."
+  },
+  {
+    "company": "Northwind Labs",
+    "roleTitle": "Product Designer",
+    "stageKind": "recruiter_screen",
+    "nextAction": "Prep for the recruiter call"
+  },
+  {
+    "company": "Northwind Labs",
+    "roleTitle": "Design Lead",
+    "stageKind": "hiring_manager",
+    "appliedAt": "2026-07-15",
+    "sourceUrl": "https://northwindlabs.example/careers/design-lead"
+  },
+  {
+    "company": "Lumen Health",
+    "roleTitle": "Principal Product Designer",
+    "stageKind": "panel_final",
+    "notes": "Panel scheduled for next month."
+  },
+  {
+    "company": "Lumen Health",
+    "roleTitle": "Product Design Manager",
+    "stageKind": "portfolio_case"
+  },
+  {
+    "company": "Acme Robotics",
+    "roleTitle": "Staff Product Designer",
+    "stageKind": "applied"
+  },
+  {
+    "company": "Lumen Health",
+    "roleTitle": "Engineering Manager",
+    "stageKind": "applied",
+    "appliedAt": "not-a-real-date"
+  }
+]
