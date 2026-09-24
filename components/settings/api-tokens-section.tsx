@@ -239,6 +239,7 @@ function RevokeTokenDialog({
   // milestone uses.
   const [pending, startTransition] = React.useTransition();
   const announce = useAnnounce();
+  const confirmRef = React.useRef<HTMLButtonElement>(null);
 
   function handleRevoke() {
     startTransition(async () => {
@@ -246,6 +247,13 @@ function RevokeTokenDialog({
         const result = await revokeTokenAction(token.id);
         if (!result.ok) {
           toast.error(`Could not revoke ${token.name}. ${messageFor(result.code)}`);
+          // Chromium disabled-focus-loss fix, same as every other form here:
+          // the confirm button below is disabled only while pending, so it
+          // is reachable again by the time this runs, but correctFocusOnceLost
+          // (not a bare .focus() call) is needed because that "disabled"
+          // flip and this code both race the same transition settling, with
+          // no guarantee the DOM has caught up yet.
+          correctFocusOnceLost(() => confirmRef.current?.focus());
           return;
         }
         onOpenChange(false);
@@ -262,6 +270,7 @@ function RevokeTokenDialog({
       } catch (error) {
         console.error("revoke token failed", error);
         toast.error(`Could not revoke ${token.name}. ${messageFor("unexpected")}`);
+        correctFocusOnceLost(() => confirmRef.current?.focus());
       }
     });
   }
@@ -283,6 +292,7 @@ function RevokeTokenDialog({
               overrides just those two dark classes (tailwind-merge in cn()
               lets a later class win over the variant's own). */}
           <Button
+            ref={confirmRef}
             variant="destructive"
             disabled={pending}
             onClick={handleRevoke}

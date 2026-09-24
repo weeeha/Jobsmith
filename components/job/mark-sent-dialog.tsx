@@ -18,6 +18,7 @@ export function MarkSentDialogTrigger(props: {
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const confirmRef = React.useRef<HTMLButtonElement>(null);
   // Captures the pending flag (rather than discarding it) so the confirm
   // button below can disable itself for the duration of the request and
   // guard against a double click sending two requests.
@@ -41,6 +42,13 @@ export function MarkSentDialogTrigger(props: {
         const result = await markDocumentSentAction(props.opportunityId, props.documentKey, props.version);
         if (!result.ok) {
           toast.error(`Could not mark ${props.title} as sent. ${messageFor(result.code)}`);
+          // Chromium disabled-focus-loss fix, same as every other form here:
+          // the confirm button below is disabled only while pending, so it
+          // is reachable again by the time this runs, but correctFocusOnceLost
+          // (not a bare .focus() call) is needed because that "disabled"
+          // flip and this code both race the same transition settling, with
+          // no guarantee the DOM has caught up yet.
+          correctFocusOnceLost(() => confirmRef.current?.focus());
           return;
         }
         setOpen(false);
@@ -66,6 +74,7 @@ export function MarkSentDialogTrigger(props: {
       } catch (error) {
         console.error("mark as sent failed", error);
         toast.error(`Could not mark ${props.title} as sent. ${messageFor("unexpected")}`);
+        correctFocusOnceLost(() => confirmRef.current?.focus());
       }
     });
   }
@@ -93,7 +102,7 @@ export function MarkSentDialogTrigger(props: {
             {`Version ${props.version} of ${props.title} becomes read-only. Later edits start a new version.`}
           </p>
           <DialogFooter>
-            <Button disabled={pending} onClick={handleConfirm}>
+            <Button ref={confirmRef} disabled={pending} onClick={handleConfirm}>
               Mark as sent
             </Button>
             <Button variant="outline" onClick={() => setOpen(false)}>
