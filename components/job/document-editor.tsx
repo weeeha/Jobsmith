@@ -111,7 +111,16 @@ export function DocumentEditor(props: {
   }
 
   return (
-    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-3">
+    <form
+      onSubmit={(event) => submitViaTransition(event, formAction)}
+      // overflow-x-auto: this form sits directly in the page (no dialog
+      // around it), so nothing else stops an unbroken value in the Markdown
+      // field below from painting past this form's own width and pushing
+      // the page itself into horizontal scroll. This scrolls the form
+      // sideways instead, the same way the paste dialog's fields area
+      // already scrolls when its content runs long.
+      className="flex flex-col gap-3 overflow-x-auto"
+    >
       <ModeTabs
         modes={[
           { value: "write", label: "Write" },
@@ -130,7 +139,13 @@ export function DocumentEditor(props: {
               ref={textareaRef}
               name="bodyMd"
               rows={16}
-              className="font-mono"
+              // Same risk as the paste dialog's Markdown field: field-sizing
+              // content sizes this textarea to fit its value, and with no
+              // spaces to wrap on, that can be wider than its row. min-w-0
+              // lets it shrink back down to the row instead of forcing the
+              // row wider. On its own this was not enough to keep the page
+              // from scrolling too - see overflow-x-auto on the form above.
+              className="min-w-0 font-mono"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               aria-describedby={describedBy}

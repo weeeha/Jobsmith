@@ -276,7 +276,18 @@ function RevokeTokenDialog({
           {token.name} stops working right away. This cannot be undone.
         </p>
         <DialogFooter>
-          <Button variant="destructive" disabled={pending} onClick={handleRevoke}>
+          {/* In dark mode the destructive variant's own text-destructive over
+              dark:bg-destructive/20 composites, on this dialog surface, to
+              4.24:1 - short of the 4.5:1 minimum. A 10% tint measures about
+              4.99:1 and the 15% hover tint about 4.62:1, so this button
+              overrides just those two dark classes (tailwind-merge in cn()
+              lets a later class win over the variant's own). */}
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={handleRevoke}
+            className="dark:bg-destructive/10 dark:hover:bg-destructive/15"
+          >
             Revoke token
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -141,7 +141,15 @@ function PasteForm({
         submitViaTransition(event, formAction);
       }}
       noValidate
-      className="flex flex-col gap-4"
+      // min-w-0: the dialog surface (components/ui/dialog.tsx) is a CSS
+      // grid with no column width of its own, so its one column sizes
+      // itself to fit this form. Without min-w-0 here, an unbroken value in
+      // the Markdown field below (nothing to wrap on) makes that column -
+      // and this whole form, footer included - grow to fit it instead of
+      // staying inside the dialog. With it, the form stays the dialog's
+      // width and an unbroken value instead scrolls sideways within the
+      // fields area above, which already scrolls vertically the same way.
+      className="min-w-0 flex flex-col gap-4"
     >
       <DialogHeader>
         <DialogTitle>{dialogTitle}</DialogTitle>
@@ -211,7 +219,13 @@ function PasteForm({
               id={id}
               name="bodyMd"
               rows={12}
-              className="font-mono break-words"
+              // This field-sizing-content textarea sizes itself to fit its
+              // value, and with no spaces to wrap on, that can be wider
+              // than its row. min-w-0 lets it shrink back down to the row
+              // instead of forcing the row wider. On its own this was not
+              // enough to keep the dialog from growing too - see the min-w-0
+              // on this form's own opening tag above for the rest of the fix.
+              className="min-w-0 font-mono break-words"
               defaultValue=""
               aria-describedby={describedBy}
               aria-invalid={Boolean(fieldErrors?.bodyMd)}
