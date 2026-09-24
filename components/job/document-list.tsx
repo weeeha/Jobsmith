@@ -14,7 +14,7 @@ export function DocumentList(props: {
     <nav aria-label={props.label} className="flex flex-col gap-4">
       {props.groups.map((group) => (
         <div key={group.id} className="flex flex-col gap-1">
-          {group.heading !== "" ? <h2 className="text-sm font-medium text-foreground">{group.heading}</h2> : null}
+          {group.heading !== "" ? <h2 className="break-words text-sm font-medium text-foreground">{group.heading}</h2> : null}
           <ul className="flex flex-col gap-3">
             {group.docs.map((doc) => {
               const ref = { scope: scopeOf(doc), key: doc.key };

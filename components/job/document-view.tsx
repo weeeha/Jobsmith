@@ -49,7 +49,7 @@ export function DocumentView(props: {
           id={titleId}
           tabIndex={-1}
           data-document-title
-          className="text-lg font-semibold text-foreground outline-none"
+          className="break-words text-lg font-semibold text-foreground outline-none"
         >
           {props.doc.title}
         </h2>
@@ -58,7 +58,7 @@ export function DocumentView(props: {
             flattened into a string, the same reason tab-timeline.tsx's own
             event rows never interpolate LocalTime into a template literal
             either. */}
-        <p className="text-xs text-muted-foreground">{joinWithDot(metaParts)}</p>
+        <p className="break-words text-xs text-muted-foreground">{joinWithDot(metaParts)}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{props.actions}</div>
       {props.children ?? <Markdown source={props.doc.bodyMd} headingBase={3} />}
