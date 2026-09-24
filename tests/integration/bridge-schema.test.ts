@@ -92,19 +92,21 @@ describe("bridge schema", () => {
       ).resolves.not.toThrow();
 
       // Same key and version under the SAME opportunity: rejected.
-      // The specific constraint name lives on the underlying Postgres error
-      // (drizzle-orm wraps every query failure in a DrizzleQueryError whose
-      // own message is just "Failed query: ..."), so this checks rejection
-      // the same way tests/integration/pipeline-schema.test.ts already does
-      // for every insert-path constraint violation, not a message match.
+      // drizzle-orm wraps every query failure in a DrizzleQueryError whose own
+      // message is just "Failed query: ...", so the underlying Postgres error
+      // (and the constraint name on it) is read off .cause instead.
       await expect(
         db.insert(schema.artifact).values({ ...ARTIFACT_BASE, userId: alice.id, opportunityId: opportunity.id, key: "call-card", version: 1 }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: expect.stringContaining("artifact_opportunity_key_version_unique") }),
+      });
 
       await db.insert(schema.artifact).values({ ...ARTIFACT_BASE, kind: "research", userId: alice.id, companyId: opportunity.companyId, key: "recon", version: 1 });
       await expect(
         db.insert(schema.artifact).values({ ...ARTIFACT_BASE, kind: "research", userId: alice.id, companyId: opportunity.companyId, key: "recon", version: 1 }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: expect.stringContaining("artifact_company_key_version_unique") }),
+      });
     } finally {
       await close();
     }
@@ -117,16 +119,17 @@ describe("bridge schema", () => {
       const bob = await createTestUser(db, "bob@example.com");
       const { opportunity } = await seedJob(db, alice.id);
 
-      // Same reasoning as above: drizzle-orm's own DrizzleQueryError message
-      // never contains the underlying constraint name, so this checks
-      // rejection rather than message content.
       await expect(
         db.insert(schema.artifact).values({ ...ARTIFACT_BASE, userId: bob.id, opportunityId: opportunity.id, key: "x", version: 1 }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: expect.stringContaining("artifact_opportunity_fk") }),
+      });
 
       await expect(
         db.insert(schema.artifact).values({ ...ARTIFACT_BASE, kind: "research", userId: bob.id, companyId: opportunity.companyId, key: "x", version: 1 }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: expect.stringContaining("artifact_company_fk") }),
+      });
     } finally {
       await close();
     }
