@@ -106,6 +106,27 @@ describe("jobsmith login", () => {
     }
   });
 
+  it("treats standard input closing with no line the same as an unrecognized token, not a hang", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const home = await testHome();
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { XDG_CONFIG_HOME: path.join(home, "config") },
+        homedir: home,
+        // What readLineOrEmpty resolves when stdin is redirected from
+        // something like /dev/null and closes without ever sending a line.
+        readSecret: async () => "",
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["login", "--url", "http://test.local"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe("That does not look like a Jobsmith token.\n");
+    } finally {
+      await close();
+    }
+  });
+
   it("refuses a 200 answer that is not a Jobsmith opportunities list, and saves nothing", async () => {
     const { db, close } = await makeTestDb();
     try {

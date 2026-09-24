@@ -1,17 +1,13 @@
-import { createInterface } from "node:readline";
 import os from "node:os";
 import { run } from "./main";
+import { readLineOrEmpty } from "./read-secret";
 import type { CliIo } from "./io";
 
 function readSecret(prompt: string): Promise<string> {
   return new Promise((resolve) => {
     process.stdout.write(prompt);
     if (!process.stdin.isTTY) {
-      const rl = createInterface({ input: process.stdin });
-      rl.once("line", (line) => {
-        rl.close();
-        resolve(line);
-      });
+      readLineOrEmpty(process.stdin).then(resolve);
       return;
     }
     process.stdin.setRawMode(true);
