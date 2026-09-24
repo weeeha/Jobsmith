@@ -1,4 +1,4 @@
-import type { Scoped, OpportunityRow, CompanyRow, StageRow, LinkedPerson, EventRow } from "@/lib/db/scoped";
+import type { Scoped, OpportunityRow, CompanyRow, StageRow, LinkedPerson, EventRow, ArtifactMeta } from "@/lib/db/scoped";
 
 export type JobView = {
   opportunity: OpportunityRow;
@@ -7,6 +7,7 @@ export type JobView = {
   currentStage: StageRow;
   people: LinkedPerson[];
   events: EventRow[];
+  documents: ArtifactMeta[];
 };
 
 export async function getJobView(s: Scoped, slug: string): Promise<JobView | null> {
@@ -25,6 +26,7 @@ export async function getJobView(s: Scoped, slug: string): Promise<JobView | nul
   const currentStage = stages.find((st) => st.id === opportunity.currentStageId)!;
   const people = await s.opportunityPerson.listForOpportunity(opportunity.id);
   const events = await s.event.listForOpportunity(opportunity.id);
+  const documents = await s.artifact.listLatestForOpportunity(opportunity.id);
 
-  return { opportunity, company, stages, currentStage, people, events };
+  return { opportunity, company, stages, currentStage, people, events, documents };
 }

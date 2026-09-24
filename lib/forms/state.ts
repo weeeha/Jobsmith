@@ -5,6 +5,11 @@ export type FormState =
   | { ok: false; code: string; message: string; fieldErrors?: Record<string, string>; href?: string }
   | undefined;
 
+export type FormStateWith<T> =
+  | { ok: true; data: T }
+  | { ok: false; code: string; message: string; fieldErrors?: Record<string, string>; href?: string }
+  | undefined;
+
 /** First message per top-level field; a later issue on the same field is dropped. */
 export function fieldErrorsFromZod(error: z.ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};

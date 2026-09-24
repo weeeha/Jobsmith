@@ -1,28 +1,15 @@
-import type { OpportunityState, StageState } from "@/lib/pipeline/rules";
+import type { OpportunityState } from "@/lib/pipeline/rules";
 import { planRemove, planSkip, planUnskip, planReorder } from "@/lib/pipeline/rules";
 import { messageFor } from "@/lib/pipeline/messages";
 import type { JobView } from "@/lib/pipeline/read";
-import type { StageKind } from "@/lib/pipeline/kinds";
-import type { StageStatus } from "@/lib/pipeline/values";
+import { toStageStates } from "@/lib/pipeline/stage-state";
+import { stagesWithArtifacts } from "@/lib/artifacts/tabs";
 
 export type StageControl = { allowed: true } | { allowed: false; reason: string };
 export type StageControls = { remove: StageControl; skip: StageControl; moveUp: StageControl; moveDown: StageControl };
 
-export function toOpportunityState(view: Pick<JobView, "opportunity" | "stages">): OpportunityState {
-  const stages: StageState[] = view.stages
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((row) => ({
-      id: row.id,
-      kind: row.kind as StageKind,
-      label: row.label,
-      position: row.position,
-      status: row.status as StageStatus,
-      scheduledAt: row.scheduledAt,
-      enteredAt: row.enteredAt,
-      completedAt: row.completedAt,
-      hasArtifacts: false,
-    }));
+export function toOpportunityState(view: Pick<JobView, "opportunity" | "stages" | "documents">): OpportunityState {
+  const stages = toStageStates(view.stages, stagesWithArtifacts(view.documents));
   return {
     status: view.opportunity.status,
     // Non-null assertion: mirrors loadState's own — every real opportunity

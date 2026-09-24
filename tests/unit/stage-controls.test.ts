@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toOpportunityState, stageControlsFor } from "@/lib/pipeline/stage-controls";
 import type { JobView } from "@/lib/pipeline/read";
-import type { OpportunityRow, StageRow } from "@/lib/db/scoped";
+import type { ArtifactMeta, OpportunityRow, StageRow } from "@/lib/db/scoped";
 
 const NOW = new Date("2026-09-19T12:00:00.000Z");
 
@@ -32,20 +32,32 @@ const sevenStages: StageRow[] = [
   stageRow({ id: "s6", kind: "offer", position: 6 }),
 ];
 
-function view(stages: StageRow[], currentStageId: string): Pick<JobView, "opportunity" | "stages"> {
+function view(
+  stages: StageRow[],
+  currentStageId: string,
+  documents: ArtifactMeta[] = [],
+): Pick<JobView, "opportunity" | "stages" | "documents"> {
   return {
     opportunity: { id: "o1", status: "active", currentStageId } as OpportunityRow,
     stages,
+    documents,
   };
 }
 
 describe("toOpportunityState", () => {
-  it("maps stage rows into rule-shaped stage state, hasArtifacts always false", () => {
+  it("maps stage rows into rule-shaped stage state", () => {
     const state = toOpportunityState(view(sevenStages, "s0"));
     expect(state.status).toBe("active");
     expect(state.currentStageId).toBe("s0");
     expect(state.stages).toHaveLength(7);
     expect(state.stages[0]).toMatchObject({ id: "s0", kind: "saved", position: 0, hasArtifacts: false });
+  });
+
+  it("sets hasArtifacts true only for a stage a latest-version document points at", () => {
+    const doc = { id: "a1", key: "call-card", kind: "call_card", title: "Call card", stageId: "s3", companyId: null, opportunityId: "o1", version: 1, contentHash: "h", sourceHash: "h", origin: "pushed", editedAt: null, sentAt: null, createdAt: new Date(), updatedAt: new Date() } as ArtifactMeta;
+    const state = toOpportunityState(view(sevenStages, "s0", [doc]));
+    expect(state.stages.find((s) => s.id === "s3")?.hasArtifacts).toBe(true);
+    expect(state.stages.filter((s) => s.hasArtifacts)).toHaveLength(1);
   });
 });
 
