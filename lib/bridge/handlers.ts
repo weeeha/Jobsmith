@@ -2,7 +2,7 @@ import { DrizzleQueryError } from "drizzle-orm";
 import { parseBearer, readJsonCapped, bridgeJson, bridgeError } from "./http";
 import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
 import { buildContextDocument } from "./context";
-import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, RATE_LIMIT_PER_MINUTE, type WireOpportunity, type WireStatus } from "./wire";
+import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, RATE_LIMIT_PER_MINUTE, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
 import { authenticateBearer } from "@/lib/auth/api-token";
@@ -58,7 +58,7 @@ async function authenticate(deps: BridgeDeps, request: Request, requestId: strin
 // from any script (a company or role name is not always ASCII), plus
 // hyphens, never a `/` so a slug can never smuggle in an extra path segment.
 function isValidSlugShape(slug: string): boolean {
-  return /^[\p{L}\p{N}-]{1,100}$/u.test(slug);
+  return SLUG_PATTERN.test(slug);
 }
 
 export async function handleListOpportunities(deps: BridgeDeps, request: Request): Promise<Response> {
