@@ -339,7 +339,7 @@ creation, and never again; only its sha256 hash and an eight-character display p
 **Milestone 3 note.** Decision D4: the bridge's own rate limiter lives on the `api_token` row rather
 than reusing the login library's own limiter (wired only to its one sign-in path) or adding a
 separate table - the single `UPDATE` described in section 4's own note is the whole mechanism. The
-limit is 120 requests per token per rolling 60-second window; a request with no valid token is never
+limit is 120 requests per token per fixed 60-second window; a request with no valid token is never
 counted, because a 256-bit token cannot be guessed and counting an anonymous request would add load
 rather than shed it.
 
