@@ -13,6 +13,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 const NAV_ITEMS = [
   { id: "home", label: "Home", href: "/" },
   { id: "board", label: "Board", href: "/board" },
+  { id: "settings", label: "Settings", href: "/settings" },
 ];
 
 export function AppShell({
