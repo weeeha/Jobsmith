@@ -16,8 +16,8 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
     } catch (error) {
       // A clipboard write can be refused by the browser (no user gesture in
       // some embedded contexts, a denied permission) or simply unsupported;
-      // either way nothing was copied, and the toast below is the one place
-      // this frame gives the user a way forward by hand.
+      // either way nothing was copied, and the toast below is the user's only
+      // way forward: copy the text by hand.
       console.error("copy failed", error);
       toast.error("Could not copy. Select the text and copy it by hand.");
     }
