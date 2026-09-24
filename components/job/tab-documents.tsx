@@ -121,6 +121,14 @@ export async function TabDocuments(props: {
           >
             {isLatest ? (
               <DocumentEditor
+                // Keyed by the document, not the version: switching to
+                // another document in the list is a search-param
+                // navigation, so without this key React would keep reusing
+                // the same editor instance and its in-progress draft state
+                // across documents. The editor only ever renders for the
+                // latest version, and a save closes it, so a version-based
+                // key would remount on every save for no reason.
+                key={formatDocRef({ scope: "opportunity", key: selected.key })}
                 opportunityId={props.opportunityId}
                 documentKey={selected.key}
                 version={doc.current.version}

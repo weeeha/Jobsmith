@@ -18,7 +18,10 @@ export function MarkSentDialogTrigger(props: {
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const [, startTransition] = React.useTransition();
+  // Captures the pending flag (rather than discarding it) so the confirm
+  // button below can disable itself for the duration of the request and
+  // guard against a double click sending two requests.
+  const [pending, startTransition] = React.useTransition();
   const announce = useAnnounce();
 
   // Edit stays available even for a sent latest version (editing it starts
@@ -90,7 +93,9 @@ export function MarkSentDialogTrigger(props: {
             {`Version ${props.version} of ${props.title} becomes read-only. Later edits start a new version.`}
           </p>
           <DialogFooter>
-            <Button onClick={handleConfirm}>Mark as sent</Button>
+            <Button disabled={pending} onClick={handleConfirm}>
+              Mark as sent
+            </Button>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>

@@ -139,7 +139,14 @@ export function DocumentEditor(props: {
           )}
         </FieldRow>
       ) : (
-        <Markdown source={draft} headingBase={3} />
+        <>
+          {/* The textarea that normally carries bodyMd is unmounted in this
+              mode, so this hidden field stands in for it - otherwise Save
+              would submit no bodyMd at all even though the draft holds real
+              text. */}
+          <input type="hidden" name="bodyMd" value={draft} />
+          <Markdown source={draft} headingBase={3} />
+        </>
       )}
 
       {props.isSent ? (
