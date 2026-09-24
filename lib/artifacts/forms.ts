@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ARTIFACT_KIND_VALUES, type ArtifactKind, type ArtifactTab } from "./kinds";
-import { ARTIFACT_SCOPES, type ArtifactScope } from "./values";
+import { ARTIFACT_SCOPES, type ArtifactWarning } from "./values";
 import { utf8Bytes } from "./normalize";
 import { KEY_PATTERN, MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
 import type { PasteTarget } from "./paste";
@@ -41,5 +41,5 @@ export const editFormSchema: z.ZodType<{ bodyMd: string }> = z.object({
 import type { UpsertResult } from "./upsert";
 import type { FormStateWith } from "@/lib/forms/state";
 
-export type PasteFormState = FormStateWith<UpsertResult & { title: string; tab: ArtifactTab }>;
+export type PasteFormState = FormStateWith<UpsertResult & { title: string; tab: ArtifactTab; warnings: ArtifactWarning[] }>;
 export type EditFormState = FormStateWith<{ status: "edited" | "versioned" | "unchanged"; version: number; title: string }>;

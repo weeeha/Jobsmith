@@ -4,7 +4,7 @@ import type { Scoped } from "@/lib/db/scoped";
 import { kindInfo, type ArtifactKind, type ArtifactTab } from "@/lib/artifacts/kinds";
 import { keyFromTitle, normalizeBody, utf8Bytes } from "@/lib/artifacts/normalize";
 import { applyUpserts, type IncomingArtifact, type UpsertResult } from "./upsert";
-import type { ArtifactScope } from "./values";
+import type { ArtifactScope, ArtifactWarning } from "./values";
 import { KEY_PATTERN, MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
 
 export type PasteTarget = { mode: "new" } | { mode: "version"; scope: ArtifactScope; key: string };
@@ -15,7 +15,9 @@ export async function pasteArtifact(
   opportunityId: string,
   input: PasteInput,
   now?: Date,
-): Promise<Result<UpsertResult & { title: string; tab: ArtifactTab }, "not_found" | "artifact_not_found" | "invalid">> {
+): Promise<
+  Result<UpsertResult & { title: string; tab: ArtifactTab; warnings: ArtifactWarning[] }, "not_found" | "artifact_not_found" | "invalid">
+> {
   const resolvedNow = now ?? new Date();
 
   return s.transaction(async (tx) => {
@@ -71,6 +73,6 @@ export async function pasteArtifact(
     };
 
     const outcome = await applyUpserts(tx, { opportunity, stages }, [incoming], { origin: "pasted", dryRun: false, now: resolvedNow });
-    return ok({ ...outcome.results[0], title: input.title, tab: kindInfo(input.kind).tab });
+    return ok({ ...outcome.results[0], title: input.title, tab: kindInfo(input.kind).tab, warnings: outcome.warnings });
   });
 }

@@ -3,6 +3,7 @@ import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import { createOpportunity } from "@/lib/pipeline/create";
 import { pasteArtifact } from "@/lib/artifacts/paste";
+import { markArtifactSent } from "@/lib/artifacts/sent";
 import { expectOk, expectFail } from "../helpers/result";
 
 async function setup(email: string) {
@@ -93,6 +94,39 @@ describe("pasteArtifact", () => {
         "invalid",
       );
       expect(await s.artifact.listKeys({ opportunityId })).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("pasting a metadata-only change onto a sent latest is unchanged, and returns the sent_locked warning", async () => {
+    const { s, close, opportunityId } = await setup("paste9@example.com");
+    try {
+      await pasteArtifact(s, opportunityId, { target: { mode: "new" }, title: "CV", kind: "cv", stageId: null, bodyMd: "# CV\nSame text" });
+      await markArtifactSent(s, opportunityId, "cv", 1);
+      const result = expectOk(
+        await pasteArtifact(s, opportunityId, {
+          target: { mode: "version", scope: "opportunity", key: "cv" },
+          title: "CV renamed",
+          kind: "cv",
+          stageId: null,
+          bodyMd: "# CV\nSame text",
+        }),
+      );
+      expect(result.status).toBe("unchanged");
+      expect(result.warnings).toEqual([expect.objectContaining({ key: "cv", code: "sent_locked" })]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("an ordinary paste with nothing to warn about returns an empty warnings list", async () => {
+    const { s, close, opportunityId } = await setup("paste10@example.com");
+    try {
+      const result = expectOk(
+        await pasteArtifact(s, opportunityId, { target: { mode: "new" }, title: "CV", kind: "cv", stageId: null, bodyMd: "# CV\nBody" }),
+      );
+      expect(result.warnings).toEqual([]);
     } finally {
       await close();
     }

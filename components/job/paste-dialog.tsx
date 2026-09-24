@@ -104,10 +104,11 @@ function PasteForm({
             ? `Saved ${state.data.title} as version ${state.data.version}.`
             : state.data.status === "updated"
               ? `Updated the details of ${state.data.title}.`
-              : // The only other status is "unchanged": sent_locked (the one other
-                // source of an "unchanged" result) applies only to the bridge's own
-                // metadata-only updates, and a paste dialog always resubmits the body
-                // itself, so this plain sentence is the one case that can reach here.
+              : // The only other status is "unchanged". Besides a plain no-op
+                // paste, this also fires when the text matches the latest but
+                // the title, kind or stage changed on a version that was
+                // already sent (state.data.warnings then carries sent_locked);
+                // the same plain sentence covers both today.
                 "Nothing changed. This text is already the latest version.";
       announce(sentence);
       onOpenChange(false);
