@@ -29,7 +29,7 @@ describe("saveArtifactEdit", () => {
     const { s, close, opportunityId } = await setup("edit1@example.com");
     try {
       const result = expectOk(
-        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited", new Date("2026-01-02T00:00:00Z")),
+        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited", 1, new Date("2026-01-02T00:00:00Z")),
       );
       expect(result).toEqual({ status: "edited", version: 1, title: "Kept title" });
       const versions = await s.artifact.listVersions({ opportunityId }, "cv");
@@ -45,7 +45,7 @@ describe("saveArtifactEdit", () => {
       const { markArtifactSent } = await import("@/lib/artifacts/sent");
       await markArtifactSent(s, opportunityId, "cv", 1, new Date("2026-01-02T00:00:00Z"));
       const result = expectOk(
-        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited after sent", new Date("2026-01-03T00:00:00Z")),
+        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited after sent", 1, new Date("2026-01-03T00:00:00Z")),
       );
       expect(result).toEqual({ status: "versioned", version: 2, title: "Kept title" });
       const v2 = await s.artifact.getVersion({ opportunityId }, "cv", 2);
@@ -60,7 +60,7 @@ describe("saveArtifactEdit", () => {
     const { s, close, opportunityId } = await setup("edit3@example.com");
     try {
       const before = await s.artifact.getLatest({ opportunityId }, "cv");
-      const result = expectOk(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nOriginal", new Date("2026-01-02T00:00:00Z")));
+      const result = expectOk(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nOriginal", 1, new Date("2026-01-02T00:00:00Z")));
       expect(result.status).toBe("unchanged");
       const after = await s.artifact.getLatest({ opportunityId }, "cv");
       expect(after?.updatedAt.toISOString()).toBe(before?.updatedAt.toISOString());
@@ -72,8 +72,8 @@ describe("saveArtifactEdit", () => {
   it("rejects a blank or oversize body with invalid", async () => {
     const { s, close, opportunityId } = await setup("edit4@example.com");
     try {
-      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "   "), "invalid");
-      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "a".repeat(1_048_577)), "invalid");
+      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "   ", 1), "invalid");
+      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "a".repeat(1_048_577), 1), "invalid");
     } finally {
       await close();
     }
@@ -82,7 +82,7 @@ describe("saveArtifactEdit", () => {
   it("returns artifact_not_found for a key that does not exist", async () => {
     const { s, close, opportunityId } = await setup("edit5@example.com");
     try {
-      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "no-such-key" }, "# x"), "artifact_not_found");
+      expectFail(await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "no-such-key" }, "# x", 1), "artifact_not_found");
     } finally {
       await close();
     }
@@ -97,7 +97,7 @@ describe("saveArtifactEdit", () => {
       const b = scoped(db, bob.id);
       const created = expectOk(await createOpportunity(a, { companyName: "Northwind Labs", roleTitle: "Designer" }));
       await upsertArtifacts(a, created.id, [{ key: "cv", kind: "cv", title: null, scope: "opportunity", stage: null, bodyMd: "# CV" }], { origin: "pushed" });
-      expectFail(await saveArtifactEdit(b, created.id, { scope: "opportunity", key: "cv" }, "# x"), "not_found");
+      expectFail(await saveArtifactEdit(b, created.id, { scope: "opportunity", key: "cv" }, "# x", 1), "not_found");
     } finally {
       await close();
     }

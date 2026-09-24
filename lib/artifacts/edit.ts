@@ -10,6 +10,7 @@ export async function saveArtifactEdit(
   opportunityId: string,
   ref: DocRef,
   bodyMd: string,
+  baseVersion: number,
   now?: Date,
 ): Promise<Result<{ status: "edited" | "versioned" | "unchanged"; version: number; title: string }, "not_found" | "artifact_not_found" | "invalid">> {
   const resolvedNow = now ?? new Date();
@@ -42,7 +43,7 @@ export async function saveArtifactEdit(
 
     const plan = planUpsert(
       versions,
-      { origin: "manual", kind: latest.kind, title: latest.title, stageId: latest.stageId, bodyMd: normalized, hash },
+      { origin: "manual", kind: latest.kind, title: latest.title, stageId: latest.stageId, bodyMd: normalized, hash, baseVersion },
       resolvedNow,
     );
 

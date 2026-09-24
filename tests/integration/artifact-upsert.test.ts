@@ -58,7 +58,7 @@ describe("upsertArtifacts", () => {
       const { saveArtifactEdit } = await import("@/lib/artifacts/edit");
       await upsertArtifacts(s, opportunityId, [CV], { origin: "pushed", now: new Date("2026-01-01T00:00:00Z") });
       const edited = expectOk(
-        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nHand-edited body", new Date("2026-01-02T00:00:00Z")),
+        await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nHand-edited body", 1, new Date("2026-01-02T00:00:00Z")),
       );
       expect(edited.status).toBe("edited");
 
@@ -79,7 +79,7 @@ describe("upsertArtifacts", () => {
     try {
       const { saveArtifactEdit } = await import("@/lib/artifacts/edit");
       await upsertArtifacts(s, opportunityId, [CV], { origin: "pushed", now: new Date("2026-01-01T00:00:00Z") });
-      await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited", new Date("2026-01-02T00:00:00Z"));
+      await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key: "cv" }, "# CV\nEdited", 1, new Date("2026-01-02T00:00:00Z"));
       const changed = expectOk(
         await upsertArtifacts(
           s,
@@ -204,6 +204,46 @@ describe("upsertArtifacts", () => {
       );
       const allowed = await removeStage(s, opportunityId, portfolio.id);
       expect(allowed.ok).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("a stale-based edit forks a new version and never disturbs the newer push, which stays reachable by a repeat push", async () => {
+    const { s, close, opportunityId } = await setup("push10@example.com");
+    try {
+      const { saveArtifactEdit } = await import("@/lib/artifacts/edit");
+      await upsertArtifacts(s, opportunityId, [CV], { origin: "pushed", now: new Date("2026-01-01T00:00:00Z") });
+      const v2Body = "# CV\nPushed while the editor was still open";
+      await upsertArtifacts(s, opportunityId, [{ ...CV, bodyMd: v2Body }], { origin: "pushed", now: new Date("2026-01-02T00:00:00Z") });
+
+      // The editor still has version 1 open (its own base version), unaware
+      // that a push already landed version 2.
+      const staleEdit = expectOk(
+        await saveArtifactEdit(
+          s,
+          opportunityId,
+          { scope: "opportunity", key: "cv" },
+          "# CV\nEdited from the stale draft",
+          1,
+          new Date("2026-01-03T00:00:00Z"),
+        ),
+      );
+      expect(staleEdit).toEqual({ status: "versioned", version: 3, title: "CV" });
+
+      const v2 = await s.artifact.getVersion({ opportunityId }, "cv", 2);
+      expect(v2?.bodyMd).toBe(v2Body);
+      const v3 = await s.artifact.getVersion({ opportunityId }, "cv", 3);
+      expect(v3?.bodyMd).toBe("# CV\nEdited from the stale draft");
+
+      const rePush = expectOk(
+        await upsertArtifacts(s, opportunityId, [{ ...CV, bodyMd: v2Body }], { origin: "pushed", now: new Date("2026-01-04T00:00:00Z") }),
+      );
+      expect(rePush.results[0].status).toBe("unchanged");
+      const v2After = await s.artifact.getVersion({ opportunityId }, "cv", 2);
+      expect(v2After?.bodyMd).toBe(v2Body);
+      const versions = await s.artifact.listVersions({ opportunityId }, "cv");
+      expect(versions).toHaveLength(3);
     } finally {
       await close();
     }

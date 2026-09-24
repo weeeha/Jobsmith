@@ -21,6 +21,10 @@ export type UpsertIntent = {
   stageId: string | null;
   bodyMd: string;
   hash: string;
+  // Only meaningful for a manual edit: the version the editor had open when
+  // the save started. Omitted (or matching the latest version) means the
+  // in-place rules below apply as before.
+  baseVersion?: number;
 };
 
 export type NewVersion = {
@@ -119,7 +123,11 @@ export function planUpsert(versions: VersionState[], intent: UpsertIntent, now: 
   if (intent.hash === latest.contentHash) {
     return { status: "unchanged", warning: null };
   }
-  if (latest.sentAt) {
+  // A save whose base version is no longer the latest never overwrites what
+  // the editor did not see: it forks a new version instead, the same way a
+  // sent latest already does.
+  const staleBase = intent.baseVersion !== undefined && intent.baseVersion !== latest.version;
+  if (latest.sentAt || staleBase) {
     return {
       status: "versioned",
       insert: {

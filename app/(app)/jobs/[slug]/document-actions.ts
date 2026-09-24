@@ -76,6 +76,7 @@ export async function pasteDocumentAction(
 export async function saveDocumentEditAction(
   opportunityId: string,
   key: string,
+  baseVersion: number,
   _prev: EditFormState,
   formData: FormData,
 ): Promise<EditFormState> {
@@ -83,6 +84,10 @@ export async function saveDocumentEditAction(
   const idParsed = z.uuid().safeParse(opportunityId);
   if (!idParsed.success) return { ok: false, code: "not_found", message: messageFor("not_found") };
   if (!KEY_PATTERN.test(key)) {
+    return { ok: false, code: "artifact_not_found", message: messageFor("artifact_not_found") };
+  }
+  const baseVersionParsed = z.number().int().positive().safeParse(baseVersion);
+  if (!baseVersionParsed.success) {
     return { ok: false, code: "artifact_not_found", message: messageFor("artifact_not_found") };
   }
   const fieldsParsed = editFormSchema.safeParse({ bodyMd: formData.get("bodyMd") });
@@ -100,7 +105,13 @@ export async function saveDocumentEditAction(
   // opportunity scope - there is no separate "which scope" decision to
   // make here the way pasteDocumentAction has to make from its own
   // PasteTarget.
-  const result = await saveArtifactEdit(s, opportunityId, { scope: "opportunity", key }, fieldsParsed.data.bodyMd);
+  const result = await saveArtifactEdit(
+    s,
+    opportunityId,
+    { scope: "opportunity", key },
+    fieldsParsed.data.bodyMd,
+    baseVersionParsed.data,
+  );
   if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
   await revalidateDocuments(s, opportunityId, "opportunity");
   return { ok: true, data: result.data };

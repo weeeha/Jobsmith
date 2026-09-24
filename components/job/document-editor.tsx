@@ -26,7 +26,11 @@ export function DocumentEditor(props: {
   const [editing, setEditing] = React.useState(false);
   const [mode, setMode] = React.useState<"write" | "preview">("write");
   const [draft, setDraft] = React.useState(props.bodyMd);
-  const action = saveDocumentEditAction.bind(null, props.opportunityId, props.documentKey);
+  // Captured when Edit opens, not read live from props.version: a push can
+  // land a newer version in the background while this form stays open, and
+  // the save must still say which version it was edited against.
+  const [baseVersion, setBaseVersion] = React.useState(props.version);
+  const action = saveDocumentEditAction.bind(null, props.opportunityId, props.documentKey, baseVersion);
   const [state, formAction, pending] = React.useActionState<EditFormState, FormData>(action, undefined);
   const announce = useAnnounce();
   const editRef = React.useRef<HTMLButtonElement>(null);
@@ -96,6 +100,7 @@ export function DocumentEditor(props: {
             aria-label={`Edit ${props.title}`}
             onClick={() => {
               setDraft(props.bodyMd);
+              setBaseVersion(props.version);
               // Always reopens on Write, never wherever a previous session
               // left it - Preview shows the live draft, and the first thing
               // a fresh session needs is somewhere to type it.

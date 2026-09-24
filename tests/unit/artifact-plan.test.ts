@@ -139,6 +139,45 @@ describe("planUpsert", () => {
     expect(plan).toEqual({ status: "unchanged", warning: null });
   });
 
+  it("a manual edit whose base version matches the latest still edits in place", () => {
+    const v1 = version({ version: 1, contentHash: "H1", origin: "manual" });
+    const plan = planUpsert([v1], intent({ origin: "manual", hash: "H2", bodyMd: "# edited", baseVersion: 1 }), NOW);
+    expect(plan).toEqual({ status: "edited", id: "v1", patch: { bodyMd: "# edited", contentHash: "H2", editedAt: NOW } });
+  });
+
+  it("a manual edit with no base version given edits in place, same as before base versions existed", () => {
+    const v1 = version({ version: 1, contentHash: "H1", origin: "manual" });
+    const plan = planUpsert([v1], intent({ origin: "manual", hash: "H2", bodyMd: "# edited" }), NOW);
+    expect(plan).toEqual({ status: "edited", id: "v1", patch: { bodyMd: "# edited", contentHash: "H2", editedAt: NOW } });
+  });
+
+  it("a manual edit whose base version is behind the latest forks a new version instead of overwriting it", () => {
+    // The editor opened version 1; a push landed version 2 while it was
+    // open; the edit must never touch version 2 in place.
+    const v2 = version({ version: 2, contentHash: "H2", origin: "pushed", kind: "cv", title: "Kept title", stageId: "stage-1" });
+    const plan = planUpsert([v2], intent({ origin: "manual", hash: "H3", bodyMd: "# edited from the stale draft", baseVersion: 1 }), NOW);
+    expect(plan).toEqual({
+      status: "versioned",
+      insert: {
+        version: 3,
+        kind: "cv",
+        title: "Kept title",
+        stageId: "stage-1",
+        bodyMd: "# edited from the stale draft",
+        contentHash: "H3",
+        sourceHash: null,
+        origin: "manual",
+        editedAt: NOW,
+      },
+    });
+  });
+
+  it("a manual edit whose base version is stale but the text already matches the latest is unchanged, not versioned", () => {
+    const v2 = version({ version: 2, contentHash: "H2", origin: "pushed" });
+    const plan = planUpsert([v2], intent({ origin: "manual", hash: "H2", baseVersion: 1 }), NOW);
+    expect(plan).toEqual({ status: "unchanged", warning: null });
+  });
+
   it("a title-only change through a push, unchanged body, is updated", () => {
     const v1 = version({ version: 1, contentHash: "H1", sourceHash: "H1", origin: "pushed", title: "Old" });
     const plan = planUpsert([v1], intent({ origin: "pushed", hash: "H1", title: "New" }), NOW);
