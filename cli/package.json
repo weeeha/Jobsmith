@@ -1,0 +1,14 @@
+{
+  "name": "jobsmith-cli",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "jobsmith": "dist/jobsmith.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": ["dist"]
+}

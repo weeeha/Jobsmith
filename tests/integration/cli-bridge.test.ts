@@ -1,0 +1,269 @@
+import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { makeTestDb, createTestUser } from "../helpers/db";
+import { scoped } from "@/lib/db/scoped";
+import type { Db } from "@/lib/db/client";
+import type { BridgeDeps } from "@/lib/bridge/handlers";
+import { bridgeFetch } from "../helpers/bridge-fetch";
+import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
+import { defaultStages } from "@/lib/pipeline/rules";
+import { run } from "@/cli/src/main";
+import { configPath } from "@/cli/src/config";
+import type { CliIo } from "@/cli/src/io";
+
+const PACKET_DIR = path.resolve(import.meta.dirname, "../fixtures/packet");
+
+function testDeps(db: Db): { deps: BridgeDeps } {
+  let counter = 0;
+  return {
+    deps: {
+      db,
+      now: () => new Date(),
+      revalidate: () => {},
+      requestId: () => `req-${++counter}`,
+    },
+  };
+}
+
+async function seedJob(db: Db, opts: { slug: string; email: string }) {
+  const user = await createTestUser(db, opts.email);
+  const s = scoped(db, user.id);
+  const company = await s.company.insert({ name: "Northwind Labs", nameKey: `northwind-${opts.slug}` });
+  const opportunity = await s.opportunity.insert({ companyId: company.id, slug: opts.slug, roleTitle: "Product Designer" });
+  const drafts = defaultStages();
+  const stages = await s.stage.insertMany(
+    drafts.map((d, i) => ({ opportunityId: opportunity.id, kind: d.kind, label: d.label, position: i })),
+  );
+  await s.opportunity.update(opportunity.id, { currentStageId: stages[0]!.id });
+  const created = await createApiToken(s, "Test");
+  if (!created.ok) throw new Error("token setup failed");
+  return { user, s, opportunity, token: created.data.token };
+}
+
+async function testHome(): Promise<string> {
+  return mkdtemp(path.join(os.tmpdir(), "jobsmith-home-"));
+}
+
+function buildIo(db: Db, overrides: Partial<CliIo> = {}): CliIo {
+  const { deps } = testDeps(db);
+  return {
+    fetch: bridgeFetch(deps),
+    env: {},
+    cwd: "/",
+    homedir: "/unused",
+    stdout: () => {},
+    stderr: () => {},
+    readSecret: async () => "",
+    ...overrides,
+  };
+}
+
+describe("jobsmith login", () => {
+  it("writes a 0600 credentials file and prints the confirmation line", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "nwl-designer", email: "login1@example.com" });
+      const home = await testHome();
+      const out: string[] = [];
+      const io = buildIo(db, {
+        env: { XDG_CONFIG_HOME: path.join(home, "config") },
+        homedir: home,
+        readSecret: async () => `${token}\n`,
+        stdout: (t) => out.push(t),
+      });
+
+      const code = await run(["login", "--url", "http://test.local"], io);
+      expect(code).toBe(0);
+      expect(out.join("")).toBe("Logged in to http://test.local. Saved to " + configPath(io.env, home) + ".\n");
+
+      const file = configPath(io.env, home);
+      expect((await stat(file)).mode & 0o777).toBe(0o600);
+      expect(JSON.parse(await readFile(file, "utf8"))).toEqual({ url: "http://test.local", token });
+    } finally {
+      await close();
+    }
+  });
+
+  it("refuses a token that does not look like a Jobsmith token, before any request", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const home = await testHome();
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { XDG_CONFIG_HOME: path.join(home, "config") },
+        homedir: home,
+        readSecret: async () => "not-a-real-token",
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["login", "--url", "http://test.local"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe("That does not look like a Jobsmith token.\n");
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("jobsmith list / pull / push", () => {
+  it("list prints the seeded job", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "nwl-designer", email: "list1@example.com" });
+      const home = await testHome();
+      const out: string[] = [];
+      const io = buildIo(db, {
+        env: { XDG_CONFIG_HOME: path.join(home, "config"), JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        stdout: (t) => out.push(t),
+      });
+      const code = await run(["list"], io);
+      expect(code).toBe(0);
+      expect(out.join("")).toContain("nwl-designer");
+      expect(out.join("")).toContain("Product Designer at Northwind Labs");
+    } finally {
+      await close();
+    }
+  });
+
+  it("pull writes <slug>-context.md under --out", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "nwl-designer", email: "pull1@example.com" });
+      const outDir = await mkdtemp(path.join(os.tmpdir(), "jobsmith-pull-"));
+      const out: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        cwd: outDir,
+        stdout: (t) => out.push(t),
+      });
+      const code = await run(["pull", "nwl-designer", "--out", "."], io);
+      expect(code).toBe(0);
+      const filePath = path.join(outDir, "nwl-designer-context.md");
+      expect(out.join("")).toBe(`Wrote ${filePath}.\n`);
+      const content = await readFile(filePath, "utf8");
+      expect(content).toContain("jobsmith: context/v1");
+    } finally {
+      await close();
+    }
+  });
+
+  it("push of the fixture packet reports 11 created and one warning", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, opportunity, token } = await seedJob(db, { slug: "nwl-designer", email: "push1@example.com" });
+      const out: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        stdout: (t) => out.push(t),
+      });
+
+      const code = await run(["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl"], io);
+      const printed = out.join("");
+      expect(code).toBe(0);
+      expect(printed).toContain("11 created, 0 versioned, 0 updated, 0 unchanged.");
+      expect(printed).toContain(
+        'Warning: debrief-round2: no stage matches "Final loop", stored without a stage.',
+      );
+      expect((printed.match(/^  created /gm) ?? []).length).toBe(11);
+
+      const documents = await s.artifact.listLatestForOpportunity(opportunity.id);
+      expect(documents).toHaveLength(10);
+      const companyDocuments = await s.artifact.listLatestForCompany(opportunity.companyId);
+      expect(companyDocuments.map((d) => d.key)).toEqual(["recon"]);
+      const events = await s.event.listForOpportunity(opportunity.id);
+      expect(events.filter((e) => e.kind === "artifact_pushed")).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it("a second push of the same packet reports 11 unchanged and adds no second event", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, opportunity, token } = await seedJob(db, { slug: "nwl-designer", email: "push2@example.com" });
+      const io = () => buildIo(db, { env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token } });
+
+      const first = await run(["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl"], io());
+      expect(first).toBe(0);
+
+      const out: string[] = [];
+      const second = await run(
+        ["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl"],
+        { ...io(), stdout: (t) => out.push(t) },
+      );
+      expect(second).toBe(0);
+      expect(out.join("")).toContain("0 created, 0 versioned, 0 updated, 11 unchanged.");
+
+      const events = await s.event.listForOpportunity(opportunity.id);
+      expect(events.filter((e) => e.kind === "artifact_pushed")).toHaveLength(1);
+      expect(await s.artifact.listLatestForOpportunity(opportunity.id)).toHaveLength(10);
+      expect(await s.artifact.listLatestForCompany(opportunity.companyId)).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it("--dry-run reports what would happen and writes nothing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, opportunity, token } = await seedJob(db, { slug: "nwl-designer", email: "push3@example.com" });
+      const out: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        stdout: (t) => out.push(t),
+      });
+      const code = await run(["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl", "--dry-run"], io);
+      expect(code).toBe(0);
+      const printed = out.join("");
+      expect(printed).toContain("Dry run: nothing was saved.");
+      expect(printed).toContain("11 created, 0 versioned, 0 updated, 0 unchanged.");
+
+      expect(await s.artifact.listLatestForOpportunity(opportunity.id)).toEqual([]);
+      expect(await s.event.listForOpportunity(opportunity.id)).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("a revoked token exits 1 with the refused line, for list, pull and push alike", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, token } = await seedJob(db, { slug: "nwl-designer", email: "revoked1@example.com" });
+      const list = await s.apiToken.list();
+      await revokeApiToken(s, list[0]!.id);
+      const err: string[] = [];
+      const io = buildIo(db, {
+        env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token },
+        stderr: (t) => err.push(t),
+      });
+      const code = await run(["list"], io);
+      expect(code).toBe(1);
+      expect(err.join("")).toBe(
+        "The server refused the token. Create a new one in Settings and run jobsmith login.\n",
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it("list, pull and push all refuse to run before login, with the same message", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const home = await testHome();
+      const argvByCommand = [["list"], ["pull", "nwl-designer"], ["push", "nwl-designer"]];
+      for (const argv of argvByCommand) {
+        const err: string[] = [];
+        const io = buildIo(db, {
+          env: { XDG_CONFIG_HOME: path.join(home, "config") },
+          homedir: home,
+          stderr: (t) => err.push(t),
+        });
+        expect(await run(argv, io), argv.join(" ")).toBe(1);
+        expect(err.join(""), argv.join(" ")).toBe("Not logged in. Run jobsmith login first.\n");
+      }
+    } finally {
+      await close();
+    }
+  });
+});
