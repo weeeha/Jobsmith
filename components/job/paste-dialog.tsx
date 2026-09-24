@@ -12,6 +12,7 @@ import type { PasteFormState } from "@/lib/artifacts/forms";
 import type { ArtifactScope } from "@/lib/artifacts/values";
 import { messageFor } from "@/lib/pipeline/messages";
 import { submitViaTransition } from "@/lib/forms/submit";
+import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { useAnnounce } from "@/components/live-announcer";
 import { FieldRow } from "@/components/super-ai/field-row";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -111,7 +112,11 @@ function PasteForm({
                 // already sent (state.data.warnings then carries sent_locked);
                 // the same plain sentence covers both today.
                 "Nothing changed. This text is already the latest version.";
-      announce(sentence);
+      // Warnings come after the success sentence, in the same announcement:
+      // the live region only holds one message at a time, so a second,
+      // separate announce() call here would just overwrite the first before
+      // assistive tech had a chance to read it rather than queue behind it.
+      announce([sentence, ...state.data.warnings.map((warning) => warning.message)].join(" "));
       onOpenChange(false);
       // A bare query string, resolved against whatever path is already open -
       // no basePath needed here, unlike DocumentList's server-rendered links.
@@ -119,6 +124,15 @@ function PasteForm({
         `?tab=${state.data.tab}&doc=${formatDocRef({ scope: state.data.scope, key: state.data.key })}`,
         { scroll: false },
       );
+      // A save whose kind belongs to a different tab than the one this
+      // dialog was opened from navigates there, which unmounts this trigger
+      // along with the rest of the old tab's tree - Base UI's own
+      // close-focus restoration then has nothing left to land focus on.
+      // This is a no-op whenever focus already made it back to the trigger,
+      // the ordinary same-tab case.
+      correctFocusOnceLost(() => {
+        document.querySelector<HTMLElement>("[data-document-title]")?.focus();
+      });
     } else if (state?.ok === false) {
       if (state.code !== "invalid") {
         // Not a field the user can fix by looking at this form - the job or
