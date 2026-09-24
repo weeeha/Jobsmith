@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
+import type { ArtifactScopeRef } from "@/lib/db/scoped";
 import { createOpportunity } from "@/lib/pipeline/create";
 import { removeStage } from "@/lib/pipeline/stages";
-import { upsertArtifacts, type IncomingArtifact } from "@/lib/artifacts/upsert";
+import { upsertArtifacts, applyUpserts, type IncomingArtifact } from "@/lib/artifacts/upsert";
 import { expectOk, expectFail } from "../helpers/result";
 
 // saveArtifactEdit and markArtifactSent do not exist yet when this file is
@@ -244,6 +245,42 @@ describe("upsertArtifacts", () => {
       expect(v2After?.bodyMd).toBe(v2Body);
       const versions = await s.artifact.listVersions({ opportunityId }, "cv");
       expect(versions).toHaveLength(3);
+    } finally {
+      await close();
+    }
+  });
+
+  it("locks the company before reading its versions for a company-scoped write, so the read and the write share one lock", async () => {
+    const { s, close, opportunityId } = await setup("push11@example.com");
+    try {
+      const order: string[] = [];
+      await s.transaction(async (tx) => {
+        const opportunity = (await tx.opportunity.lockById(opportunityId))!;
+        const spiedTx = {
+          ...tx,
+          company: {
+            ...tx.company,
+            async lockById(id: string) {
+              order.push("lock");
+              return tx.company.lockById(id);
+            },
+          },
+          artifact: {
+            ...tx.artifact,
+            async listVersions(ref: ArtifactScopeRef, key: string) {
+              order.push("read");
+              return tx.artifact.listVersions(ref, key);
+            },
+          },
+        };
+        await applyUpserts(
+          spiedTx,
+          { opportunity, stages: [] },
+          [{ key: "recon", kind: "research", title: null, scope: "company", stage: null, bodyMd: "# Recon" }],
+          { origin: "pushed", dryRun: false, now: new Date("2026-01-01T00:00:00Z") },
+        );
+      });
+      expect(order).toEqual(["lock", "read"]);
     } finally {
       await close();
     }

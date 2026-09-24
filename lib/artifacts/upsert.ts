@@ -97,6 +97,12 @@ export async function applyUpserts(
     const normalized = normalizeBody(input.bodyMd);
     const hash = hashBody(normalized);
 
+    // The company lock (when this write is company-scoped) has to cover the
+    // read below, not just the eventual write: two writers can otherwise
+    // both read zero prior versions and then both try to insert version 1.
+    if (!options.dryRun) {
+      await lockCompanyOnce(scope);
+    }
     const ref: ArtifactScopeRef =
       scope === "opportunity" ? { opportunityId: context.opportunity.id } : { companyId: context.opportunity.companyId };
     const versions = await tx.artifact.listVersions(ref, input.key);
@@ -115,7 +121,6 @@ export async function applyUpserts(
       case "created":
       case "versioned": {
         if (!options.dryRun) {
-          await lockCompanyOnce(scope);
           await tx.artifact.insert({
             opportunityId: scope === "opportunity" ? context.opportunity.id : null,
             companyId: scope === "company" ? context.opportunity.companyId : null,
@@ -136,7 +141,6 @@ export async function applyUpserts(
       }
       case "updated": {
         if (!options.dryRun) {
-          await lockCompanyOnce(scope);
           await tx.artifact.update(versions[versions.length - 1].id, plan.patch);
         }
         version = versions[versions.length - 1].version;
@@ -144,7 +148,6 @@ export async function applyUpserts(
       }
       case "edited": {
         if (!options.dryRun) {
-          await lockCompanyOnce(scope);
           await tx.artifact.update(plan.id, plan.patch);
         }
         version = versions[versions.length - 1].version;
