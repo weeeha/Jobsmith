@@ -243,6 +243,73 @@ describe("jobsmith list / pull / push", () => {
     }
   });
 
+  it("push of the fixture packet stores the right kind, scope, stage and title for every document", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { s, opportunity, token } = await seedJob(db, { slug: "nwl-designer", email: "push4@example.com" });
+      const io = buildIo(db, { env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token } });
+
+      const code = await run(["push", "nwl-designer", "--dir", PACKET_DIR, "--prefix", "nwl"], io);
+      expect(code).toBe(0);
+
+      const stages = await s.stage.listForOpportunity(opportunity.id);
+      const stageLabel = (stageId: string | null) => stages.find((st) => st.id === stageId)?.label ?? null;
+
+      const opportunityDocs = await s.artifact.listLatestForOpportunity(opportunity.id);
+      const byKey = (key: string) => {
+        const row = opportunityDocs.find((d) => d.key === key);
+        if (!row) throw new Error(`missing document ${key}`);
+        return row;
+      };
+
+      // Research tab, "This job" group: not shared with the company.
+      expect(byKey("fit-brief")).toMatchObject({ kind: "fit_brief", title: "Northwind Labs: fit brief" });
+      expect(stageLabel(byKey("fit-brief").stageId)).toBeNull();
+      expect(byKey("people")).toMatchObject({ kind: "people_notes", title: "Northwind Labs: people in the loop" });
+      expect(stageLabel(byKey("people").stageId)).toBeNull();
+
+      // Documents tab.
+      expect(byKey("cv")).toMatchObject({ kind: "cv", title: "CV for Northwind Labs" });
+      expect(byKey("cover-letter")).toMatchObject({ kind: "cover_letter", title: "Cover letter for Northwind Labs" });
+
+      // Prep tab, General group: no stage matched (debrief-round2's "Final
+      // loop" is not a real stage, which the other push test already
+      // asserts as a warning).
+      expect(byKey("answers-full")).toMatchObject({ kind: "question_bank", title: "Northwind Labs: full answers" });
+      expect(stageLabel(byKey("answers-full").stageId)).toBeNull();
+      expect(byKey("glossary")).toMatchObject({ kind: "glossary", title: "Northwind Labs: glossary" });
+      expect(stageLabel(byKey("glossary").stageId)).toBeNull();
+      expect(byKey("debrief-round2")).toMatchObject({ kind: "debrief", title: "Northwind Labs: round two debrief" });
+      expect(stageLabel(byKey("debrief-round2").stageId)).toBeNull();
+
+      // Prep tab, grouped by stage.
+      expect(byKey("hr-bank")).toMatchObject({ kind: "question_bank", title: "Northwind Labs: recruiter screen questions" });
+      expect(stageLabel(byKey("hr-bank").stageId)).toBe("Recruiter screen");
+      expect(byKey("call-card")).toMatchObject({ kind: "call_card", title: "Northwind Labs: hiring manager call card" });
+      expect(stageLabel(byKey("call-card").stageId)).toBe("Hiring manager");
+      expect(byKey("pitch")).toMatchObject({ kind: "pitch", title: "Portfolio walkthrough pitch" });
+      expect(stageLabel(byKey("pitch").stageId)).toBe("Portfolio review");
+
+      // Shared with the whole company, not tied to this opportunity.
+      const companyDocs = await s.artifact.listLatestForCompany(opportunity.companyId);
+      expect(companyDocs).toHaveLength(1);
+      expect(companyDocs[0]).toMatchObject({
+        key: "recon",
+        kind: "research",
+        title: "Northwind Labs: company recon",
+      });
+
+      // Frontmatter never survives into the stored body, for either scope.
+      for (const doc of [...opportunityDocs, ...companyDocs]) {
+        const ref = doc.opportunityId ? { opportunityId: doc.opportunityId } : { companyId: doc.companyId! };
+        const full = await s.artifact.getLatest(ref, doc.key);
+        expect(full?.bodyMd.startsWith("---"), doc.key).toBe(false);
+      }
+    } finally {
+      await close();
+    }
+  });
+
   it("push reports a non-JSON 200 body as an unreadable reply rather than throwing", async () => {
     const { db, close } = await makeTestDb();
     try {
