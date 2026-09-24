@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // The default 1 MB would reject a document near the 1 MiB artifact
+      // limit (MAX_ARTIFACT_BYTES, lib/bridge/wire.ts) once multipart
+      // form-data overhead is added on top of the field's own bytes.
+      bodySizeLimit: "2mb",
+    },
+  },
   async headers() {
     return [
       {
