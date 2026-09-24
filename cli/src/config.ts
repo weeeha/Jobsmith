@@ -31,7 +31,11 @@ export async function readCredentials(io: CliIo): Promise<{ url: string; token: 
   if (!url || !token) {
     return null;
   }
-  return { url, token };
+  // JOBSMITH_URL is not run through the same stripping the login command
+  // applies to --url, and a config file can predate this fix or be edited
+  // by hand, so a trailing slash is removed here regardless of where the
+  // url came from. Left in, it turns every bridge path into //api/bridge/...
+  return { url: url.replace(/\/+$/, ""), token };
 }
 
 export async function writeCredentials(io: CliIo, creds: { url: string; token: string }): Promise<string> {

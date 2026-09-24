@@ -65,6 +65,23 @@ describe("writeCredentials / readCredentials", () => {
     expect(await readCredentials(testIo({ homedir: home }))).toBeNull();
   });
 
+  it("strips a trailing slash from JOBSMITH_URL", async () => {
+    const home = await makeTempHome();
+    expect(
+      await readCredentials(
+        testIo({ env: { JOBSMITH_URL: "http://env-url.example/", JOBSMITH_TOKEN: "placeholder-env-token" }, homedir: home }),
+      ),
+    ).toEqual({ url: "http://env-url.example", token: "placeholder-env-token" });
+  });
+
+  it("strips a trailing slash from a saved url", async () => {
+    const home = await makeTempHome();
+    const io = testIo({ homedir: home });
+    await writeCredentials(io, { url: "http://file-url.example/", token: "placeholder-file-token" });
+
+    expect(await readCredentials(io)).toEqual({ url: "http://file-url.example", token: "placeholder-file-token" });
+  });
+
   it("JOBSMITH_URL and JOBSMITH_TOKEN each independently override the file", async () => {
     const home = await makeTempHome();
     const io = testIo({ homedir: home });

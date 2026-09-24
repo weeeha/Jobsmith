@@ -101,6 +101,8 @@ There is no published package yet - reinstall the same way after pulling a newer
 `jobsmith login --url <base-url>` asks for a token (paste it; it is read from standard input and
 never echoed on a real terminal) and saves both to `~/.config/jobsmith/config.json` (or
 `$XDG_CONFIG_HOME/jobsmith/config.json`, owner-only permissions). Create a token first, in Settings.
+Setting `JOBSMITH_URL` and `JOBSMITH_TOKEN` in the environment overrides the saved login, for
+either variable on its own or both together.
 
 `jobsmith list` prints your active jobs and their slugs.
 
