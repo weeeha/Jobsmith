@@ -53,7 +53,6 @@ export function ApiTokensSection({ tokens }: { tokens: ApiTokenListItem[] }) {
 
 function TokenRow({ token }: { token: ApiTokenListItem }) {
   const [revokeOpen, setRevokeOpen] = React.useState(false);
-  const revokeButtonRef = React.useRef<HTMLButtonElement>(null);
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
@@ -81,7 +80,6 @@ function TokenRow({ token }: { token: ApiTokenListItem }) {
           </p>
         ) : (
           <Button
-            ref={revokeButtonRef}
             variant="outline"
             size="sm"
             aria-label={`Revoke ${token.name}`}
@@ -157,7 +155,9 @@ function CreateTokenDialogBody({ onOpenChange }: { onOpenChange: (open: boolean)
   if (state?.ok) {
     return (
       <>
-        <DialogTitle>Copy your new token</DialogTitle>
+        <DialogHeader>
+          <DialogTitle>Copy your new token</DialogTitle>
+        </DialogHeader>
         <p className="text-sm text-muted-foreground">
           This is the only time the token is shown. Save it with jobsmith login.
         </p>
