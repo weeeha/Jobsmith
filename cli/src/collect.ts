@@ -43,9 +43,22 @@ export async function collectPacket(
     mergedSuffixes = mergeSuffixes(BUILT_IN_SUFFIXES, suffixesObject);
   }
 
-  const names = (await readdir(options.dir))
-    .filter((n) => n.startsWith(`${options.prefix}-`) && n.endsWith(".md"))
-    .sort();
+  let entries: string[];
+  try {
+    entries = await readdir(options.dir);
+  } catch (error) {
+    // A missing --dir is the common typo and gets the same line as an
+    // existing but empty one, since both mean "nothing to push here." Any
+    // other failure (no permission, a file where a directory belongs) names
+    // itself instead, so it never reaches the caller as a raw stack trace.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { ok: false, message: `No ${options.prefix}-*.md files in ${options.dir}.` };
+    }
+    const reason = error instanceof Error && error.message ? error.message : "the directory could not be read";
+    return { ok: false, message: `Could not read ${options.dir}: ${reason}.` };
+  }
+
+  const names = entries.filter((n) => n.startsWith(`${options.prefix}-`) && n.endsWith(".md")).sort();
 
   if (names.length === 0) {
     return { ok: false, message: `No ${options.prefix}-*.md files in ${options.dir}.` };
