@@ -62,3 +62,24 @@ describe("scoped profile isolation", () => {
     }
   });
 });
+
+describe("opportunity.findByCompanyAndRole", () => {
+  it("does not let underscore or percent in a role title act as a wildcard, but still matches case-insensitively", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "wildcard@example.com");
+      const s = scoped(db, user.id);
+      const acme = await s.company.insert({ name: "Acme Robotics", nameKey: "acmerobotics" });
+      await s.opportunity.insert({ companyId: acme.id, slug: "acme-ux-ui-designer", roleTitle: "UX-UI Designer" });
+      const notAWildcardMatch = await s.opportunity.findByCompanyAndRole(acme.id, "UX_UI Designer");
+      expect(notAWildcardMatch).toBeNull();
+
+      const northwind = await s.company.insert({ name: "Northwind Labs", nameKey: "northwindlabs" });
+      await s.opportunity.insert({ companyId: northwind.id, slug: "northwind-product-designer", roleTitle: "Product Designer" });
+      const caseInsensitiveMatch = await s.opportunity.findByCompanyAndRole(northwind.id, "product designer");
+      expect(caseInsensitiveMatch).not.toBeNull();
+    } finally {
+      await close();
+    }
+  });
+});

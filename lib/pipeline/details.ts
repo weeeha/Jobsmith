@@ -1,8 +1,9 @@
 import { z } from "zod";
-import type { Scoped } from "@/lib/db/scoped";
+import type { OpportunityFields, Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 import { WORK_MODES, type WorkMode } from "@/lib/pipeline/values";
 import type { CreateOpportunityInput } from "@/lib/pipeline/create";
+import { dedupeHash } from "@/lib/intake/dedupe";
 
 // Every optional field here is nullable, not just optional. `undefined`
 // (the key is left out of the input) still means
@@ -94,7 +95,30 @@ export async function updateOpportunityDetails(
     return fail("not_found", "This job no longer exists.");
   }
 
-  await s.opportunity.update(opportunityId, parsed.data);
+  // A save through Edit details always clears the review flag, whether
+  // or not this particular save touched the fields that caused it.
+  const patch: Partial<OpportunityFields> = { ...parsed.data, needsReview: false };
+
+  // The hash only depends on company, role and location; the company
+  // itself never changes here (that is updateCompanyDetails's job), so a
+  // recompute is only needed when this save touches role or location.
+  if ("roleTitle" in parsed.data || "location" in parsed.data) {
+    const company = await s.company.getById(row.companyId);
+    const nextRoleTitle = parsed.data.roleTitle ?? row.roleTitle;
+    const nextLocation = "location" in parsed.data ? parsed.data.location : row.location;
+    patch.dedupeHash = dedupeHash({ companyName: company?.name ?? "", roleTitle: nextRoleTitle, location: nextLocation });
+  }
+
+  await s.opportunity.update(opportunityId, patch);
+  return ok(null);
+}
+
+export async function markOpportunityReviewed(s: Scoped, opportunityId: string): Promise<Result<null, "not_found">> {
+  const row = await s.opportunity.getById(opportunityId);
+  if (!row) {
+    return fail("not_found", "This job no longer exists.");
+  }
+  await s.opportunity.update(opportunityId, { needsReview: false });
   return ok(null);
 }
 

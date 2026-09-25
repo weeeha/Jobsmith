@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { WORK_MODES, OPPORTUNITY_SOURCES } from "@/lib/pipeline/values";
+import { MAX_POSTING_CHARS } from "@/lib/intake/values";
 
 // Postgres's `integer` columns (comp_min, comp_max, lib/db/schema/pipeline.ts)
 // top out at 2,147,483,647 - well inside a JS safe integer, so without this
@@ -20,7 +21,7 @@ export const createOpportunitySchema = z
     location: z.string().trim().min(1, "Enter a location.").optional(),
     workMode: z.enum(WORK_MODES, { error: "Choose a work mode." }).optional(),
     sourceUrl: z.url({ protocol: /^https?$/, error: "Enter a link that starts with http or https." }).optional(),
-    postingText: z.string().optional(),
+    postingText: z.string().max(MAX_POSTING_CHARS, "Keep the posting text under 100,000 characters.").optional(),
     compMin: compFigureSchema.optional(),
     compMax: compFigureSchema.optional(),
     compCurrency: z.string().trim().min(1, "Enter a currency.").optional(),

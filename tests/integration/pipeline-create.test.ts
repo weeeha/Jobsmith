@@ -3,6 +3,7 @@ import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import { createOpportunity } from "@/lib/pipeline/create";
 import { expectOk, expectFail } from "../helpers/result";
+import { dedupeHash } from "@/lib/intake/dedupe";
 
 const NOW = new Date("2026-09-19T12:00:00.000Z");
 
@@ -162,26 +163,183 @@ describe("createOpportunity", () => {
     }
   });
 
-  it("does not let underscore or percent in a role title act as a wildcard, but still matches case-insensitively", async () => {
+  it("flags a job with the same company, role and location as a duplicate", async () => {
     const { db, close } = await makeTestDb();
     try {
-      const user = await createTestUser(db, "owner6@example.com");
+      const user = await createTestUser(db, "hash1@example.com");
       const s = scoped(db, user.id);
-      await createOpportunity(s, { companyName: "Acme Robotics", roleTitle: "UX-UI Designer" }, NOW);
-      const notAWildcardMatch = await createOpportunity(
+      await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer", location: "Rotterdam" }, NOW);
+      const second = await createOpportunity(
         s,
-        { companyName: "Acme Robotics", roleTitle: "UX_UI Designer" },
+        { companyName: "Northwind Traders", roleTitle: "Product Designer", location: "Rotterdam" },
         NOW,
       );
-      expect(notAWildcardMatch.ok).toBe(true);
+      expectFail(second, "duplicate");
+    } finally {
+      await close();
+    }
+  });
 
-      await createOpportunity(s, { companyName: "Northwind Labs", roleTitle: "Product Designer" }, NOW);
-      const caseInsensitiveMatch = await createOpportunity(
+  it("does not flag a different location as a duplicate", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "hash2@example.com");
+      const s = scoped(db, user.id);
+      await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer", location: "Rotterdam" }, NOW);
+      const second = await createOpportunity(
         s,
-        { companyName: "Northwind Labs", roleTitle: "product designer" },
+        { companyName: "Northwind Traders", roleTitle: "Product Designer", location: "Berlin" },
         NOW,
       );
-      expectFail(caseInsensitiveMatch, "duplicate");
+      expect(second.ok).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("flags punctuation-only role differences as a duplicate", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "hash3@example.com");
+      const s = scoped(db, user.id);
+      await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "UX/UI Designer" }, NOW);
+      const second = await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "UX UI Designer" }, NOW);
+      expectFail(second, "duplicate");
+    } finally {
+      await close();
+    }
+  });
+
+  it("never flags a closed job as a duplicate", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "hash4@example.com");
+      const s = scoped(db, user.id);
+      const first = expectOk(
+        await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer" }, NOW),
+      );
+      await s.opportunity.update(first.id, { status: "closed", closedReason: "withdrawn", closedAt: NOW });
+      const second = await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer" }, NOW);
+      expect(second.ok).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("creates anyway when allowDuplicate is true, even though an active duplicate exists", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "hash5@example.com");
+      const s = scoped(db, user.id);
+      await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer" }, NOW);
+      const second = await createOpportunity(
+        s,
+        { companyName: "Northwind Traders", roleTitle: "Product Designer" },
+        NOW,
+        { allowDuplicate: true },
+      );
+      expect(second.ok).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("stores a dedupeHash equal to dedupeHash of the saved company, role and location", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "hash6@example.com");
+      const s = scoped(db, user.id);
+      const created = expectOk(
+        await createOpportunity(s, { companyName: "Northwind Traders, Inc.", roleTitle: "Product Designer", location: "Rotterdam" }, NOW),
+      );
+      const opportunity = await s.opportunity.getById(created.id);
+      expect(opportunity?.dedupeHash).toBe(
+        dedupeHash({ companyName: "Northwind Traders, Inc.", roleTitle: "Product Designer", location: "Rotterdam" }),
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it("stores needsReview when it is passed, and defaults it to false", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "review1@example.com");
+      const s = scoped(db, user.id);
+      const flagged = expectOk(
+        await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer", needsReview: true }, NOW),
+      );
+      expect((await s.opportunity.getById(flagged.id))?.needsReview).toBe(true);
+      const plain = expectOk(
+        await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Design Lead" }, NOW),
+      );
+      expect((await s.opportunity.getById(plain.id))?.needsReview).toBe(false);
+    } finally {
+      await close();
+    }
+  });
+
+  it("sets ats_kind and ats_org on a newly created company", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ats1@example.com");
+      const s = scoped(db, user.id);
+      const created = expectOk(
+        await createOpportunity(
+          s,
+          { companyName: "Northwind Traders", roleTitle: "Product Designer", ats: { kind: "greenhouse", org: "northwindtraders" } },
+          NOW,
+        ),
+      );
+      const opportunity = await s.opportunity.getById(created.id);
+      const company = await s.company.getById(opportunity!.companyId);
+      expect(company).toMatchObject({ atsKind: "greenhouse", atsOrg: "northwindtraders" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("sets ats_kind and ats_org on an existing company that has no ats_kind yet", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ats2@example.com");
+      const s = scoped(db, user.id);
+      await createOpportunity(s, { companyName: "Northwind Traders", roleTitle: "Product Designer" }, NOW);
+      const second = expectOk(
+        await createOpportunity(
+          s,
+          { companyName: "Northwind Traders", roleTitle: "Design Lead", ats: { kind: "lever", org: "northwind-traders" } },
+          NOW,
+        ),
+      );
+      const opportunity = await s.opportunity.getById(second.id);
+      const company = await s.company.getById(opportunity!.companyId);
+      expect(company).toMatchObject({ atsKind: "lever", atsOrg: "northwind-traders" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("leaves ats_kind and ats_org untouched on a company that already has one", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ats3@example.com");
+      const s = scoped(db, user.id);
+      await createOpportunity(
+        s,
+        { companyName: "Northwind Traders", roleTitle: "Product Designer", ats: { kind: "greenhouse", org: "northwindtraders" } },
+        NOW,
+      );
+      const second = expectOk(
+        await createOpportunity(
+          s,
+          { companyName: "Northwind Traders", roleTitle: "Design Lead", ats: { kind: "lever", org: "northwind-traders" } },
+          NOW,
+        ),
+      );
+      const opportunity = await s.opportunity.getById(second.id);
+      const company = await s.company.getById(opportunity!.companyId);
+      expect(company).toMatchObject({ atsKind: "greenhouse", atsOrg: "northwindtraders" });
     } finally {
       await close();
     }
