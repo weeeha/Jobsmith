@@ -106,7 +106,6 @@ describe("sanitizeExtracted", () => {
     expect(sanitizeExtracted(raw)).toMatchObject({ compMin: null, compMax: null, compCurrency: null });
   });
 
-  // Mutation target (Step 28).
   it("drops both pay figures when min is greater than max", () => {
     const raw = parse({ companyName: "A", roleTitle: "B", location: null, workMode: null, compMin: 200000, compMax: 100000, compCurrency: "EUR" });
     expect(sanitizeExtracted(raw)).toMatchObject({ compMin: null, compMax: null, compCurrency: null });
