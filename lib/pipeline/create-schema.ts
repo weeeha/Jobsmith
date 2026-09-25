@@ -7,12 +7,23 @@ import { MAX_POSTING_CHARS } from "@/lib/intake/values";
 // bound a bigger figure passed Zod and then made Postgres itself throw at
 // insert time, turning an ordinary bad input into an unhandled error instead
 // of a returned `invalid` result.
-const MAX_COMP = 2_147_483_647;
-const compFigureSchema = z
+export const MAX_COMP = 2_147_483_647;
+export const compFigureSchema = z
   .number({ error: "Enter a number." })
   .int("Enter a whole number.")
   .nonnegative("Enter a number that is zero or more.")
   .max(MAX_COMP, `Enter a number no greater than ${MAX_COMP.toLocaleString("en-US")}.`);
+
+// Shared by every schema that collects a pay range, so the comparison and
+// its message stay identical wherever a pay range is entered.
+export function payInOrder(v: { compMin?: number; compMax?: number }): boolean {
+  return v.compMin === undefined || v.compMax === undefined || v.compMin <= v.compMax;
+}
+
+export const PAY_ORDER_ISSUE = {
+  message: "Pay to must be at least pay from.",
+  path: ["compMax"],
+};
 
 export const createOpportunitySchema = z
   .object({
@@ -29,7 +40,4 @@ export const createOpportunitySchema = z
     myAsk: z.string().optional(),
     source: z.enum(OPPORTUNITY_SOURCES).optional(),
   })
-  .refine((v) => v.compMin === undefined || v.compMax === undefined || v.compMin <= v.compMax, {
-    message: "Pay to must be at least pay from.",
-    path: ["compMax"],
-  });
+  .refine(payInOrder, PAY_ORDER_ISSUE);

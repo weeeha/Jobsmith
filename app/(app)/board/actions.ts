@@ -12,7 +12,7 @@ import { fail, type Result } from "@/lib/result";
 import { messageFor } from "@/lib/pipeline/messages";
 import { opportunityIdSchema, moveTargetSchema, closedReasonSchema } from "@/lib/pipeline/action-schemas";
 import { placeOpportunity } from "@/lib/pipeline/place";
-import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
+import { fieldErrorsFromZod } from "@/lib/forms/state";
 import { addJob } from "@/lib/intake/add-job";
 import { readAddJobForm, addJobFormSchema, encodeDraft } from "@/lib/intake/form";
 import { intakeDeps } from "@/lib/intake/deps";

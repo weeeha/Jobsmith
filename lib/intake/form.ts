@@ -1,14 +1,8 @@
 import { z } from "zod";
 import { WORK_MODES, STAGE_KIND_VALUES } from "@/lib/pipeline/values";
+import { compFigureSchema, payInOrder, PAY_ORDER_ISSUE } from "@/lib/pipeline/create-schema";
 import { MAX_LINK_CHARS, MAX_POSTING_CHARS, VIAS, EXTRACTIONS } from "./values";
 import type { ResolvedPosting } from "./resolve";
-
-const MAX_COMP = 2_147_483_647;
-const compFigureSchema = z
-  .number({ error: "Enter a number." })
-  .int("Enter a whole number.")
-  .nonnegative("Enter a number that is zero or more.")
-  .max(MAX_COMP, `Enter a number no greater than ${MAX_COMP.toLocaleString("en-US")}.`);
 
 export const addJobFormSchema = z
   .object({
@@ -30,10 +24,7 @@ export const addJobFormSchema = z
     draft: z.string().optional(),
     intent: z.enum(["add", "add_anyway"], { error: "That is not a valid choice." }).optional(),
   })
-  .refine((v) => v.compMin === undefined || v.compMax === undefined || v.compMin <= v.compMax, {
-    message: "Pay to must be at least pay from.",
-    path: ["compMax"],
-  });
+  .refine(payInOrder, PAY_ORDER_ISSUE);
 export type AddJobForm = z.infer<typeof addJobFormSchema>;
 
 function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
@@ -103,6 +94,6 @@ export function decodeDraft(value: string | undefined): ResolvedPosting | null {
   }
   const result = intakeDraftSchema.safeParse(parsed);
   if (!result.success) return null;
-  const { v: _v, ...posting } = result.data;
-  return posting;
+  const { source, via, sourceUrl, bodyMd, fields, extraction, needsReview, ats } = result.data;
+  return { source, via, sourceUrl, bodyMd, fields, extraction, needsReview, ats };
 }
