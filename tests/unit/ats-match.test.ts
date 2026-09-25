@@ -28,6 +28,10 @@ describe("matchAtsUrl", () => {
   it.each(cases)("matches %s", (url, expected) => {
     expect(matchAtsUrl(url)).toEqual(expected);
   });
+
+  it("returns null instead of throwing for a malformed percent-encoded segment", () => {
+    expect(matchAtsUrl("https://boards.greenhouse.io/abc%1/jobs/4000000001")).toBeNull();
+  });
 });
 
 describe("atsApiRequest", () => {

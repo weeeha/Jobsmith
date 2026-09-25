@@ -20,7 +20,13 @@ export function matchAtsUrl(raw: string): AtsRef | null {
   const url = new URL(raw);
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
   const host = url.hostname.toLowerCase();
-  const parts = url.pathname.split("/").filter(Boolean).map((p) => decodeURIComponent(p));
+  // Pasted links can carry a stray % that breaks decoding; treat that as no match.
+  let parts: string[];
+  try {
+    parts = url.pathname.split("/").filter(Boolean).map((p) => decodeURIComponent(p));
+  } catch {
+    return null;
+  }
 
   const gh = /^(?:job-boards|boards)(\.eu)?\.greenhouse\.io$/.exec(host);
   if (gh) {
