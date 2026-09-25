@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // turndown ships a browser build and linkedom an optional `canvas` require;
+  // this makes Next require them at runtime instead of bundling them, so the
+  // bundler never has to choose between turndown's builds or resolve an
+  // optional native dependency linkedom does not actually need here.
+  serverExternalPackages: ["linkedom", "turndown", "@mozilla/readability"],
   experimental: {
     serverActions: {
       // The default 1 MB would reject a document near the 1 MiB artifact
