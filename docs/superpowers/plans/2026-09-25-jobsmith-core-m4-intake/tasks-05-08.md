@@ -4126,7 +4126,7 @@ is coverage enough for a two-line function).
 
 Read the current file first (37 lines). D20: the worst intake path (an ATS or page timeout, then
 extraction) is about 23 seconds, so the page that hosts the Add job dialog's server action needs a
-longer timeout than the READMEwork default.
+longer timeout than the framework default.
 
 Before (lines 1–9):
 
@@ -4156,7 +4156,7 @@ import { RefreshOnFocus } from "@/components/refresh-on-focus";
 // Sets the timeout of this page's own server actions (the Next 16
 // docs on page-level maxDuration). addJob's worst path - an ATS or page
 // fetch timing out at 8s, then a 15s extraction call - is about 23s, well
-// past the READMEwork default.
+// past the framework default.
 export const maxDuration = 60;
 
 export default async function BoardPage(props: PageProps<"/board">) {
