@@ -89,7 +89,6 @@ describe("resolvePosting", () => {
     expect(outcome.fetchFailure).toBeNull();
   });
 
-  // Mutation target (Step 4).
   it("text with a non-ATS link keeps the link as sourceUrl but never fetches it", async () => {
     const fetch = fakeGuardedFetch({});
     const outcome = await resolvePosting({ url: "https://example.org/careers/123", text: "Company: Northwind Traders\nRole: Designer", userId: "u1" }, { fetch, ai: null });
@@ -99,7 +98,6 @@ describe("resolvePosting", () => {
     expect(fetch.calls).toHaveLength(0);
   });
 
-  // Mutation target (Step 5).
   it("a LinkedIn link makes no request at all", async () => {
     const fetch = fakeGuardedFetch({});
     const outcome = await resolvePosting({ url: "https://www.linkedin.com/jobs/view/1000000001/", userId: "u1" }, { fetch, ai: null });
@@ -107,7 +105,6 @@ describe("resolvePosting", () => {
     expect(fetch.calls).toHaveLength(0);
   });
 
-  // Mutation target (Step 6).
   it("a page with complete JSON-LD resolves with no model call", async () => {
     const html = readFixture("job-page.html");
     const url = "https://example.org/careers/product-designer";
