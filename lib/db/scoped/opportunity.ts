@@ -35,6 +35,7 @@ export type OpportunitySummary = {
   slug: string;
   roleTitle: string;
   companyName: string;
+  companyId: string;
   status: OpportunityStatus;
   stage: { kind: StageKind; label: string };
 };
@@ -187,6 +188,7 @@ export function opportunityQueries(db: Db, userId: string) {
           slug: schema.opportunity.slug,
           roleTitle: schema.opportunity.roleTitle,
           companyName: schema.company.name,
+          companyId: schema.opportunity.companyId,
           status: schema.opportunity.status,
           stageKind: schema.stage.kind,
           stageLabel: schema.stage.label,
@@ -209,6 +211,7 @@ export function opportunityQueries(db: Db, userId: string) {
         slug: r.slug,
         roleTitle: r.roleTitle,
         companyName: r.companyName,
+        companyId: r.companyId,
         status: r.status,
         stage: { kind: r.stageKind as StageKind, label: r.stageLabel },
       }));
