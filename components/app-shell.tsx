@@ -128,7 +128,7 @@ export function AppShell({
                 href={item.href}
                 aria-current={item.href === pathname ? "page" : undefined}
                 onClick={() => setMoreOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover aria-[current=page]:bg-secondary aria-[current=page]:text-text-accent"
+                className={cn(PHONE_NAV_ITEM_CLASS, "px-3")}
               >
                 {item.label}
               </Link>
