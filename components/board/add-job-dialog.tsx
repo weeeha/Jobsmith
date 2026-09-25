@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { createOpportunityAction } from "@/app/(app)/board/actions";
+import { addJobAction } from "@/app/(app)/board/actions";
 import { useAnnounce } from "@/components/live-announcer";
 import { FieldRow } from "@/components/super-ai/field-row";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { STAGE_KINDS } from "@/lib/pipeline/kinds";
 import { submitViaTransition } from "@/lib/forms/submit";
-import type { FormState } from "@/lib/forms/state";
+import type { AddJobState } from "@/lib/intake/state";
 
 // Base UI's <Select.Value> resolves its label purely from the Root's own
 // `items` prop (node_modules/@base-ui/react/select/value/SelectValue.js:
@@ -73,7 +73,7 @@ function AddJobForm({
   onOpenChange: (open: boolean) => void;
   companyNames: string[];
 }) {
-  const [state, formAction, pending] = React.useActionState<FormState, FormData>(createOpportunityAction, undefined);
+  const [state, formAction, pending] = React.useActionState<AddJobState, FormData>(addJobAction, undefined);
   const announce = useAnnounce();
   const lastSubmitted = React.useRef({ companyName: "", roleTitle: "" });
   const companyListId = React.useId();

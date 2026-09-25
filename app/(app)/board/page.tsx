@@ -6,6 +6,12 @@ import { PhoneBoard } from "@/components/board/phone-board";
 import { ClosedList } from "@/components/board/closed-list";
 import { RefreshOnFocus } from "@/components/refresh-on-focus";
 
+// Sets the timeout of this page's own server actions (the Next 16
+// docs on page-level maxDuration). addJob's worst path - an ATS or page
+// fetch timing out at 8s, then a 15s extraction call - is about 23s, well
+// past the framework's default.
+export const maxDuration = 60;
+
 export default async function BoardPage(props: PageProps<"/board">) {
   const user = await requireUser();
   const searchParams = await props.searchParams;

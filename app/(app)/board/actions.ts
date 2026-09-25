@@ -11,11 +11,14 @@ import type { ClosedReason } from "@/lib/pipeline/values";
 import { fail, type Result } from "@/lib/result";
 import { messageFor } from "@/lib/pipeline/messages";
 import { opportunityIdSchema, moveTargetSchema, closedReasonSchema } from "@/lib/pipeline/action-schemas";
-import { createOpportunity } from "@/lib/pipeline/create";
-import { createOpportunitySchema } from "@/lib/pipeline/create-schema";
 import { placeOpportunity } from "@/lib/pipeline/place";
-import { companyNameKey } from "@/lib/companies/name-key";
 import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
+import { addJob } from "@/lib/intake/add-job";
+import { readAddJobForm, addJobFormSchema, encodeDraft } from "@/lib/intake/form";
+import { intakeDeps } from "@/lib/intake/deps";
+import { logIntakeError } from "@/lib/intake/log";
+import type { AddJobState } from "@/lib/intake/state";
+import { NEEDS_TEXT_MESSAGES, NEEDS_DETAILS_MESSAGES, DUPLICATE_MESSAGE, POSTING_TEXT_HINT } from "@/lib/intake/messages";
 
 // Every board action concerns exactly one opportunity, which may also be
 // open as a job page in another tab, so both routes are revalidated. The
@@ -76,95 +79,80 @@ export async function reopenAction(opportunityId: string): Promise<Result<null, 
   return result;
 }
 
-function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
-  if (typeof value !== "string" || value.trim() === "") return undefined;
-  return value;
-}
-
-// A blank value means "not given" (undefined). A non-blank value that fails
-// to parse is passed through as NaN rather than folded into that same
-// undefined, which would add the job with the figure silently dropped.
-// createOpportunitySchema's compMin/compMax reject NaN on their own, so this
-// reaches the user as a normal field error.
-function toNumberOrUndefined(value: FormDataEntryValue | null): number | undefined {
-  if (typeof value !== "string" || value.trim() === "") return undefined;
-  return Number(value);
-}
-
 function isStageKind(value: string): value is StageKind {
   return STAGE_KINDS.some((entry) => entry.kind === value);
 }
 
-async function findExistingOpportunity(s: Scoped, companyName: string, roleTitle: string) {
-  const company = await s.company.findByNameKey(companyNameKey(companyName));
-  if (!company) return null;
-  return s.opportunity.findByCompanyAndRole(company.id, roleTitle);
-}
-
-export async function createOpportunityAction(prev: FormState, formData: FormData): Promise<FormState> {
+export async function addJobAction(_prev: AddJobState, formData: FormData): Promise<AddJobState> {
   const user = await requireUser();
-  const raw = {
-    companyName: String(formData.get("companyName") ?? ""),
-    roleTitle: String(formData.get("roleTitle") ?? ""),
-    location: emptyToUndefined(formData.get("location")),
-    workMode: emptyToUndefined(formData.get("workMode")),
-    sourceUrl: emptyToUndefined(formData.get("sourceUrl")),
-    postingText: emptyToUndefined(formData.get("postingText")),
-    compMin: toNumberOrUndefined(formData.get("compMin")),
-    compMax: toNumberOrUndefined(formData.get("compMax")),
-    compCurrency: emptyToUndefined(formData.get("compCurrency")),
-    compNote: emptyToUndefined(formData.get("compNote")),
-    myAsk: emptyToUndefined(formData.get("myAsk")),
-  };
-
-  const parsed = createOpportunitySchema.safeParse(raw);
+  const raw = readAddJobForm(formData);
+  const parsed = addJobFormSchema.safeParse(raw);
   if (!parsed.success) {
-    return {
-      ok: false,
-      code: "invalid",
-      message: messageFor("invalid"),
-      fieldErrors: fieldErrorsFromZod(parsed.error),
-    };
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
   }
 
   const s = scopedFor(user.id);
-  const result = await createOpportunity(s, parsed.data);
-  if (!result.ok) {
-    if (result.code === "duplicate") {
-      const existing = await findExistingOpportunity(s, parsed.data.companyName, parsed.data.roleTitle);
-      return {
-        ok: false,
-        code: "duplicate",
-        message: messageFor("duplicate"),
-        href: existing ? `/jobs/${existing.slug}` : undefined,
-      };
-    }
-    return { ok: false, code: result.code, message: messageFor(result.code) };
+
+  // intakeDeps() runs inside the same try/catch as addJob itself: a
+  // thrown dependency (or any other unexpected error deep in resolution or
+  // creation) must never replace the board with the error boundary, only
+  // ever fail this one action.
+  const requestId = crypto.randomUUID();
+  let result;
+  try {
+    result = await addJob(s, user.id, parsed.data, intakeDeps());
+  } catch (error) {
+    logIntakeError(requestId, error);
+    return { ok: false, code: "server_error", message: "Something went wrong. Try again." };
   }
 
-  // placeOpportunity, not moveOpportunity directly: a job that is already
-  // at a later stage was applied to first, so Applied must not end up
-  // skipped.
+  if (result.kind === "invalid") {
+    return { ok: false, code: "invalid", message: result.message ?? messageFor("invalid"), fieldErrors: result.fieldErrors };
+  }
+  if (result.kind === "needs_text") {
+    return {
+      ok: false,
+      code: "needs_text",
+      message: NEEDS_TEXT_MESSAGES[result.reason],
+      fieldErrors: { postingText: POSTING_TEXT_HINT },
+    };
+  }
+  if (result.kind === "needs_details") {
+    const fieldErrors: Record<string, string> = {};
+    for (const field of result.missing) {
+      fieldErrors[field] = field === "companyName" ? "Enter a company name." : "Enter a role.";
+    }
+    return {
+      ok: false,
+      code: "needs_details",
+      message: NEEDS_DETAILS_MESSAGES[result.reason],
+      fieldErrors,
+      draft: encodeDraft(result.draft),
+    };
+  }
+  if (result.kind === "duplicate") {
+    return {
+      ok: false,
+      code: "duplicate",
+      message: DUPLICATE_MESSAGE,
+      href: result.existingSlug ? `/jobs/${result.existingSlug}` : undefined,
+      draft: result.draft ? encodeDraft(result.draft) : undefined,
+    };
+  }
+
+  // added: placeOpportunity, not moveOpportunity directly, unchanged from
+  // createOpportunityAction - a job that is already at a later stage
+  // was applied to first, so Applied must not end up skipped.
   const whereIsItNow = formData.get("whereIsItNow");
   let placement: Result<null, MoveError> | undefined;
   if (typeof whereIsItNow === "string" && isStageKind(whereIsItNow)) {
-    placement = await placeOpportunity(s, result.data.id, whereIsItNow);
+    placement = await placeOpportunity(s, result.id, whereIsItNow);
   }
 
-  // The opportunity itself was already created at this point, so the board
-  // is revalidated either way - it exists at whatever stage placeOpportunity
-  // reached, not silently lost. Not reachable today: createOpportunity
-  // always inserts every STAGE_KIND, so none of MoveError's four cases can
-  // fire for a just-created job. Checked anyway, and the failure surfaced
-  // rather than discarded, because lib/pipeline/place.ts documents that the
-  // import script and the seed reuse this same function, and nothing here
-  // would catch a regression that later breaks that invariant - without
-  // this check, this action would report `{ ok: true }` and the UI would
-  // announce the job as added at a stage it never reached.
   revalidatePath("/board");
   if (placement && !placement.ok) {
     return { ok: false, code: placement.code, message: messageFor(placement.code) };
   }
 
-  return { ok: true };
+  return { ok: true, data: { slug: result.slug, roleTitle: result.roleTitle, companyName: result.companyName, note: result.note } };
 }
