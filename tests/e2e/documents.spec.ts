@@ -19,6 +19,9 @@ function markSentTrigger(page: Page, version: number, title: string) {
 test("paste a CV, paste a second version, edit it with Write and Preview, mark it as sent, and edit again for version 3", async ({
   page,
 }, testInfo) => {
+  // One whole journey with light and dark axe scans of every dialog: about
+  // 11s on WebKit locally, and past the default 30s on a shared CI runner.
+  test.slow();
   await login(page);
   const company = uniqueName(testInfo, "Lumen Health");
   const role = "Staff Product Designer";

@@ -37,6 +37,9 @@ async function createToken(page: Page, name: string, testInfo: TestInfo): Promis
 test("the CLI pushes a real packet, a second push changes nothing, the app reads it back, and a revoked token is refused", async ({
   page,
 }, testInfo) => {
+  // One whole journey with CLI runs and light and dark axe scans: about 14s
+  // on WebKit locally, and past the default 30s on a shared CI runner.
+  test.slow();
   await login(page);
   const company = uniqueName(testInfo, "Northwind Labs");
   const role = "Design Lead";
