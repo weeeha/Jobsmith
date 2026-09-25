@@ -27,6 +27,7 @@
 # misc
 .DS_Store
 *.pem
+/cli/dist/
 
 # debug
 npm-debug.log*

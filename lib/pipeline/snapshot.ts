@@ -1,8 +1,9 @@
 import type { Scoped, OpportunityRow } from "@/lib/db/scoped";
-import type { OpportunityState, StageState } from "@/lib/pipeline/rules";
-import type { StageKind } from "@/lib/pipeline/kinds";
-import type { OpportunityStatus, StageStatus } from "@/lib/pipeline/values";
+import type { OpportunityState } from "@/lib/pipeline/rules";
+import type { OpportunityStatus } from "@/lib/pipeline/values";
 import { type Result, ok, fail } from "@/lib/result";
+import { toStageStates } from "@/lib/pipeline/stage-state";
+import { stagesWithArtifacts } from "@/lib/artifacts/tabs";
 
 export async function loadState(
   s: Scoped,
@@ -12,17 +13,8 @@ export async function loadState(
   if (!row) return null;
 
   const rows = await s.stage.listForOpportunity(opportunityId);
-  const stages: StageState[] = rows.map((row) => ({
-    id: row.id,
-    kind: row.kind as StageKind,
-    label: row.label,
-    position: row.position,
-    status: row.status as StageStatus,
-    scheduledAt: row.scheduledAt,
-    enteredAt: row.enteredAt,
-    completedAt: row.completedAt,
-    hasArtifacts: false,
-  }));
+  const docs = await s.artifact.listLatestForOpportunity(opportunityId);
+  const stages = toStageStates(rows, stagesWithArtifacts(docs));
 
   // Non-null assertion: every opportunity gets a currentStageId at creation
   // (createOpportunity) and it is never cleared afterward. The column is

@@ -19,7 +19,9 @@
     "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "reset-db": "tsx --env-file-if-exists=.env scripts/reset-db.ts",
-    "import:applications": "tsx --env-file-if-exists=.env scripts/import-applications.ts"
+    "import:applications": "tsx --env-file-if-exists=.env scripts/import-applications.ts",
+    "cli:build": "node scripts/build-cli.mjs",
+    "jobsmith": "node cli/dist/jobsmith.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -34,6 +36,9 @@
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1",
     "shadcn": "^4.21.0",
     "sonner": "^2.0.8",
     "tsx": "^4.23.13",
@@ -52,6 +57,7 @@
     "@types/react-dom": "^19",
     "@vercel/config": "^0.7.1",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "jsdom": "^30.1.0",

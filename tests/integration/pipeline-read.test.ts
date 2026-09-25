@@ -25,6 +25,7 @@ describe("getJobView", () => {
       expect(view?.people).toHaveLength(1);
       expect(view?.people[0].person.name).toBe("Priya Raman");
       expect(view?.events.length).toBeGreaterThanOrEqual(2);
+      expect(view?.documents).toEqual([]);
     } finally {
       await close();
     }

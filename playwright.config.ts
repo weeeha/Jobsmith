@@ -23,19 +23,19 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /(shell|pipeline|job-page)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "webkit",
-      testMatch: /(shell|pipeline|job-page)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Safari"] },
     },
     {
       name: "phone",
-      testMatch: /(shell|pipeline-phone)\.spec\.ts$/,
+      testMatch: /(shell|pipeline-phone|documents-phone|nav)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: {
         ...devices["iPhone 13"],

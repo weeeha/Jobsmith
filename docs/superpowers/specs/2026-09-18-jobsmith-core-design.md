@@ -109,6 +109,12 @@ Tables that Core defines have a uuid primary key. One-per-user tables such as `p
 
 The auth library adds its own user and session tables. `user_id` columns reference its user table.
 
+**Milestone 3 note.** Decision D4: `api_token` also gains `rate_window_start` and `rate_count`,
+not listed above when this section was first written. One `UPDATE ... RETURNING` on the token's own
+row authenticates a bridge request, touches `last_used_at`, and advances the rate-window counter, all
+in one atomic statement, so the limit holds across serverless instances with no separate table or
+service.
+
 ## 5. Behavior
 
 ### 5.1 Stages and the board
@@ -166,6 +172,15 @@ Route `/jobs/[slug]`. The header has the role, company, location, fit chip, a li
 
 **Milestone 2 notes.** Decision D13: this milestone ships only the Overview, People and Timeline rows above; Research, Documents and Prep arrive in Milestone 3, and Overview's fit card stays hidden while `fit_score` is null (Milestone 5). Decision D10: Overview's posting snapshot renders as plain text with line breaks kept, not through the sanitized markdown renderer in section 5.3, which arrives with artifacts in Milestone 3.
 
+**Milestone 3 notes.** Decisions D23 to D26: Research, Documents and Prep (the three rows Milestone 2
+left for later) are each a navigation list of document links plus one selected document rendered as
+an article, chosen by a `doc` search param. Research groups a job's own documents ahead of ones
+shared by every job at the same company; Prep groups by stage, with a General group for unstaged
+ones; Documents adds a version list, an in-place editor with a Write/Preview toggle, and Mark as
+sent. A `Paste markdown` button on each of the three tabs, and `Paste a new version` on every
+document, write with origin `pasted`. The tab order is Overview, Research, People, Documents,
+Timeline, Prep, and the strip wraps to a second row rather than growing the page at phone width.
+
 ### 5.3 Artifacts
 
 An artifact is identified inside its scope (one opportunity, or one company) by `key`, for example `cv`, `call-card`, `answers-full`. Versions count up from 1. The kind registry in `lib/artifacts/kinds.ts` is the single list of kinds, their tab and whether they can be marked as sent. An unknown kind arriving through the bridge is stored as `other` and reported as a warning.
@@ -186,6 +201,20 @@ Rule 3 is what keeps a repeated push from burying a hand edit under an older gen
 Rendering uses a markdown renderer with GFM tables and no raw HTML. Output is sanitized because content arrives from outside the app. The editor in Core is a plain text area with a preview toggle.
 
 `stageRef` from the bridge or the paste dialog is matched against stage labels first (case-insensitive), then kinds. No match stores the artifact unstaged and returns a warning.
+
+**Milestone 3 notes.** Decision D18: the kind registry (`lib/artifacts/kinds.ts`) fixes 12 kinds;
+only the three Research kinds (`research`, `fit_brief`, `people_notes`) can be shared across every
+job at a company, and a kind arriving from outside the app that the registry does not recognize is
+stored as `other` with a warning. Decision D12: the wire adds a fourth upsert status, `updated`, for
+a title, kind or stage change with an unchanged body (rule 6). Decision D14 settles several edge
+cases: a sent version's title, kind and stage can never change again (a metadata-only change on it is
+reported `unchanged` with a warning, never applied); the in-app editor changes only the body, keeping
+the latest version's own kind, title and stage; and "pushed after you edited version N" is computed
+when a version is read, from whether the version before it carries an edit time, not stored as its
+own column. Decision D21: the renderer is react-markdown with GFM tables and rehype-sanitize,
+`skipHtml` on, so raw HTML is dropped rather than shown as text; only `http:`, `https:` and `mailto:`
+links become clickable, images never load (rendered as their own alt text instead), and headings are
+re-leveled by rank so a document's own numbering never collides with the surrounding page's.
 
 ### 5.4 Bridge API and CLI
 
@@ -209,6 +238,20 @@ CLI, in `cli/`, Node 20 or newer, few dependencies:
 - `jobsmith push <slug> [--dir <dir>] [--prefix <file-prefix>] [--dry-run]` reads `<prefix>-*.md`. The key is the file name without the prefix. Kind, stage, title and scope come from the file's frontmatter, or else from the suffix map in `jobsmith.config.json` in the content folder. Frontmatter is stripped before upload. `--dry-run` prints what would change.
 
 The paste dialog in the app (choose kind and stage, paste markdown) calls `upsertArtifact` with origin `pasted`. It is the way in for anything written in a chat window.
+
+**Milestone 3 notes.** Decision D9: a push is capped at 50 documents, 1 MiB per document and 4 MB
+per request (Vercel's own function body limit), read through a streaming cap that does not trust a
+lying `Content-Length` header. Decision D11: the whole push is validated before anything is written,
+then applied in one transaction; `?dry_run=true` runs the identical planner with nothing saved, and
+one `artifact_pushed` event is written per push only when something actually changed, so a repeated
+push stays silent. Decisions D30 to D35: the CLI bundles into one dependency-free Node file
+(`cli/dist/jobsmith.mjs`, built with `pnpm cli:build`, installed with `npm install -g ./cli`; no
+published package yet); credentials live in `$XDG_CONFIG_HOME/jobsmith/config.json` with owner-only
+file permissions, read only from there or its two environment variable overrides; the suffix map in
+`jobsmith.config.json` is read only from the content folder itself, with no parent-directory search,
+matched by an exact suffix or the longest matching prefix before a dash; a file over 1 MiB, an
+unreadable config or an invalid scope stops a push before anything is sent; and `--dry-run` asks the
+server the same question a real push would and prints its answer.
 
 ### 5.5 Intake
 
@@ -260,6 +303,10 @@ Each item has one primary action and a snooze that sets the next action date. Be
 
 Profile (headline, resume text as markdown, timezone), API tokens (create, reveal once, revoke), and "Export my data", which downloads every row the user owns as JSON with no secrets. Export exists in Core because it is cheap now and the hosted version needs it.
 
+**Milestone 3 note.** Decision D27: API tokens ship in Core, in this milestone, ahead of the rest of
+Settings - Profile and Export both arrive in Milestone 5, on the same page. A token is shown once, at
+creation, and never again; only its sha256 hash and an eight-character display prefix are stored.
+
 ### 5.10 Login and first run
 
 `/setup` works only while the user table is empty and creates the first account. First-run setup is protected by a setup token: when `SETUP_TOKEN` is set, the form asks for it and the sign-up endpoint rejects a first account without it. A production build requires the token. While the variable is unset, `/setup` shows a locked notice and no account can be created, so a stranger cannot claim a fresh public deployment. Local development works without a token. After the first account exists, `/setup` returns 404, and sign-up stays closed unless `ALLOW_SIGNUP=true`. `/login` takes email and password. Sessions are database-backed cookies. Every page, server action and API route checks the session or token itself. Route-level protection is an extra layer and never the only check.
@@ -288,6 +335,13 @@ Profile (headline, resume text as markdown, timezone), API tokens (create, revea
 - Secrets live only in env. `.env.example` lists every variable with a comment. CI runs a secret scan.
 - Job-search data is sensitive because people hide searches from employers. There are no analytics on content and no third-party scripts on signed-in pages. When AI Gateway is used, zero data retention is enabled.
 - Outside pull requests are not merged until a contribution policy exists, so the hosted version's licensing stays simple.
+
+**Milestone 3 note.** Decision D4: the bridge's own rate limiter lives on the `api_token` row rather
+than reusing the login library's own limiter (wired only to its one sign-in path) or adding a
+separate table - the single `UPDATE` described in section 4's own note is the whole mechanism. The
+limit is 120 requests per token per fixed 60-second window; a request with no valid token is never
+counted, because a 256-bit token cannot be guessed and counting an anonymous request would add load
+rather than shed it.
 
 ## 8. Testing
 

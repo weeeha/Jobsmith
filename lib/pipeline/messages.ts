@@ -15,6 +15,10 @@ const MESSAGES: Record<string, string> = {
   invalid: "Check the highlighted fields.",
   nothing_to_complete: "There is no next action.",
   not_closed: "This job is not closed.",
+  artifact_not_found: "This document no longer exists.",
+  not_sendable: "Only CVs, cover letters and messages can be marked as sent.",
+  already_sent: "This version is already marked as sent.",
+  token_not_found: "This token no longer exists.",
 };
 
 export function messageFor(code: string): string {

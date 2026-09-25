@@ -4,14 +4,15 @@ import { useRouter } from "next/navigation";
 
 import { DetailTabs, type DetailTabItem } from "@/components/super-ai/detail-tabs";
 
-export type JobTabId = "overview" | "people" | "timeline";
+export type JobTabId = "overview" | "research" | "people" | "documents" | "timeline" | "prep";
 
-// No `count` on any of these: the frame's fixed copy for these three tabs
-// carries no badge count, and DetailTabs's `count` is optional.
 const TAB_ITEMS: DetailTabItem[] = [
   { id: "overview", label: "Overview" },
+  { id: "research", label: "Research" },
   { id: "people", label: "People" },
+  { id: "documents", label: "Documents" },
   { id: "timeline", label: "Timeline" },
+  { id: "prep", label: "Prep" },
 ];
 
 export function JobTabs({ activeTab, basePath }: { activeTab: JobTabId; basePath: string }) {
@@ -23,6 +24,7 @@ export function JobTabs({ activeTab, basePath }: { activeTab: JobTabId; basePath
       activeId={activeTab}
       onSelect={(id) => router.push(`${basePath}?tab=${id}`, { scroll: false })}
       ariaLabel="Job sections"
+      className="flex-wrap"
     />
   );
 }

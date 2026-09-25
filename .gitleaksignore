@@ -1,0 +1,4 @@
+# False positives of the generic-api-key rule: a fictional company's name_key
+# ("northwind-ctx3") in a test fixture and in the plan that quotes it.
+097cda15bcee15998e77f45e0cedbd2538ee1d55:tests/integration/bridge-handlers.test.ts:generic-api-key:279
+aab9a74f5944530710a60a825887cfe8dbc9253b:docs/superpowers/plans/2026-09-23-jobsmith-core-m3-bridge/tasks-05-09.md:generic-api-key:1687

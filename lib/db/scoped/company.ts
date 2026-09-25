@@ -32,6 +32,14 @@ export function companyQueries(db: Db, userId: string) {
         .where(eq(schema.company.userId, userId))
         .orderBy(schema.company.name);
     },
+    async lockById(id: string): Promise<CompanyRow | null> {
+      const [row] = await db
+        .select()
+        .from(schema.company)
+        .where(and(eq(schema.company.id, id), eq(schema.company.userId, userId)))
+        .for("update");
+      return row ?? null;
+    },
     async insert(values: CompanyFields): Promise<CompanyRow> {
       const fields = stripScopedKeys(values);
       const [row] = await db

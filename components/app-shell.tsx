@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -9,11 +10,26 @@ import { SidebarNav } from "@/components/super-ai/sidebar-nav";
 import { AppTopbar } from "@/components/super-ai/app-topbar";
 import { AccountMenu } from "@/components/super-ai/account-menu";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", href: "/" },
   { id: "board", label: "Board", href: "/board" },
+  { id: "companies", label: "Companies", href: "/companies" },
+  { id: "library", label: "Library", href: "/library" },
+  { id: "preferences", label: "Preferences", href: "/preferences" },
+  { id: "settings", label: "Settings", href: "/settings" },
 ];
+
+// The phone bottom bar only has room for four slots. The first three of the
+// six nav items are common enough to keep their own slot; the rest sit
+// behind the fourth slot's "More" sheet.
+const PHONE_TAB_ITEMS = NAV_ITEMS.slice(0, 3);
+const MORE_ITEMS = NAV_ITEMS.slice(3);
+
+const PHONE_NAV_ITEM_CLASS =
+  "rounded-md px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover aria-[current=page]:bg-secondary aria-[current=page]:text-text-accent";
 
 export function AppShell({
   email,
@@ -27,6 +43,8 @@ export function AppShell({
   const pathname = usePathname();
   const activeId = NAV_ITEMS.find((item) => item.href === pathname)?.id;
   const { theme, setTheme } = useTheme();
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const isMoreActive = MORE_ITEMS.some((item) => item.href === pathname);
 
   return (
     <SidebarProvider>
@@ -74,17 +92,50 @@ export function AppShell({
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t border-border bg-surface-sidebar pt-2 pb-safe md:hidden"
       >
-        {NAV_ITEMS.map((item) => (
+        {PHONE_TAB_ITEMS.map((item) => (
           <Link
             key={item.id}
             href={item.href}
             aria-current={item.href === pathname ? "page" : undefined}
-            className="rounded-md px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover aria-[current=page]:bg-secondary aria-[current=page]:text-text-accent"
+            className={PHONE_NAV_ITEM_CLASS}
           >
             {item.label}
           </Link>
         ))}
+        {/* A button, not a Link: it opens the sheet below rather than going
+            anywhere itself, so it never carries aria-current="page" the way
+            the three links above do. It still needs to look selected while
+            one of the sheet's own pages is open, hence the same active
+            classes applied directly here instead of through that attribute. */}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={cn(PHONE_NAV_ITEM_CLASS, isMoreActive && "bg-secondary text-text-accent")}
+        >
+          More
+        </button>
       </nav>
+
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>More</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-1 px-4 pb-4">
+            {MORE_ITEMS.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-current={item.href === pathname ? "page" : undefined}
+                onClick={() => setMoreOpen(false)}
+                className={cn(PHONE_NAV_ITEM_CLASS, "px-3")}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
