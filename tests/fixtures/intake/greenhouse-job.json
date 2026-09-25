@@ -1,0 +1,32 @@
+{
+  "id": 4000000001,
+  "internal_job_id": 4000000000,
+  "title": "Senior Product Designer",
+  "updated_at": "2026-09-01T10:00:00-04:00",
+  "requisition_id": "REQ-1",
+  "location": {
+    "name": "Rotterdam, Netherlands (Hybrid)"
+  },
+  "absolute_url": "https://job-boards.greenhouse.io/northwindtraders/jobs/4000000001",
+  "language": "en",
+  "metadata": null,
+  "content": "&lt;h2&gt;About the role&lt;/h2&gt;&lt;p&gt;Northwind Traders builds tools for warehouse teams.&lt;/p&gt;&lt;h2&gt;What you will do&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;Run discovery.&lt;/li&gt;&lt;li&gt;Ship weekly.&lt;/li&gt;&lt;/ul&gt;",
+  "departments": [
+    {
+      "id": 1,
+      "name": "Design",
+      "child_ids": [],
+      "parent_id": null
+    }
+  ],
+  "offices": [
+    {
+      "id": 1,
+      "name": "Rotterdam",
+      "location": "Rotterdam, Netherlands",
+      "child_ids": [],
+      "parent_id": null
+    }
+  ],
+  "company_name": "Northwind Traders"
+}
