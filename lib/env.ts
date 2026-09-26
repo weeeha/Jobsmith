@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseAiConfig, type AiConfig } from "@/lib/ai/config";
 
 const rawEnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
@@ -20,6 +21,7 @@ export type Env = {
   ALLOW_SIGNUP: boolean;
   SETUP_TOKEN: string | undefined;
   TRUSTED_ORIGINS: string[];
+  AI: AiConfig | null;
 };
 
 export class EnvError extends Error {
@@ -58,12 +60,17 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   const appUrl = resolveAppUrl(source);
   const urlResult = appUrl ? z.url().safeParse(appUrl) : undefined;
 
-  if (!result.success || !urlResult?.success) {
+  const aiResult = parseAiConfig(source);
+
+  if (!result.success || !urlResult?.success || !aiResult.ok) {
     const names = new Set<string>();
     if (!result.success) {
       for (const issue of result.error.issues) names.add(issue.path.join("."));
     }
     if (!urlResult?.success) names.add("APP_URL");
+    if (!aiResult.ok) {
+      for (const name of aiResult.invalid) names.add(name);
+    }
     throw new EnvError(`Invalid environment variables: ${[...names].join(", ")}`);
   }
 
@@ -74,6 +81,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     ALLOW_SIGNUP: result.data.ALLOW_SIGNUP,
     SETUP_TOKEN: result.data.SETUP_TOKEN,
     TRUSTED_ORIGINS: resolveTrustedOrigins(source, urlResult.data),
+    AI: aiResult.config,
   };
 }
 

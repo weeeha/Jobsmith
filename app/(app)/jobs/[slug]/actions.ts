@@ -8,7 +8,7 @@ import type { Scoped } from "@/lib/db/scoped";
 import { addStage, renameStage, reorderStages, skipStage, unskipStage, removeStage } from "@/lib/pipeline/stages";
 import { scheduleStage, setStageOutcome } from "@/lib/pipeline/schedule";
 import { setNextAction, setNextActionSchema, completeNextAction } from "@/lib/pipeline/next-action";
-import { updateOpportunityDetails, updateOpportunityDetailsSchema, updateCompanyDetails, updateCompanyDetailsSchema } from "@/lib/pipeline/details";
+import { updateOpportunityDetails, updateOpportunityDetailsSchema, updateCompanyDetails, updateCompanyDetailsSchema, markOpportunityReviewed } from "@/lib/pipeline/details";
 import { addPersonToOpportunity, updateLinkedPerson, unlinkPerson, personInputSchema } from "@/lib/people";
 import { addNote, addNoteSchema } from "@/lib/pipeline/notes";
 import { opportunityIdSchema, stageIdSchema } from "@/lib/pipeline/action-schemas";
@@ -349,4 +349,14 @@ export async function addNoteAction(opportunityId: string, _prev: FormState, for
   if (!result.ok) return { ok: false, code: result.code, message: messageFor(result.code) };
   await revalidateJob(s, opportunityId);
   return { ok: true };
+}
+
+export async function markReviewedAction(opportunityId: string): Promise<Result<null, "not_found">> {
+  const user = await requireUser();
+  const parsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!parsed.success) return fail("not_found", messageFor("not_found"));
+  const s = scopedFor(user.id);
+  const result = await markOpportunityReviewed(s, opportunityId);
+  if (result.ok) await revalidateJob(s, opportunityId);
+  return result;
 }

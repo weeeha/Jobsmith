@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { EditDetailsDialog } from "@/components/job/edit-details-dialog";
+import { ReviewNotice } from "@/components/job/review-notice";
 import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
 import { closeAction, reopenAction } from "@/app/(app)/board/actions";
 import { actionFailureMessage } from "@/lib/board/messages";
-import { focusWasLost } from "@/lib/dom/focus";
+import { focusWasLost, correctFocusOnceLost } from "@/lib/dom/focus";
 import { CLOSED_REASON_LABELS } from "@/lib/pipeline/labels";
 import type { OpportunityStatus, ClosedReason, WorkMode } from "@/lib/pipeline/values";
 import { MoreVertical } from "lucide-react";
@@ -45,15 +46,17 @@ interface JobHeaderProps {
     myAsk: string | null;
   };
   companyName: string;
+  needsReview: boolean;
 }
 
-export function JobHeader({ opportunity, companyName }: JobHeaderProps) {
+export function JobHeader({ opportunity, companyName, needsReview }: JobHeaderProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [closeOpen, setCloseOpen] = React.useState(false);
   const [isReopenPending, startReopenTransition] = React.useTransition();
   const announce = useAnnounce();
   const jobActionsRef = React.useRef<HTMLButtonElement>(null);
   const prevStatusRef = React.useRef(opportunity.status);
+  const prevNeedsReviewRef = React.useRef(needsReview);
 
   // A successful Reopen removes both of its own triggers from the DOM: the
   // closed banner (and its "Reopen job" button) disappears, and the menu's
@@ -74,6 +77,24 @@ export function JobHeader({ opportunity, companyName }: JobHeaderProps) {
       jobActionsRef.current?.focus();
     }
   }, [opportunity.status]);
+
+  // Mark as checked (review-notice.tsx) and a saved Edit details change
+  // (updateOpportunityDetails clears needs_review on every successful
+  // save, lib/pipeline/details.ts) both remove this notice's own buttons -
+  // the Edit details path from inside a closing EditDetailsDialog, whose
+  // own exit animation queues Base UI's usual focus restoration behind it.
+  // correctFocusOnceLost (not a one-time focusWasLost() check, unlike the
+  // Reopen effect above) is what that race needs: the same one
+  // lib/dom/focus.ts's own doc comment describes for CloseDialog,
+  // confirmed there empirically. Recovers onto "Job actions", the one
+  // control in this header that exists regardless of needsReview.
+  React.useEffect(() => {
+    const justResolved = prevNeedsReviewRef.current && !needsReview;
+    prevNeedsReviewRef.current = needsReview;
+    if (justResolved) {
+      correctFocusOnceLost(() => jobActionsRef.current?.focus());
+    }
+  }, [needsReview]);
 
   function handleConfirmClose(reason: ClosedReason) {
     React.startTransition(async () => {
@@ -156,6 +177,10 @@ export function JobHeader({ opportunity, companyName }: JobHeaderProps) {
           </DropdownMenu>
         </div>
       </div>
+
+      {needsReview ? (
+        <ReviewNotice opportunityId={opportunity.id} onEditDetails={() => setEditOpen(true)} />
+      ) : null}
 
       {opportunity.status === "closed" && opportunity.closedReason && opportunity.closedAt ? (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted p-3 text-sm">

@@ -10,7 +10,7 @@ vi.mock("react", async (importOriginal) => {
 
 // Imported after the mock so submit.ts's own `import { startTransition }
 // from "react"` binds to the mock above, not the real implementation.
-const { submitViaTransition, UNREADABLE_INPUT_VALUE } = await import("@/lib/forms/submit");
+const { submitFormData, submitViaTransition, UNREADABLE_INPUT_VALUE } = await import("@/lib/forms/submit");
 
 function makeFormEvent(fields: Record<string, string>, extraInputs: HTMLInputElement[] = []) {
   const form = document.createElement("form");
@@ -124,5 +124,62 @@ describe("submitViaTransition", () => {
     const dispatch = vi.fn();
     submitViaTransition(event, dispatch);
     expect(sentFormData(dispatch).has("compMin")).toBe(false);
+  });
+});
+
+describe("submitFormData", () => {
+  beforeEach(() => {
+    startTransitionMock.mockClear();
+  });
+
+  it("sends the form's own fields plus every extra entry", () => {
+    const form = document.createElement("form");
+    const input = document.createElement("input");
+    input.name = "roleTitle";
+    input.value = "Designer";
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    const dispatch = vi.fn();
+    submitFormData(form, dispatch, { intent: "add_anyway" });
+    const formData = sentFormData(dispatch);
+    expect(formData.get("roleTitle")).toBe("Designer");
+    expect(formData.get("intent")).toBe("add_anyway");
+  });
+
+  it("still applies the unreadable stand-in when extra entries are given", () => {
+    const form = document.createElement("form");
+    form.appendChild(numberInput("compMin", { unreadable: true }));
+    document.body.appendChild(form);
+
+    const dispatch = vi.fn();
+    submitFormData(form, dispatch, { intent: "add_anyway" });
+    const formData = sentFormData(dispatch);
+    expect(formData.get("compMin")).toBe(UNREADABLE_INPUT_VALUE);
+    expect(formData.get("intent")).toBe("add_anyway");
+  });
+
+  it("sends no extra entries when none are given", () => {
+    const form = document.createElement("form");
+    const input = document.createElement("input");
+    input.name = "roleTitle";
+    input.value = "Designer";
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    const dispatch = vi.fn();
+    submitFormData(form, dispatch);
+    const formData = sentFormData(dispatch);
+    expect(formData.get("roleTitle")).toBe("Designer");
+    expect(formData.has("intent")).toBe(false);
+  });
+
+  it("runs the dispatch call inside a React transition", () => {
+    const form = document.createElement("form");
+    document.body.appendChild(form);
+    const dispatch = vi.fn();
+    submitFormData(form, dispatch);
+    expect(startTransitionMock).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 });

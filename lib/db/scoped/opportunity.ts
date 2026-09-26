@@ -107,6 +107,30 @@ export function opportunityQueries(db: Db, userId: string) {
         stage: { id: r.stageId, kind: r.stageKind as StageKind, label: r.stageLabel, enteredAt: r.stageEnteredAt },
       }));
     },
+    // Mirrors listBoard's own join (company through user_id, filtered to
+    // this user's active rows), but returns just what dedupe hashing needs:
+    // no stage join, since an active job's stage is irrelevant to matching.
+    async listActiveForDedupe(): Promise<
+      { id: string; slug: string; roleTitle: string; location: string | null; companyName: string; createdAt: Date }[]
+    > {
+      const rows = await db
+        .select({
+          id: schema.opportunity.id,
+          slug: schema.opportunity.slug,
+          roleTitle: schema.opportunity.roleTitle,
+          location: schema.opportunity.location,
+          companyName: schema.company.name,
+          createdAt: schema.opportunity.createdAt,
+        })
+        .from(schema.opportunity)
+        .innerJoin(
+          schema.company,
+          and(eq(schema.company.userId, userId), eq(schema.company.id, schema.opportunity.companyId)),
+        )
+        .where(and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.status, "active")))
+        .orderBy(desc(schema.opportunity.createdAt));
+      return rows;
+    },
     async listClosed(): Promise<ClosedCard[]> {
       const rows = await db
         .select({

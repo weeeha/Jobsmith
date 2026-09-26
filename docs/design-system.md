@@ -64,3 +64,7 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   copy-a-value pattern at all. Both are ordinary app code, fully subject to
   `pnpm check:tokens` (unlike `components/ui/` and `components/super-ai/`, which are excluded as
   vendored) and hand-maintained the same as any other file under `components/`.
+- `components/job/review-notice.tsx`: hand-written, not vendored. The registry has no "needs review"
+  or similar inline notice pattern to copy from; it reuses the exact
+  `rounded-lg border border-border bg-muted p-3 text-sm` shell `job-header.tsx`'s own closed-job
+  banner already uses, rather than inventing a second one.

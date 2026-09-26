@@ -1,0 +1,13 @@
+{
+  "data": {
+    "jobPosting": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "title": "Design Lead",
+      "descriptionHtml": "<p>Lead the design team.</p>",
+      "locationName": "Lisbon",
+      "organization": {
+        "name": "Northwind Traders"
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@ import type { Db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { scoped } from "@/lib/db/scoped";
 import { createOpportunity } from "@/lib/pipeline/create";
-import { updateOpportunityDetailsAction } from "@/app/(app)/jobs/[slug]/actions";
+import { updateOpportunityDetailsAction, markReviewedAction } from "@/app/(app)/jobs/[slug]/actions";
 import { UNREADABLE_INPUT_VALUE } from "@/lib/forms/submit";
 import { makeTestDb, createTestUser } from "../helpers/db";
 
@@ -16,12 +16,14 @@ import { makeTestDb, createTestUser } from "../helpers/db";
 // is pointed at a real PGlite database through the real scoped().
 const harness = vi.hoisted(() => ({ db: undefined as Db | undefined, userId: "" }));
 
+const revalidatePathMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/auth/session", () => ({
   requireUser: async () => ({ id: harness.userId }),
 }));
 
 vi.mock("next/cache", () => ({
-  revalidatePath: () => {},
+  revalidatePath: revalidatePathMock,
 }));
 
 vi.mock("@/lib/db/scoped", async (importOriginal) => {
@@ -84,6 +86,69 @@ describe("updateOpportunityDetailsAction pay figures", () => {
       const state = await updateOpportunityDetailsAction(id, undefined, detailsForm({ compMin: "", compMax: "150000" }));
       expect(state).toEqual({ ok: true });
       expect(await storedPay(db, id)).toEqual({ compMin: null, compMax: 150000 });
+    } finally {
+      await close();
+    }
+  });
+});
+
+async function jobNeedingReview(db: Db): Promise<{ id: string; slug: string }> {
+  harness.db = db;
+  harness.userId = (await createTestUser(db, "reviewer@example.com")).id;
+  const created = await createOpportunity(scoped(db, harness.userId), {
+    companyName: "Northwind Traders",
+    roleTitle: "Product Designer",
+    needsReview: true,
+  });
+  if (!created.ok) throw new Error(created.message);
+  return { id: created.data.id, slug: created.data.slug };
+}
+
+async function storedNeedsReview(db: Db, opportunityId: string): Promise<boolean | undefined> {
+  const [row] = await db
+    .select({ needsReview: schema.opportunity.needsReview })
+    .from(schema.opportunity)
+    .where(eq(schema.opportunity.id, opportunityId));
+  return row?.needsReview;
+}
+
+describe("markReviewedAction", () => {
+  it("clears needs_review and revalidates the board and the job page", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { id, slug } = await jobNeedingReview(db);
+      expect(await storedNeedsReview(db, id)).toBe(true);
+      revalidatePathMock.mockClear();
+
+      const result = await markReviewedAction(id);
+
+      expect(result).toEqual({ ok: true, data: null });
+      expect(await storedNeedsReview(db, id)).toBe(false);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/board");
+      expect(revalidatePathMock).toHaveBeenCalledWith(`/jobs/${slug}`);
+    } finally {
+      await close();
+    }
+  });
+
+  // Only the code is pinned here, not markOpportunityReviewed's own
+  // message text (lib/pipeline/messages.ts owns it) - asserting an
+  // exact string owned by another file would make this test fail
+  // for a reason that has nothing to do with markReviewedAction itself.
+  it("returns not_found for an id that does not exist, and revalidates nothing", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      harness.db = db;
+      harness.userId = (await createTestUser(db, "reviewer2@example.com")).id;
+      revalidatePathMock.mockClear();
+
+      const result = await markReviewedAction("00000000-0000-4000-8000-000000000099");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe("not_found");
+      }
+      expect(revalidatePathMock).not.toHaveBeenCalled();
     } finally {
       await close();
     }

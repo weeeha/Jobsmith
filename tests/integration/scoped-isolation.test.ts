@@ -89,6 +89,14 @@ const cases: Case[] = [
     },
   },
   {
+    name: "opportunity.listActiveForDedupe excludes A's rows for B",
+    run: async (a, b, ids) => {
+      void ids;
+      expect(await b.opportunity.listActiveForDedupe()).toEqual([]);
+      expect((await a.opportunity.listActiveForDedupe()).length).toBeGreaterThan(0);
+    },
+  },
+  {
     name: "opportunity.update cannot touch A's row from B",
     run: async (a, b, ids) => {
       expect(await b.opportunity.update(ids.opportunityId, { roleTitle: "Hacked" })).toBeNull();

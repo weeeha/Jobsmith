@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import { seedOpportunity } from "../helpers/opportunity-fixture";
-import { updateOpportunityDetails, updateCompanyDetails } from "@/lib/pipeline/details";
+import { updateOpportunityDetails, updateCompanyDetails, markOpportunityReviewed } from "@/lib/pipeline/details";
 import { expectOk, expectFail } from "../helpers/result";
+import { dedupeHash } from "@/lib/intake/dedupe";
 
 describe("updateOpportunityDetails", () => {
   it("updates the given fields and leaves others untouched", async () => {
@@ -104,6 +105,66 @@ describe("updateOpportunityDetails", () => {
       await close();
     }
   });
+
+  it("clears needsReview on a successful save", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "reviewclear@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { needsReview: true });
+      expectOk(await updateOpportunityDetails(s, id, { compNote: "Checked it over." }));
+      expect((await s.opportunity.getById(id))?.needsReview).toBe(false);
+    } finally {
+      await close();
+    }
+  });
+
+  it("recomputes dedupeHash when roleTitle changes", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "rehash1@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { location: "Rotterdam" });
+      expectOk(await updateOpportunityDetails(s, id, { roleTitle: "Staff Product Designer" }));
+      const opportunity = await s.opportunity.getById(id);
+      expect(opportunity?.dedupeHash).toBe(
+        dedupeHash({ companyName: "Acme Robotics", roleTitle: "Staff Product Designer", location: "Rotterdam" }),
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it("recomputes dedupeHash when location changes", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "rehash2@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { location: "Rotterdam" });
+      expectOk(await updateOpportunityDetails(s, id, { location: "Berlin" }));
+      const opportunity = await s.opportunity.getById(id);
+      expect(opportunity?.dedupeHash).toBe(
+        dedupeHash({ companyName: "Acme Robotics", roleTitle: "Product Designer", location: "Berlin" }),
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it("leaves dedupeHash unchanged when the save touches neither roleTitle nor location", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "rehash3@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { location: "Rotterdam" });
+      const before = await s.opportunity.getById(id);
+      expectOk(await updateOpportunityDetails(s, id, { compMin: 100000 }));
+      const after = await s.opportunity.getById(id);
+      expect(after?.dedupeHash).toBe(before?.dedupeHash);
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe("updateCompanyDetails", () => {
@@ -166,6 +227,36 @@ describe("updateCompanyDetails", () => {
       const company = await s.company.getById(opportunity!.companyId);
       expect(company?.careersUrl).toBeNull();
       expect(company?.hq).toBeNull();
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("markOpportunityReviewed", () => {
+  it("clears needsReview and returns ok", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "markreviewed1@example.com");
+      const s = scoped(db, user.id);
+      const { id } = await seedOpportunity(s, { needsReview: true });
+      expectOk(await markOpportunityReviewed(s, id));
+      expect((await s.opportunity.getById(id))?.needsReview).toBe(false);
+    } finally {
+      await close();
+    }
+  });
+
+  it("returns not_found for a nonexistent or wrong-tenant id", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const alice = await createTestUser(db, "markreviewed-alice@example.com");
+      const bob = await createTestUser(db, "markreviewed-bob@example.com");
+      const a = scoped(db, alice.id);
+      const b = scoped(db, bob.id);
+      const { id } = await seedOpportunity(a);
+      expectFail(await markOpportunityReviewed(b, id), "not_found");
+      expectFail(await markOpportunityReviewed(a, "00000000-0000-4000-8000-000000000099"), "not_found");
     } finally {
       await close();
     }

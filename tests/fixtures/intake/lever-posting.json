@@ -1,0 +1,26 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "text": "Product Designer",
+  "hostedUrl": "https://jobs.lever.co/northwind-traders/00000000-0000-4000-8000-000000000001",
+  "categories": {
+    "commitment": "Full-time",
+    "department": "Design",
+    "location": "Remote, Europe",
+    "team": "Product"
+  },
+  "description": "<div><b>Northwind Traders</b> builds tools for warehouse teams.</div>",
+  "descriptionPlain": "Northwind Traders builds tools for warehouse teams.",
+  "lists": [
+    {
+      "text": "What you will do",
+      "content": "<li>Run discovery.</li><li>Ship weekly.</li>"
+    },
+    {
+      "text": "What you bring",
+      "content": "<li>A portfolio.</li>"
+    }
+  ],
+  "additional": "<div>We answer every application.</div>",
+  "workplaceType": "remote",
+  "createdAt": 1767225600000
+}

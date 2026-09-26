@@ -1,17 +1,29 @@
 import { z } from "zod";
 import { WORK_MODES, OPPORTUNITY_SOURCES } from "@/lib/pipeline/values";
+import { MAX_POSTING_CHARS } from "@/lib/intake/values";
 
 // Postgres's `integer` columns (comp_min, comp_max, lib/db/schema/pipeline.ts)
 // top out at 2,147,483,647 - well inside a JS safe integer, so without this
 // bound a bigger figure passed Zod and then made Postgres itself throw at
 // insert time, turning an ordinary bad input into an unhandled error instead
 // of a returned `invalid` result.
-const MAX_COMP = 2_147_483_647;
-const compFigureSchema = z
+export const MAX_COMP = 2_147_483_647;
+export const compFigureSchema = z
   .number({ error: "Enter a number." })
   .int("Enter a whole number.")
   .nonnegative("Enter a number that is zero or more.")
   .max(MAX_COMP, `Enter a number no greater than ${MAX_COMP.toLocaleString("en-US")}.`);
+
+// Shared by every schema that collects a pay range, so the comparison and
+// its message stay identical wherever a pay range is entered.
+export function payInOrder(v: { compMin?: number; compMax?: number }): boolean {
+  return v.compMin === undefined || v.compMax === undefined || v.compMin <= v.compMax;
+}
+
+export const PAY_ORDER_ISSUE = {
+  message: "Pay to must be at least pay from.",
+  path: ["compMax"],
+};
 
 export const createOpportunitySchema = z
   .object({
@@ -20,7 +32,7 @@ export const createOpportunitySchema = z
     location: z.string().trim().min(1, "Enter a location.").optional(),
     workMode: z.enum(WORK_MODES, { error: "Choose a work mode." }).optional(),
     sourceUrl: z.url({ protocol: /^https?$/, error: "Enter a link that starts with http or https." }).optional(),
-    postingText: z.string().optional(),
+    postingText: z.string().max(MAX_POSTING_CHARS, "Keep the posting text under 100,000 characters.").optional(),
     compMin: compFigureSchema.optional(),
     compMax: compFigureSchema.optional(),
     compCurrency: z.string().trim().min(1, "Enter a currency.").optional(),
@@ -28,7 +40,4 @@ export const createOpportunitySchema = z
     myAsk: z.string().optional(),
     source: z.enum(OPPORTUNITY_SOURCES).optional(),
   })
-  .refine((v) => v.compMin === undefined || v.compMax === undefined || v.compMin <= v.compMax, {
-    message: "Pay to must be at least pay from.",
-    path: ["compMax"],
-  });
+  .refine(payInOrder, PAY_ORDER_ISSUE);

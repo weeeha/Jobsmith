@@ -5,7 +5,10 @@ import { companyNameKey } from "@/lib/companies/name-key";
 import { baseSlug, uniqueSlug } from "@/lib/pipeline/slug";
 import { defaultStages } from "@/lib/pipeline/rules";
 import { createOpportunitySchema } from "@/lib/pipeline/create-schema";
+import { dedupeHash } from "@/lib/intake/dedupe";
+import { findActiveDuplicate } from "@/lib/pipeline/duplicates";
 import type { WorkMode, OpportunitySource } from "@/lib/pipeline/values";
+import type { AtsVendor } from "@/lib/intake/values";
 
 export type CreateOpportunityInput = {
   companyName: string;
@@ -20,6 +23,8 @@ export type CreateOpportunityInput = {
   compNote?: string;
   myAsk?: string;
   source?: OpportunitySource;
+  needsReview?: boolean;
+  ats?: { kind: AtsVendor; org: string };
 };
 
 // The slug handed to insert() below is allocated from a pre-commit read
@@ -43,6 +48,7 @@ export async function createOpportunity(
   s: Scoped,
   input: CreateOpportunityInput,
   now?: Date,
+  options?: { allowDuplicate?: boolean },
 ): Promise<Result<{ id: string; slug: string }, "invalid" | "duplicate">> {
   const parsed = createOpportunitySchema.safeParse(input);
   if (!parsed.success) {
@@ -51,16 +57,32 @@ export async function createOpportunity(
 
   const resolvedNow = now ?? new Date();
   const key = companyNameKey(input.companyName);
+  const hash = dedupeHash({ companyName: input.companyName, roleTitle: input.roleTitle, location: input.location });
 
   return s.transaction(async (tx) => {
     let company = await tx.company.findByNameKey(key);
     if (!company) {
-      company = await tx.company.insert({ name: input.companyName.trim(), nameKey: key, tracked: false });
+      company = await tx.company.insert({
+        name: input.companyName.trim(),
+        nameKey: key,
+        tracked: false,
+        ...(input.ats ? { atsKind: input.ats.kind, atsOrg: input.ats.org } : {}),
+      });
+    } else if (input.ats && !company.atsKind) {
+      // An ATS link tags the company only when it does not already
+      // carry one - an earlier ATS or a manual edit is never overwritten.
+      company = (await tx.company.update(company.id, { atsKind: input.ats.kind, atsOrg: input.ats.org })) ?? company;
     }
 
-    const existing = await tx.opportunity.findByCompanyAndRole(company.id, input.roleTitle.trim());
-    if (existing && existing.status === "active") {
-      return fail("duplicate", "You already have an active job for this company and role.");
+    if (!options?.allowDuplicate) {
+      const duplicate = await findActiveDuplicate(tx, {
+        companyName: input.companyName,
+        roleTitle: input.roleTitle,
+        location: input.location,
+      });
+      if (duplicate) {
+        return fail("duplicate", "You already have an active job for this company and role.");
+      }
     }
 
     const base = baseSlug(company.name, input.roleTitle.trim());
@@ -84,6 +106,8 @@ export async function createOpportunity(
         compCurrency: input.compCurrency?.trim(),
         compNote: input.compNote,
         myAsk: input.myAsk,
+        needsReview: input.needsReview ?? false,
+        dedupeHash: hash,
         currentStageId: null,
       });
     } catch (err) {

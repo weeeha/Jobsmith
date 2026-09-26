@@ -164,3 +164,26 @@ describe("env", () => {
     expect(env()).toBe(env());
   });
 });
+
+describe("parseEnv: AI", () => {
+  it("is null when AI_PROVIDER is unset", () => {
+    const env = parseEnv(validSource);
+    expect(env.AI).toBeNull();
+  });
+
+  it("parses AI_PROVIDER=fake into the fake config", () => {
+    const env = parseEnv({ ...validSource, AI_PROVIDER: "fake" });
+    expect(env.AI).toEqual({ provider: "fake", model: "fake-extractor" });
+  });
+
+  it("adds an invalid AI variable name to the same EnvError list as missing core variables", () => {
+    expect.assertions(1);
+    try {
+      parseEnv({ AI_PROVIDER: "openai" });
+    } catch (error) {
+      expect((error as EnvError).message).toBe(
+        "Invalid environment variables: DATABASE_URL, BETTER_AUTH_SECRET, APP_URL, AI_PROVIDER",
+      );
+    }
+  });
+});
