@@ -38,6 +38,23 @@ const components: Options["components"] = {
   h4: heading("h4"),
   h5: heading("h5"),
   h6: heading("h6"),
+  // Tailwind's preflight zeroes every element's margin and strips ul/ol's
+  // list-style, so a plain-text posting's blank lines and bullets went flat
+  // the moment it started rendering through here instead of a bare div -
+  // these three mirror the equivalent .ai-response rules (app/globals.css)
+  // so the two renderers read the same way.
+  p: ({ node: _node, ...props }) => {
+    void _node;
+    return <p className="mb-3 last:mb-0" {...props} />;
+  },
+  ul: ({ node: _node, ...props }) => {
+    void _node;
+    return <ul className="my-2 flex list-disc flex-col gap-1.5 ps-5" {...props} />;
+  },
+  ol: ({ node: _node, ...props }) => {
+    void _node;
+    return <ol className="my-2 flex list-decimal flex-col gap-1.5 ps-5" {...props} />;
+  },
   // tabIndex={0}: a table wider than its container needs a keyboard-focusable
   // scroll region, or a keyboard user has no way to reach the columns a
   // mouse user can scroll to (the same reasoning as the paste dialog's and

@@ -87,4 +87,24 @@ describe("Markdown", () => {
     expect(html("# X", 3)).toMatch(/<h3[^>]*>X<\/h3>/);
     expect(html("# X", 4)).toMatch(/<h4[^>]*>X<\/h4>/);
   });
+
+  it("gives a bulleted list its marker back after Tailwind's preflight removes it", () => {
+    const out = html("- one\n- two");
+    expect(out).toMatch(/<ul class="[^"]*list-disc[^"]*">/);
+  });
+
+  it("gives a numbered list its marker back after Tailwind's preflight removes it", () => {
+    const out = html("1. one\n2. two");
+    expect(out).toMatch(/<ol class="[^"]*list-decimal[^"]*">/);
+  });
+
+  it("gives paragraphs a bottom margin so a blank line between them still reads as a gap", () => {
+    const out = html("First paragraph.\n\nSecond paragraph.");
+    expect(out).toMatch(/<p class="[^"]*mb-3[^"]*">First paragraph\.<\/p>/);
+  });
+
+  it("still renders a checked task-list item's own class exactly, unaffected by the new list styling", () => {
+    const out = html("- [x] done task");
+    expect(out).toContain('<li class="task-list-item">');
+  });
 });
