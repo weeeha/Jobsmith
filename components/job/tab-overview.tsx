@@ -1,5 +1,6 @@
 import { DetailFields, type DetailField } from "@/components/super-ai/detail-fields";
 import { EditCompanyDialogTrigger } from "@/components/job/edit-company-dialog";
+import { Markdown } from "@/components/markdown";
 import { LocalTime } from "@/components/local-time";
 import type { CompanyRow } from "@/lib/db/scoped";
 
@@ -76,11 +77,14 @@ export function TabOverview({
                 Captured <LocalTime value={opportunity.postingCapturedAt} mode="date" />.
               </p>
             ) : null}
-            {/* Plain text, line breaks kept, no markdown rendering until
-                Milestone 3. break-words: an unbroken long string (e.g. a
-                pasted URL with no spaces) has no other wrap point and
-                would otherwise force page-level horizontal overflow. */}
-            <div className="whitespace-pre-wrap break-words text-sm text-foreground">{opportunity.postingMd}</div>
+            {/* Sanitized markdown: a posting saved before links
+                were read was plain text and may run its lines
+                together, since Markdown does not invent paragraph breaks a
+                plain-text posting never had. headingBase={3}: this
+                section's own heading is an h2 ("Posting"), so a posting's
+                own # Title starts one level below it, never colliding with
+                it. */}
+            <Markdown source={opportunity.postingMd} headingBase={3} />
           </>
         ) : (
           <p className="text-sm text-muted-foreground">No posting text saved.</p>

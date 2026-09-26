@@ -47,7 +47,7 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <JobHeader opportunity={view.opportunity} companyName={view.company.name} />
+      <JobHeader opportunity={view.opportunity} companyName={view.company.name} needsReview={view.opportunity.needsReview} />
       <StageStepper
         opportunity={view.opportunity}
         companyName={view.company.name}
