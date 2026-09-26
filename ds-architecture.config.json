@@ -1,0 +1,19 @@
+{
+  "profile": "component-library",
+  "adoption": "retrofit",
+  "scopeRoles": {
+    "components": ["components/**"],
+    "styles": ["app/globals.css"],
+    "app": ["app/**"]
+  },
+  "paths": {
+    "nameContract": "lib/tokens.ts",
+    "styleEntry": ["app/globals.css"]
+  },
+  "axes": [{ "attribute": "data-theme", "values": ["dark"] }],
+  "commands": {
+    "test": "npm test && npm run check:tokens",
+    "lint": "npm run lint",
+    "typecheck": "npm run typecheck"
+  }
+}
