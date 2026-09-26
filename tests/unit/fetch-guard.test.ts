@@ -279,13 +279,14 @@ describe("guardedFetch", () => {
     it("destroys a redirect hop's own connection right away rather than draining it until the timeout", async () => {
       redirectDripClosedAt = null;
       const started = Date.now();
-      const result = await guardedFetch(`${base}/redirect-drip`, { accept: "html", timeoutMs: 500, ...t });
+      const result = await guardedFetch(`${base}/redirect-drip`, { accept: "html", timeoutMs: 3_000, ...t });
       expect(code(result)).toBe("ok:html:1");
       expect(redirectDripClosedAt).not.toBeNull();
       // A drained (resume()d) connection stays open until the fetch's own
       // abort signal fires at timeoutMs; a destroyed one closes within a
-      // handful of milliseconds of the redirect being read.
-      expect(redirectDripClosedAt! - started).toBeLessThan(200);
+      // handful of milliseconds of the redirect being read. The wide gap
+      // between the two keeps this check reliable on a slow, busy machine.
+      expect(redirectDripClosedAt! - started).toBeLessThan(1_500);
     });
 
     it("blocks a name that resolves to one private answer among several", async () => {
