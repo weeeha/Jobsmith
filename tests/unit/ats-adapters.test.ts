@@ -1,10 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mapGreenhouse } from "@/lib/intake/ats/greenhouse";
 import { mapLever } from "@/lib/intake/ats/lever";
 import { mapAshby } from "@/lib/intake/ats/ashby";
 import { matchAtsUrl, atsApiRequest } from "@/lib/intake/ats/match";
 import { fetchAtsPosting } from "@/lib/intake/ats";
 import { readFixture, fakeGuardedFetch } from "../helpers/intake";
+import { MAX_POSTING_CHARS } from "@/lib/intake/values";
+
+// mapGreenhouse is wrapped in a real vi.fn() (default behavior: the actual
+// mapper), so the describe("mapGreenhouse", ...) tests below still exercise
+// the real mapping logic; only the one test that forces a throw overrides it,
+// and mockImplementationOnce reverts to the real mapper right after.
+vi.mock("@/lib/intake/ats/greenhouse", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/intake/ats/greenhouse")>();
+  return { ...actual, mapGreenhouse: vi.fn(actual.mapGreenhouse) };
+});
 
 const U = "00000000-0000-4000-8000-000000000001";
 
@@ -137,6 +147,36 @@ describe("fetchAtsPosting", () => {
     const ref = matchAtsUrl(json.absolute_url)!;
     const request = atsApiRequest(ref);
     const fetch = fakeGuardedFetch({ [request.url]: { contentType: "json", body: JSON.stringify({ ...json, title: " " }) } });
+
+    const result = await fetchAtsPosting(ref, fetch);
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.code).toBe("unreadable");
+  });
+
+  it("cuts an oversized vendor body to MAX_POSTING_CHARS", async () => {
+    const json = JSON.parse(readFixture("greenhouse-job.json"));
+    const ref = matchAtsUrl(json.absolute_url)!;
+    const request = atsApiRequest(ref);
+    const hugeContent = `<p>${"word ".repeat(50_000)}</p>`;
+    const fetch = fakeGuardedFetch({
+      [request.url]: { contentType: "json", body: JSON.stringify({ ...json, content: hugeContent }) },
+    });
+
+    const result = await fetchAtsPosting(ref, fetch);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data.bodyMd.length).toBeLessThanOrEqual(MAX_POSTING_CHARS);
+  });
+
+  it("gives unreadable, not a thrown error, when the vendor mapper throws", async () => {
+    const json = JSON.parse(readFixture("greenhouse-job.json"));
+    const ref = matchAtsUrl(json.absolute_url)!;
+    const request = atsApiRequest(ref);
+    const fetch = fakeGuardedFetch({ [request.url]: { contentType: "json", body: JSON.stringify(json) } });
+    vi.mocked(mapGreenhouse).mockImplementationOnce(() => {
+      throw new RangeError("Maximum call stack size exceeded");
+    });
 
     const result = await fetchAtsPosting(ref, fetch);
 

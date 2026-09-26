@@ -1,6 +1,7 @@
 import type { Result } from "@/lib/result";
 import { ok, fail } from "@/lib/result";
 import type { GuardedFetch, FetchFailure } from "@/lib/intake/fetch-guard";
+import { MAX_POSTING_CHARS } from "@/lib/intake/values";
 import { atsApiRequest, type AtsRef, type AtsPosting } from "./match";
 import { mapGreenhouse } from "./greenhouse";
 import { mapLever } from "./lever";
@@ -22,8 +23,18 @@ export async function fetchAtsPosting(
     return fail("unreadable", "unreadable");
   }
 
-  const posting =
-    ref.kind === "greenhouse" ? mapGreenhouse(ref, json) : ref.kind === "lever" ? mapLever(ref, json) : mapAshby(ref, json);
+  let posting: AtsPosting | null;
+  try {
+    posting =
+      ref.kind === "greenhouse" ? mapGreenhouse(ref, json) : ref.kind === "lever" ? mapLever(ref, json) : mapAshby(ref, json);
+  } catch {
+    // A vendor body deep enough to overflow turndown's own recursion reads
+    // the same as any other posting this mapper cannot make sense of.
+    return fail("unreadable", "unreadable");
+  }
   if (!posting) return fail("unreadable", "unreadable");
-  return ok(posting);
+  // The vendor's own body has no length limit on its side; cut it here the
+  // same way readablePage cuts a fetched page's body, so it never trips
+  // createOpportunity's own posting-length check downstream.
+  return ok({ ...posting, bodyMd: posting.bodyMd.slice(0, MAX_POSTING_CHARS) });
 }

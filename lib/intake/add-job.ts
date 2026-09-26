@@ -145,6 +145,15 @@ export async function addJob(s: Scoped, userId: string, form: AddJobForm, deps: 
   );
 
   if (!created.ok) {
+    if (created.code === "invalid") {
+      // The merged values passed every check addJob runs itself (typed and
+      // resolved fields both present, no duplicate) but still failed
+      // createOpportunity's own schema, for example an empty location
+      // carried through from a draft - the user needs that real reason
+      // rather than a false "you already have this job".
+      record("invalid", resolved, fetchFailure, linkOnly);
+      return { kind: "invalid", fieldErrors: {}, message: created.message };
+    }
     // A slug race: addJob's own findActiveDuplicate check above already
     // passed, so createOpportunity's own duplicate rejection here can only
     // mean a concurrent insert landed between the two - there is no

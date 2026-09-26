@@ -1,12 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import { addJob } from "@/lib/intake/add-job";
 import { encodeDraft } from "@/lib/intake/form";
+import { readablePage } from "@/lib/intake/readable";
 import { fakeGuardedFetch, readFixture } from "../helpers/intake";
 import { createFakeDriver } from "@/lib/ai/fake";
 import { matchAtsUrl, atsApiRequest } from "@/lib/intake/ats/match";
 import type { AddJobDeps } from "@/lib/intake/deps";
+import { MAX_POSTING_CHARS } from "@/lib/intake/values";
+import type { ResolvedPosting } from "@/lib/intake/resolve";
+
+// readablePage is wrapped in a real vi.fn() (default behavior: the actual
+// reader), so every other test below still reads a real page; only the one
+// throw test overrides it, and mockImplementationOnce reverts to the real
+// reader right after.
+vi.mock("@/lib/intake/readable", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/intake/readable")>();
+  return { ...actual, readablePage: vi.fn(actual.readablePage) };
+});
 
 const NOW = new Date("2026-09-19T12:00:00.000Z");
 
@@ -152,6 +164,36 @@ describe("addJob", () => {
     }
   });
 
+  it("a link whose reader throws, with typed company and role, saves the link only", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "readerthrows@example.com");
+      const s = scoped(db, user.id);
+      const html = readFixture("job-page-no-jsonld.html");
+      const url = "https://example.org/careers/reader-throws";
+      const fetch = fakeGuardedFetch({ [url]: { contentType: "html", body: html } });
+      vi.mocked(readablePage).mockImplementationOnce(() => {
+        throw new RangeError("Maximum call stack size exceeded");
+      });
+
+      const result = await addJob(
+        s,
+        user.id,
+        { sourceUrl: url, companyName: "Northwind Traders", roleTitle: "Product Designer" },
+        deps({ fetch }),
+      );
+
+      expect(result.kind).toBe("added");
+      if (result.kind !== "added") throw new Error("expected added");
+      expect(result.note).toBe("link_only");
+      const opportunity = await s.opportunity.getById(result.id);
+      expect(opportunity).toMatchObject({ source: "manual", sourceUrl: url });
+      expect(opportunity?.postingMd).toBeNull();
+    } finally {
+      await close();
+    }
+  });
+
   it("a link that fails to read, with no typed company or role, gives needs_text and creates nothing", async () => {
     const { db, close } = await makeTestDb();
     try {
@@ -205,6 +247,64 @@ describe("addJob", () => {
       expect(result.kind).toBe("added");
       if (result.kind !== "added") throw new Error("expected added");
       expect((await s.opportunity.getById(result.id))?.roleTitle).toBe("Product Designer");
+    } finally {
+      await close();
+    }
+  });
+
+  it("an oversized Greenhouse posting still becomes a job, its stored posting cut to MAX_POSTING_CHARS", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "ghbig@example.com");
+      const s = scoped(db, user.id);
+      const base = JSON.parse(readFixture("greenhouse-job.json")) as { absolute_url: string };
+      const hugeContent = `<p>${"word ".repeat(50_000)}</p>`;
+      const ghUrl = base.absolute_url;
+      const request = atsApiRequest(matchAtsUrl(ghUrl)!);
+      const fetch = fakeGuardedFetch({
+        [request.url]: { contentType: "json", body: JSON.stringify({ ...base, content: hugeContent }) },
+      });
+
+      const result = await addJob(s, user.id, { sourceUrl: ghUrl }, deps({ fetch }));
+
+      expect(result.kind).toBe("added");
+      if (result.kind !== "added") throw new Error("expected added");
+      const opportunity = await s.opportunity.getById(result.id);
+      expect(opportunity?.postingMd?.length).toBeLessThanOrEqual(MAX_POSTING_CHARS);
+    } finally {
+      await close();
+    }
+  });
+
+  it("a createOpportunity invalid result (a draft whose empty location passes decode but fails create) surfaces as invalid, never duplicate", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "badcreate@example.com");
+      const s = scoped(db, user.id);
+      const posting: ResolvedPosting = {
+        source: "text",
+        via: "text",
+        sourceUrl: null,
+        bodyMd: "Some role details.",
+        fields: {
+          companyName: "Northwind Traders",
+          roleTitle: "Product Designer",
+          location: "",
+          workMode: null,
+          compMin: null,
+          compMax: null,
+          compCurrency: null,
+        },
+        extraction: "ai",
+        needsReview: false,
+        ats: null,
+      };
+      const draft = encodeDraft(posting);
+
+      const result = await addJob(s, user.id, { draft }, deps({}));
+
+      expect(result).toEqual({ kind: "invalid", fieldErrors: {}, message: "Enter a location." });
+      expect(await s.opportunity.listBoard()).toEqual([]);
     } finally {
       await close();
     }

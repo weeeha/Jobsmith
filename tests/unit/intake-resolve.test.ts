@@ -1,9 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolvePosting, needsTextReasonFor } from "@/lib/intake/resolve";
+import { readablePage } from "@/lib/intake/readable";
 import { fakeGuardedFetch, readFixture } from "../helpers/intake";
 import { createFakeDriver } from "@/lib/ai/fake";
 import { matchAtsUrl, atsApiRequest } from "@/lib/intake/ats/match";
 import type { FetchFailure } from "@/lib/intake/fetch-guard";
+
+// readablePage is wrapped in a real vi.fn() (default behavior: the actual
+// reader), so every other test below still reads a real page; only the
+// throw tests override it, and mockImplementationOnce reverts to the real
+// reader right after.
+vi.mock("@/lib/intake/readable", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/intake/readable")>();
+  return { ...actual, readablePage: vi.fn(actual.readablePage) };
+});
 
 describe("needsTextReasonFor", () => {
   const cases: Array<[FetchFailure | "unreadable", string]> = [
@@ -185,6 +195,39 @@ describe("resolvePosting", () => {
     if (outcome.kind !== "resolved") throw new Error("expected resolved");
     expect(outcome.posting.extraction).toBe("ai_failed");
     expect(outcome.posting.needsReview).toBe(true);
+  });
+
+  it("a page reader that throws gives needs_text reason unreadable for a link alone", async () => {
+    const html = readFixture("job-page-no-jsonld.html");
+    const url = "https://example.org/careers/reader-throws";
+    const fetch = fakeGuardedFetch({ [url]: { contentType: "html", body: html } });
+    vi.mocked(readablePage).mockImplementationOnce(() => {
+      throw new RangeError("Maximum call stack size exceeded");
+    });
+
+    const outcome = await resolvePosting({ url, userId: "u1" }, { fetch, ai: null });
+
+    expect(outcome).toEqual({ kind: "needs_text", reason: "unreadable", fetchFailure: null });
+  });
+
+  it("a page reader that throws, with text given, continues on the text path instead", async () => {
+    const html = readFixture("job-page-no-jsonld.html");
+    const url = "https://example.org/careers/reader-throws-with-text";
+    const fetch = fakeGuardedFetch({ [url]: { contentType: "html", body: html } });
+    const driver = createFakeDriver();
+    vi.mocked(readablePage).mockImplementationOnce(() => {
+      throw new RangeError("Maximum call stack size exceeded");
+    });
+
+    const outcome = await resolvePosting(
+      { url, text: "Company: Northwind Traders\nRole: Designer", userId: "u1" },
+      { fetch, ai: driver },
+    );
+
+    expect(outcome.kind).toBe("resolved");
+    if (outcome.kind !== "resolved") throw new Error("expected resolved");
+    expect(outcome.posting.source).toBe("text");
+    expect(outcome.posting.sourceUrl).toBe(url);
   });
 
   it("pasted text whose model result stays incomplete gives ai_incomplete and needsReview true", async () => {

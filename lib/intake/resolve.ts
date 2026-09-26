@@ -1,6 +1,6 @@
 import { matchAtsUrl } from "./ats/match";
 import { fetchAtsPosting } from "./ats";
-import { readablePage } from "./readable";
+import { readablePage, type ReadablePage } from "./readable";
 import {
   isLoginWalled,
   needsReviewFor,
@@ -134,7 +134,16 @@ export async function resolvePosting(
   if (!pageResult.ok) {
     return { kind: "needs_text", reason: needsTextReasonFor(pageResult.code), fetchFailure: pageResult.code };
   }
-  const page = readablePage(pageResult.data.body);
+  // Deep enough nesting in the fetched page can overflow the stack inside
+  // linkedom or turndown; by this point `text` is never set (the branch
+  // above already returned through it when it was), so there is nothing to
+  // fall back to except asking for the pasted text.
+  let page: ReadablePage;
+  try {
+    page = readablePage(pageResult.data.body);
+  } catch {
+    return { kind: "needs_text", reason: "unreadable", fetchFailure: null };
+  }
   const jsonLdHasCompanyAndRole = Boolean(page.jsonLd?.companyName && page.jsonLd?.roleTitle);
   if (jsonLdHasCompanyAndRole && page.textLength >= MIN_POSTING_TEXT) {
     const posting: ResolvedPosting = {
