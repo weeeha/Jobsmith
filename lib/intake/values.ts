@@ -4,6 +4,10 @@ export const MIN_POSTING_TEXT = 600;
 export const MAX_POSTING_CHARS = 100_000;
 export const MAX_ARTICLE_HTML = 300_000;
 export const MAX_LINK_CHARS = 2_048;
+// The AI sanitizer already clips company, role and location to this length
+// (lib/ai/extract-posting.ts's own clip()); the intake draft schema bounds
+// its own copies of those fields, and an ATS org slug, to the same length.
+export const MAX_FIELD_CHARS = 200;
 
 export const NEEDS_TEXT_REASONS = [
   "login_required",

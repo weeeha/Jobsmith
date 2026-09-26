@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { WORK_MODES, STAGE_KIND_VALUES } from "@/lib/pipeline/values";
 import { compFigureSchema, payInOrder, PAY_ORDER_ISSUE } from "@/lib/pipeline/create-schema";
-import { MAX_LINK_CHARS, MAX_POSTING_CHARS, VIAS, EXTRACTIONS } from "./values";
+import { MAX_LINK_CHARS, MAX_POSTING_CHARS, MAX_FIELD_CHARS, VIAS, EXTRACTIONS } from "./values";
 import type { ResolvedPosting } from "./resolve";
 
 export const addJobFormSchema = z
@@ -66,17 +66,17 @@ export const intakeDraftSchema = z.object({
     .nullable(),
   bodyMd: z.string().max(MAX_POSTING_CHARS),
   fields: z.object({
-    companyName: z.string().nullable(),
-    roleTitle: z.string().nullable(),
-    location: z.string().nullable(),
+    companyName: z.string().max(MAX_FIELD_CHARS).nullable(),
+    roleTitle: z.string().max(MAX_FIELD_CHARS).nullable(),
+    location: z.string().max(MAX_FIELD_CHARS).nullable(),
     workMode: z.enum(WORK_MODES).nullable(),
-    compMin: z.number().nullable(),
-    compMax: z.number().nullable(),
-    compCurrency: z.string().nullable(),
+    compMin: compFigureSchema.nullable(),
+    compMax: compFigureSchema.nullable(),
+    compCurrency: z.string().max(MAX_FIELD_CHARS).nullable(),
   }),
   extraction: z.enum(EXTRACTIONS),
   needsReview: z.boolean(),
-  ats: z.object({ kind: z.enum(["greenhouse", "ashby", "lever"]), org: z.string() }).nullable(),
+  ats: z.object({ kind: z.enum(["greenhouse", "ashby", "lever"]), org: z.string().max(MAX_FIELD_CHARS) }).nullable(),
 });
 export type IntakeDraft = z.infer<typeof intakeDraftSchema>;
 

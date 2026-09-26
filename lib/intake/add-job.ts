@@ -19,7 +19,9 @@ export type AddJobResult =
 // Typed values win; resolved values fill blanks, field by field. Pay is
 // one unit - the moment either Pay from or Pay to was typed, the typed pair
 // (and typed currency) is used as a whole, never mixed with the resolved
-// pair's other half.
+// pair's other half. A typed currency with no typed pay figure is not part
+// of that unit: it fills the currency blank on its own, same as company,
+// role, or any other single field.
 export function mergeFields(typed: Partial<PostingFields>, resolved: PostingFields): PostingFields {
   const payTyped = typed.compMin !== undefined || typed.compMax !== undefined;
   return {
@@ -29,7 +31,7 @@ export function mergeFields(typed: Partial<PostingFields>, resolved: PostingFiel
     workMode: typed.workMode ?? resolved.workMode,
     compMin: payTyped ? (typed.compMin ?? null) : resolved.compMin,
     compMax: payTyped ? (typed.compMax ?? null) : resolved.compMax,
-    compCurrency: payTyped ? (typed.compCurrency ?? null) : resolved.compCurrency,
+    compCurrency: payTyped ? (typed.compCurrency ?? null) : (typed.compCurrency ?? resolved.compCurrency),
   };
 }
 

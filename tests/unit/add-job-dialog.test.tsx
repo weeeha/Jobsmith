@@ -117,6 +117,53 @@ describe("AddJobDialog", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Role"));
   });
 
+  it("needs_details: focuses Role, not Company, when only Role is missing even though the Company field was left blank", async () => {
+    // The posting resolved a company (from the link or the model) even
+    // though the user never typed one into the Company box, so fieldErrors
+    // has no companyName entry - only fieldErrors decides focus, never
+    // whether the box itself happens to be empty.
+    mockedAction.mockResolvedValue({
+      ok: false,
+      code: "needs_details",
+      message: "Jobsmith could not read the company and role from the posting. Add them to save the job.",
+      fieldErrors: { roleTitle: "Enter a role." },
+    });
+    await renderDialog();
+    await fillAndSubmit({ "Link to the posting": "https://example.com/jobs/1" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Role"));
+  });
+
+  it("a dropped draft is echoed again once a fresh response carries the same draft string", async () => {
+    const state = {
+      ok: false as const,
+      code: "needs_details" as const,
+      message: "Jobsmith could not read the company and role from the posting. Add them to save the job.",
+      fieldErrors: { companyName: "Enter a company name." },
+      draft: '{"v":1,"bodyMd":"About the job"}',
+    };
+    mockedAction.mockResolvedValueOnce({ ...state });
+    const { dialog } = await renderDialog();
+    await fillAndSubmit({ "Posting text": "About the job" });
+    expect(dialog.querySelector('input[name="draft"]')).not.toBeNull();
+
+    // Editing Posting text drops the draft locally, same as the test above.
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Posting text"), { target: { value: "About the job, again" } });
+    });
+    expect(dialog.querySelector('input[name="draft"]')).toBeNull();
+
+    // Resubmitting gets back a genuinely new response object (a fresh
+    // reference, the way a real server action result always is) carrying
+    // the SAME draft string. droppedDraft must not still remember it as
+    // dropped, or this new draft would never be echoed for the next submit.
+    mockedAction.mockResolvedValueOnce({ ...state });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add job" }));
+      await Promise.resolve();
+    });
+    expect(dialog.querySelector('input[name="draft"]')).not.toBeNull();
+  });
+
   it("the hidden draft input disappears once Link to the posting changes", async () => {
     mockedAction.mockResolvedValue({
       ok: false,

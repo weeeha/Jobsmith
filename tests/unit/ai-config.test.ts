@@ -46,6 +46,13 @@ describe("parseAiConfig", () => {
     expect(parseAiConfig({ AI_PROVIDER: "fake" })).toEqual({ ok: true, config: { provider: "fake", model: "fake-extractor" } });
   });
 
+  it("treats a blank AI_MODEL as unset, using the provider's default", () => {
+    expect(parseAiConfig({ AI_PROVIDER: "fake", AI_MODEL: "" })).toEqual({
+      ok: true,
+      config: { provider: "fake", model: "fake-extractor" },
+    });
+  });
+
   it("rejects an AI_MODEL that does not match the allowed pattern", () => {
     expect(parseAiConfig({ AI_PROVIDER: "fake", AI_MODEL: "bad model!" })).toEqual({ ok: false, invalid: ["AI_MODEL"] });
   });

@@ -30,7 +30,10 @@ export function parseAiConfig(
 
   const invalid: string[] = [];
   let model = DEFAULT_MODELS[provider];
-  if (source.AI_MODEL !== undefined) {
+  // Blank means unset, the same as AI_PROVIDER above: uncommenting
+  // "# AI_MODEL=" in .env.example must fall back to the provider's own
+  // default rather than reading as an invalid override.
+  if (source.AI_MODEL) {
     if (!MODEL_PATTERN.test(source.AI_MODEL)) invalid.push("AI_MODEL");
     else model = source.AI_MODEL;
   }

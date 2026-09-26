@@ -99,6 +99,19 @@ function AddJobForm({
   const addAnywayRef = React.useRef<HTMLButtonElement>(null);
 
   const [droppedDraft, setDroppedDraft] = React.useState<string | null>(null);
+  // Reset as soon as a new response arrives, even when its own draft string
+  // happens to equal an earlier dropped one (resolving the same text or
+  // link again yields the same draft) - otherwise that new draft would read
+  // as still-dropped and never get echoed back. Compared and reset here,
+  // during render (state, not a ref: refs are not for render-time reads),
+  // React's own pattern for adjusting state when a value changes, rather
+  // than in an effect, which would let one extra frame commit with the
+  // stale (dropped) value first.
+  const [prevStateForDraft, setPrevStateForDraft] = React.useState(state);
+  if (prevStateForDraft !== state) {
+    setPrevStateForDraft(state);
+    setDroppedDraft(null);
+  }
   const draft = draftFor(state, droppedDraft);
 
   // What the LAST submit (normal or "Add anyway") actually sent, read back
@@ -157,7 +170,12 @@ function AddJobForm({
         postingTextRef.current?.focus();
         break;
       case "needs_details":
-        if (lastSubmitted.current.companyName.trim() === "") {
+        // Which field is actually missing comes from the result's own
+        // fieldErrors, never from whether the box the user typed into
+        // happened to be blank: a company already resolved from the link
+        // or the model leaves the Company box empty too, but it is not
+        // the field to send focus to.
+        if (state.fieldErrors?.companyName) {
           companyRef.current?.focus();
         } else {
           roleRef.current?.focus();

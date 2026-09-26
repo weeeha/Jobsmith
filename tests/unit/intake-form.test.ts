@@ -76,6 +76,27 @@ describe("encodeDraft / decodeDraft", () => {
   it("gives null when the decoded shape fails the schema", () => {
     expect(decodeDraft(JSON.stringify({ ...posting, v: 1, sourceUrl: "not-a-url" }))).toBeNull();
   });
+
+  it("gives null when a draft's compMin is negative or not a whole number, the same bound typed input enforces", () => {
+    expect(decodeDraft(JSON.stringify({ ...posting, v: 1, fields: { ...posting.fields, compMin: -1 } }))).toBeNull();
+    expect(decodeDraft(JSON.stringify({ ...posting, v: 1, fields: { ...posting.fields, compMin: 1.5 } }))).toBeNull();
+  });
+
+  it("gives null when a draft's compMax is over the Postgres integer bound", () => {
+    expect(decodeDraft(JSON.stringify({ ...posting, v: 1, fields: { ...posting.fields, compMax: 2_147_483_648 } }))).toBeNull();
+  });
+
+  it("gives null when a draft's company name is over 200 characters", () => {
+    expect(
+      decodeDraft(JSON.stringify({ ...posting, v: 1, fields: { ...posting.fields, companyName: "A".repeat(201) } })),
+    ).toBeNull();
+  });
+
+  it("gives null when a draft's ats.org is over 200 characters", () => {
+    expect(
+      decodeDraft(JSON.stringify({ ...posting, v: 1, ats: { kind: "greenhouse", org: "a".repeat(201) } })),
+    ).toBeNull();
+  });
 });
 
 describe("draftFor", () => {
@@ -121,5 +142,14 @@ describe("mergeFields", () => {
 
   it("typing both pay figures uses the typed pair and currency entirely", () => {
     expect(mergeFields({ compMin: 100000, compMax: 130000, compCurrency: "USD" }, resolved)).toMatchObject({ compMin: 100000, compMax: 130000, compCurrency: "USD" });
+  });
+
+  it("a typed currency alone, with no typed pay figure, still wins over the resolved currency", () => {
+    expect(mergeFields({ compCurrency: "USD" }, resolved)).toMatchObject({ compMin: 90000, compMax: 110000, compCurrency: "USD" });
+  });
+
+  it("a typed currency alone, with no resolved pay at all, is kept rather than dropped", () => {
+    const noPay = { ...resolved, compMin: null, compMax: null, compCurrency: null };
+    expect(mergeFields({ compCurrency: "USD" }, noPay)).toMatchObject({ compMin: null, compMax: null, compCurrency: "USD" });
   });
 });

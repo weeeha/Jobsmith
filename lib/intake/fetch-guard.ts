@@ -146,7 +146,11 @@ function oneHop(url: URL, options: GuardOptions, policy: AddressPolicy, resolveH
         const type = mediaType(response.headers["content-type"]);
         const charset = charsetOf(response.headers["content-type"]);
         if ((status >= 300 && status < 400) || status < 200 || status >= 300 || kindOf(type) !== options.accept) {
-          response.resume();
+          // destroy(), not resume(): a redirect or error body is never
+          // read, so draining it just keeps this socket open (agent: false
+          // means it cannot be reused anyway) for as long as a hostile
+          // server cares to keep streaming, up to the fetch's own timeout.
+          response.destroy();
           resolve({ status, location, type, charset, body: null });
           return;
         }

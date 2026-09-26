@@ -10,6 +10,11 @@ describe("guardedFetch", () => {
   const bigBody = "x".repeat(3 * 1024 * 1024);
   const bomb = zlib.gzipSync(Buffer.alloc(10 * 1024 * 1024, 0x61));
   const smallHtml = `<html><body><p>${"Posting text. ".repeat(80)}</p></body></html>`;
+  // Set by the /redirect-drip route's own "close" listener, the moment the
+  // server actually sees that connection go away - the signal this test
+  // needs, since guardedFetch itself returns as soon as the redirect's
+  // target (/html) answers, well before that first connection is torn down.
+  let redirectDripClosedAt: number | null = null;
 
   let server: http.Server;
   let port: number;
@@ -70,6 +75,19 @@ describe("guardedFetch", () => {
           res.writeHead(200, { "content-type": "text/html" });
           const timer = setInterval(() => res.write("a"), 100);
           req.on("close", () => clearInterval(timer));
+          return;
+        }
+        case "/redirect-drip": {
+          // A hostile redirect: real headers, but the body never ends on
+          // its own. res's own "close" (not req's) fires exactly when the
+          // client tears this connection down, whether that is an
+          // immediate destroy() or only the abort at the fetch's timeout.
+          res.writeHead(302, { location: "/html" });
+          const timer = setInterval(() => res.write("a"), 20);
+          res.on("close", () => {
+            clearInterval(timer);
+            redirectDripClosedAt = Date.now();
+          });
           return;
         }
         case "/big-length":
@@ -256,6 +274,18 @@ describe("guardedFetch", () => {
     it("blocks a redirect to ftp", async () => {
       const result = await guardedFetch(`${base}/to-ftp`, { accept: "html", ...t });
       expect(code(result)).toBe("blocked_scheme");
+    });
+
+    it("destroys a redirect hop's own connection right away rather than draining it until the timeout", async () => {
+      redirectDripClosedAt = null;
+      const started = Date.now();
+      const result = await guardedFetch(`${base}/redirect-drip`, { accept: "html", timeoutMs: 500, ...t });
+      expect(code(result)).toBe("ok:html:1");
+      expect(redirectDripClosedAt).not.toBeNull();
+      // A drained (resume()d) connection stays open until the fetch's own
+      // abort signal fires at timeoutMs; a destroyed one closes within a
+      // handful of milliseconds of the redirect being read.
+      expect(redirectDripClosedAt! - started).toBeLessThan(200);
     });
 
     it("blocks a name that resolves to one private answer among several", async () => {
