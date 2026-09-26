@@ -29,6 +29,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only folders, never committed: Claude Code keeps worktrees (each
+    // with its own .next build) under .claude/, and planning spikes live
+    // under .superpowers/. Linting them fails the main checkout's lint.
+    ".claude/**",
+    ".superpowers/**",
   ]),
 ]);
 
