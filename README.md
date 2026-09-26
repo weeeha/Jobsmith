@@ -68,8 +68,8 @@ turned into plain markdown. When the model is off, fails, or cannot find the com
 dialog asks for them directly and the job is saved with a "Check this job's details" notice on its
 page, cleared by editing the details or by "Mark as checked."
 
-Adding the same company and role again while the first one is still active shows "You already have
-this job." with a link to open it, and "Add anyway" to add a second copy.
+Adding the same company, role and location again while the first one is still active shows "You
+already have this job." with a link to open it, and "Add anyway" to add a second copy.
 
 "Where is it now" defaults to Saved. The job is always created with all seven stages. Choosing
 Applied moves it there once. Choosing a column after Applied moves it to Applied first and then to

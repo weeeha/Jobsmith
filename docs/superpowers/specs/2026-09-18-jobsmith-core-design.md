@@ -363,8 +363,9 @@ rather than shed it.
 **Milestone 4 note.** Decision D19: AI is opt-in through `AI_PROVIDER`, never through the mere
 presence of a provider API key in the environment, since a key left over from another project must
 never send a job posting anywhere without an explicit choice to turn intake's AI on. The fetch guard
-(section 5.5) is the only code path in the app that makes an outbound request on a user's behalf, and
-every request it makes is checked against the same address and port policy before it connects.
+(section 5.5) is the only code path in the app that makes an outbound request to a user-supplied
+address, and every request it makes is checked against the same address and port policy before it
+connects.
 
 ## 8. Testing
 
