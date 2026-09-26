@@ -119,25 +119,25 @@ function AddJobForm({
   // allowed to read a ref's current value.
   const [hadSource, setHadSource] = React.useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    const data = new FormData(event.currentTarget);
+  // Both ways of submitting record the same snapshot, which the focus and
+  // pending effects read once the action responds.
+  function recordSubmission(data: FormData) {
     lastSubmitted.current = {
       companyName: String(data.get("companyName") ?? ""),
       roleTitle: String(data.get("roleTitle") ?? ""),
     };
     setHadSource(computeHadSource(data, draft));
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    recordSubmission(new FormData(event.currentTarget));
     submitViaTransition(event, formAction);
   }
 
   function handleAddAnyway() {
     const form = formRef.current;
     if (!form) return;
-    const data = new FormData(form);
-    lastSubmitted.current = {
-      companyName: String(data.get("companyName") ?? ""),
-      roleTitle: String(data.get("roleTitle") ?? ""),
-    };
-    setHadSource(computeHadSource(data, draft));
+    recordSubmission(new FormData(form));
     submitFormData(form, formAction, { intent: "add_anyway" });
   }
 
