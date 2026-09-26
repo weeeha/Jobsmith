@@ -50,22 +50,47 @@ creates the only account this instance will accept until you set
 
 ## Adding a job
 
-Click "Add job" on the board. Company and role are required; everything
-else (location, work mode, a link to the posting, pasted posting text, a
-pay range and currency, a pay note, what you plan to ask for, and which
-column it starts in) is optional. Retyping an existing company's name
-matches that company, so the same company across several roles stays one
-company record rather than several.
+Click "Add job" on the board. Paste a link to the posting, paste the posting text, or both, next to
+the company and role fields it already had. Company and role are optional when a link or text is
+given; Jobsmith fills them in when it can read the posting.
 
-Adding the same company and role again while the first one is still
-active shows "You already track this role at this company." with a link
-to open it, instead of creating a second copy.
+A Greenhouse, Ashby or Lever link is read straight from that vendor's own public API. Any other link
+is fetched and read as a web page. LinkedIn is not read: paste the posting text instead, since
+LinkedIn requires a login Jobsmith does not have. A link that cannot be read for another reason
+(blocked, timed out, too large, not found, too short, or simply unreadable) asks for the pasted text
+too, unless company and role are already typed, in which case the job saves with the link alone.
 
-"Where is it now" defaults to Saved. The job is always created with all
-seven stages. Choosing Applied moves it there once. Choosing a column
-after Applied moves it to Applied first and then to the chosen column, so
-its history shows two moves, unlike the single drag you would get from
-adding it plain and moving the card afterward.
+When an AI provider is configured (below), pasted or fetched text is sent to it to read the company,
+role, location, work mode and pay. Only the posting text is sent, inside a fixed wrapper that tells
+the model to treat it as data, never instructions; nothing about your account goes with it. The
+stored posting itself is never rewritten by the model: it stays the pasted text or the fetched page,
+turned into plain markdown. When the model is off, fails, or cannot find the company and role, the
+dialog asks for them directly and the job is saved with a "Check this job's details" notice on its
+page, cleared by editing the details or by "Mark as checked."
+
+Adding the same company and role again while the first one is still active shows "You already have
+this job." with a link to open it, and "Add anyway" to add a second copy.
+
+"Where is it now" defaults to Saved. The job is always created with all seven stages. Choosing
+Applied moves it there once. Choosing a column after Applied moves it to Applied first and then to
+the chosen column, so its history shows two moves, unlike the single drag you would get from adding
+it plain and moving the card afterward.
+
+### AI (optional)
+
+Jobsmith works with no AI configured; intake then asks for the company and role by hand. Four
+environment variables turn it on, read in `.env.example`:
+
+- `AI_PROVIDER`: `gateway` (Vercel AI Gateway), `anthropic` (the Anthropic API directly), or `fake`
+  (the test suite's own stand-in, which never sends text anywhere). Unset means AI stays off.
+- `AI_GATEWAY_API_KEY`: needed for `gateway`, except on Vercel, where the project's own OIDC token is
+  used instead.
+- `ANTHROPIC_API_KEY`: needed for `anthropic`.
+- `AI_MODEL`: optional, overrides the provider's default model.
+
+`AI_PROVIDER` has to be set on purpose: a developer's own shell `ANTHROPIC_API_KEY`, left over from
+another project, must never send a posting anywhere by accident. Every call to the Vercel AI Gateway
+asks for zero data retention.
 
 ## Keyboard shortcuts on the board
 

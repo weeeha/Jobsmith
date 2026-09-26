@@ -83,6 +83,12 @@ tests/               unit, integration, e2e
 
 Each `lib/*` module exposes plain functions that take a database handle and a user id. Routes and server actions stay thin. This keeps the modules testable without a browser and reusable by the bridge.
 
+**Milestone 4 note.** Decisions D18, D19: the AI driver behind `lib/ai` is one of three
+implementations picked by `AI_PROVIDER` at boot (`gateway`, `anthropic`, `fake`); intake code only
+ever sees the shared `AiDriver` interface, never a provider SDK directly. AI stays off unless
+`AI_PROVIDER` is set, on purpose, so a developer's own leftover API key in the shell environment
+never sends a posting anywhere by accident.
+
 ## 4. Data model
 
 Core creates these tables. `prep_question`, `library_item` and `asset` appear on the board's data model but ship with the Prep cycle.
@@ -270,6 +276,17 @@ Duplicates: `dedupe_hash` is sha256 of normalized company, role title and locati
 
 `createOpportunity` matches or creates the company by `name_key`, builds a unique slug from company and role, stores the posting snapshot with its capture time, creates the default stages with Saved as current, writes a `created` event and queues fit scoring.
 
+**Milestone 4 notes.** Decisions D3, D5, D8, D11, D13, D15, D16: resolution tries a known ATS link
+first, then pasted text (a non-ATS link next to it is kept as the link and never fetched), then a
+plain link, fetched and read as a web page. A link alone that cannot be read blocks the add only when
+company and role are also missing; otherwise the job saves with the link alone. LinkedIn is never
+fetched at all: it returns the "paste the text" outcome before any request, since it requires a login
+Jobsmith does not have. A fetched page's article is read with Readability and turned to markdown; a
+result under 600 visible characters is treated as unread. Only ports 80 and 443 are ever reached. The
+model, when configured, returns fields only and never rewrites the stored body: the saved posting
+stays the pasted text or the fetched page, turned to markdown, so it never drifts from what the
+posting actually said.
+
 ### 5.6 Fit scoring
 
 Two parts, kept separate so the cheap part always works:
@@ -342,6 +359,12 @@ separate table - the single `UPDATE` described in section 4's own note is the wh
 limit is 120 requests per token per fixed 60-second window; a request with no valid token is never
 counted, because a 256-bit token cannot be guessed and counting an anonymous request would add load
 rather than shed it.
+
+**Milestone 4 note.** Decision D19: AI is opt-in through `AI_PROVIDER`, never through the mere
+presence of a provider API key in the environment, since a key left over from another project must
+never send a job posting anywhere without an explicit choice to turn intake's AI on. The fetch guard
+(section 5.5) is the only code path in the app that makes an outbound request on a user's behalf, and
+every request it makes is checked against the same address and port policy before it connects.
 
 ## 8. Testing
 
