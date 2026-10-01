@@ -1,5 +1,6 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { freezeTransitions } from "./freeze-transitions";
 
 function slugify(label: string): string {
   return label
@@ -43,45 +44,47 @@ export async function scanOpenOverlay(
   reopen: () => Promise<void>,
 ) {
   const slug = slugify(label);
+  const unfreeze = await freezeTransitions(page);
 
-  for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
-    await page.waitForFunction(
-      (scheme) => window.matchMedia(`(prefers-color-scheme: ${scheme})`).matches,
-      colorScheme,
-    );
-    await page.waitForFunction(
-      (scheme) => document.documentElement.classList.contains(scheme),
-      colorScheme,
-    );
-    await reopen();
-    // Every themed element transitions its own colors (Button and friends
-    // carry transition-all), so the class swap above starts a wave of CSS
-    // transitions across the page, and the dialog/sheet entrance plays its
-    // own short animation on top. Confirmed by direct inspection: scanning
-    // while any of that is still running can catch an element between its
-    // two themed colors, or board content behind the overlay at a
-    // partially faded-in state, either of which axe-core's color-contrast
-    // rule reads as an actual (if momentary) contrast failure -
-    // reproducible under load, not under a fresh, idle run of the same
-    // steps. Waiting for every running animation/transition to finish (not
-    // a fixed delay, so it adapts if a duration token changes) is what a
-    // reload gives scanForViolations for free.
-    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
+  try {
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.waitForFunction(
+        (scheme) => window.matchMedia(`(prefers-color-scheme: ${scheme})`).matches,
+        colorScheme,
+      );
+      await page.waitForFunction(
+        (scheme) => document.documentElement.classList.contains(scheme),
+        colorScheme,
+      );
+      await reopen();
+      // Transitions are frozen for the whole scan (see ./freeze-transitions.ts
+      // for why waiting them out is not enough in CI's WebKit), so the class
+      // swap above lands on its final colors at once. What can still be
+      // running is the dialog/sheet entrance animation `reopen()` may have
+      // started; scanning mid-entrance catches the popup partially faded in,
+      // which axe-core's color-contrast rule reads as an actual (if
+      // momentary) contrast failure. Waiting for every running animation to
+      // finish (not a fixed delay, so it adapts if a duration token changes)
+      // is what a reload gives scanForViolations for free.
+      await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
 
-    await page.screenshot({
-      path: `test-results/screens/${testInfo.project.name}-${slug}-${colorScheme}.png`,
-      fullPage: true,
-    });
+      await page.screenshot({
+        path: `test-results/screens/${testInfo.project.name}-${slug}-${colorScheme}.png`,
+        fullPage: true,
+      });
 
-    const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
-    for (const violation of results.violations) {
-      console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
-      for (const node of violation.nodes) {
-        console.log(`  target: ${node.target.join(", ")}`);
-        console.log(`  summary: ${node.failureSummary}`);
+      const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+      for (const violation of results.violations) {
+        console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
+        for (const node of violation.nodes) {
+          console.log(`  target: ${node.target.join(", ")}`);
+          console.log(`  summary: ${node.failureSummary}`);
+        }
       }
+      expect(results.violations, `${label} (${colorScheme}) axe violations`).toEqual([]);
     }
-    expect(results.violations, `${label} (${colorScheme}) axe violations`).toEqual([]);
+  } finally {
+    await unfreeze();
   }
 }

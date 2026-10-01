@@ -1,5 +1,6 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { freezeTransitions } from "./freeze-transitions";
 
 function slugify(label: string): string {
   return label
@@ -22,32 +23,39 @@ function slugify(label: string): string {
  */
 export async function scanInPlace(page: Page, label: string, testInfo: TestInfo) {
   const slug = slugify(label);
+  // Same live scheme switch as scanOpenOverlay, so the same WebKit transition
+  // problem applies; see ./freeze-transitions.ts.
+  const unfreeze = await freezeTransitions(page);
 
-  for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
-    await page.waitForFunction(
-      (scheme) => window.matchMedia(`(prefers-color-scheme: ${scheme})`).matches,
-      colorScheme,
-    );
-    await page.waitForFunction(
-      (scheme) => document.documentElement.classList.contains(scheme),
-      colorScheme,
-    );
-    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
+  try {
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.waitForFunction(
+        (scheme) => window.matchMedia(`(prefers-color-scheme: ${scheme})`).matches,
+        colorScheme,
+      );
+      await page.waitForFunction(
+        (scheme) => document.documentElement.classList.contains(scheme),
+        colorScheme,
+      );
+      await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
 
-    await page.screenshot({
-      path: `test-results/screens/${testInfo.project.name}-${slug}-${colorScheme}.png`,
-      fullPage: true,
-    });
+      await page.screenshot({
+        path: `test-results/screens/${testInfo.project.name}-${slug}-${colorScheme}.png`,
+        fullPage: true,
+      });
 
-    const results = await new AxeBuilder({ page }).analyze();
-    for (const violation of results.violations) {
-      console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
-      for (const node of violation.nodes) {
-        console.log(`  target: ${node.target.join(", ")}`);
-        console.log(`  summary: ${node.failureSummary}`);
+      const results = await new AxeBuilder({ page }).analyze();
+      for (const violation of results.violations) {
+        console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
+        for (const node of violation.nodes) {
+          console.log(`  target: ${node.target.join(", ")}`);
+          console.log(`  summary: ${node.failureSummary}`);
+        }
       }
+      expect(results.violations, `${label} (${colorScheme}) axe violations`).toEqual([]);
     }
-    expect(results.violations, `${label} (${colorScheme}) axe violations`).toEqual([]);
+  } finally {
+    await unfreeze();
   }
 }
