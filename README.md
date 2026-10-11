@@ -5,6 +5,15 @@ prepare for each interview stage, debrief. It is open source under
 AGPL-3.0 and self-hostable with your own database and, later, your own AI
 provider key.
 
+## Stack
+
+Next.js 16 and React 19 with Tailwind CSS 4, Postgres through Drizzle ORM, Better Auth for sign-in, and
+the Vercel AI SDK for the optional AI features (`package.json`).
+
+Pages: `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/settings`, and `/` (Home).
+`/library` and `/preferences` are placeholders for later milestones. Without a session, every page
+redirects to `/login`, except `/setup` and `/login` themselves.
+
 ## Requirements
 
 - Node.js 24 (see `.nvmrc`)
