@@ -6,6 +6,9 @@ import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
 import { createApiToken, revokeApiToken, tokenNameSchema, type TokenFormState } from "@/lib/auth/api-token";
 import { messageFor } from "@/lib/pipeline/messages";
+import { fieldErrorsByPath, type FormState } from "@/lib/forms/state";
+import { profileFormSchema, readProfileForm } from "@/lib/profile/schema";
+import { saveProfile } from "@/lib/profile/store";
 import { fail, type Result } from "@/lib/result";
 
 export async function createTokenAction(_prev: TokenFormState, formData: FormData): Promise<TokenFormState> {
@@ -33,4 +36,17 @@ export async function revokeTokenAction(tokenId: string): Promise<Result<null, s
   if (!result.ok) return fail(result.code, messageFor(result.code));
   revalidatePath("/settings");
   return { ok: true, data: null };
+}
+
+export async function saveProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = profileFormSchema.safeParse(readProfileForm(formData));
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsByPath(parsed.error) };
+  }
+  await saveProfile(scopedFor(user.id), parsed.data);
+  // The zone shows in every page's times and the preferences in every job's
+  // hard-filter line, so the whole app re-renders.
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

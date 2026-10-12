@@ -20,11 +20,14 @@ import type { ApiTokenListItem } from "@/lib/db/scoped";
 
 export function ApiTokensSection({ tokens }: { tokens: ApiTokenListItem[] }) {
   const [createOpen, setCreateOpen] = React.useState(false);
+  const headingId = React.useId();
 
   return (
-    <section className="flex flex-col gap-4">
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <h2 className="text-base font-semibold text-foreground">API tokens</h2>
+        <h2 id={headingId} className="text-base font-semibold text-foreground">
+          API tokens
+        </h2>
         <p className="text-sm text-muted-foreground">
           Tokens let the jobsmith command line read your jobs and push documents to them.
         </p>
