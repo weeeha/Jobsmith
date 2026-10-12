@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, max, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
+import type { AttentionOpportunity } from "@/lib/attention/types";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { ClosedReason, OpportunityStatus } from "@/lib/pipeline/values";
 
@@ -105,6 +106,55 @@ export function opportunityQueries(db: Db, userId: string) {
         nextActionAt: r.nextActionAt,
         updatedAt: r.updatedAt,
         stage: { id: r.stageId, kind: r.stageKind as StageKind, label: r.stageLabel, enteredAt: r.stageEnteredAt },
+      }));
+    },
+    // What Home's rules read about each active job: the board's own joins
+    // (company and current stage, both through user_id), plus the time of the
+    // job's latest event. The latest event is a second query, filtered by the
+    // event's own user_id, so an event row carrying another user's id can
+    // never move this user's follow-up clock.
+    async listForAttention(): Promise<AttentionOpportunity[]> {
+      const rows = await db
+        .select({
+          id: schema.opportunity.id,
+          slug: schema.opportunity.slug,
+          roleTitle: schema.opportunity.roleTitle,
+          companyName: schema.company.name,
+          stageKind: schema.stage.kind,
+          stageEnteredAt: schema.stage.enteredAt,
+          createdAt: schema.opportunity.createdAt,
+          nextAction: schema.opportunity.nextAction,
+          nextActionAt: schema.opportunity.nextActionAt,
+        })
+        .from(schema.opportunity)
+        .innerJoin(
+          schema.company,
+          and(eq(schema.company.userId, userId), eq(schema.company.id, schema.opportunity.companyId)),
+        )
+        .innerJoin(
+          schema.stage,
+          and(eq(schema.stage.userId, userId), eq(schema.stage.id, schema.opportunity.currentStageId)),
+        )
+        .where(and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.status, "active")));
+
+      const latest = await db
+        .select({ opportunityId: schema.event.opportunityId, lastEventAt: max(schema.event.occurredAt) })
+        .from(schema.event)
+        .where(eq(schema.event.userId, userId))
+        .groupBy(schema.event.opportunityId);
+      const lastEventAt = new Map(latest.map((row) => [row.opportunityId, row.lastEventAt]));
+
+      return rows.map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        roleTitle: r.roleTitle,
+        companyName: r.companyName,
+        stageKind: r.stageKind as StageKind,
+        stageEnteredAt: r.stageEnteredAt,
+        createdAt: r.createdAt,
+        nextAction: r.nextAction,
+        nextActionAt: r.nextActionAt,
+        lastEventAt: lastEventAt.get(r.id) ?? null,
       }));
     },
     // Mirrors listBoard's own join (company through user_id, filtered to

@@ -1,7 +1,8 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
+import type { AttentionStage } from "@/lib/attention/types";
 
 export type StageRow = typeof schema.stage.$inferSelect;
 export type StageFields = Omit<
@@ -17,6 +18,34 @@ export function stageQueries(db: Db, userId: string) {
         .from(schema.stage)
         .where(and(eq(schema.stage.opportunityId, opportunityId), eq(schema.stage.userId, userId)))
         .orderBy(schema.stage.position);
+    },
+    // Stages with a time, across this user's active jobs: the input to Home's
+    // interview and mark-done rules. The job is joined through user_id, so a
+    // closed job's stages and another user's never appear.
+    async listScheduledActive(): Promise<AttentionStage[]> {
+      const rows = await db
+        .select({
+          id: schema.stage.id,
+          opportunityId: schema.stage.opportunityId,
+          label: schema.stage.label,
+          scheduledAt: schema.stage.scheduledAt,
+        })
+        .from(schema.stage)
+        .innerJoin(
+          schema.opportunity,
+          and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.id, schema.stage.opportunityId)),
+        )
+        .where(
+          and(
+            eq(schema.stage.userId, userId),
+            eq(schema.stage.status, "scheduled"),
+            isNotNull(schema.stage.scheduledAt),
+            eq(schema.opportunity.status, "active"),
+          ),
+        );
+      return rows.flatMap((row) =>
+        row.scheduledAt === null ? [] : [{ id: row.id, opportunityId: row.opportunityId, label: row.label, scheduledAt: row.scheduledAt }],
+      );
     },
     async insert(values: StageFields): Promise<StageRow> {
       const fields = stripScopedKeys(values);

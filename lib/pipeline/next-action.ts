@@ -54,3 +54,31 @@ export async function completeNextAction(
     return ok(null);
   });
 }
+
+/**
+ * Moves a job's next action to `until`. The existing text stays; a job with
+ * no next action gets `fallbackText`, so a snoozed follow-up still has
+ * something to show. Like editing a next action, it writes no event.
+ */
+export async function snoozeNextAction(
+  s: Scoped,
+  opportunityId: string,
+  input: { until: Date; fallbackText: string },
+): Promise<Result<null, "not_found" | "closed">> {
+  return s.transaction(async (tx) => {
+    const row = await tx.opportunity.lockById(opportunityId);
+    if (!row) {
+      return fail("not_found", "This job no longer exists.");
+    }
+    if (row.status === "closed") {
+      return fail("closed", "This job is closed. Reopen it first.");
+    }
+
+    const keepText = row.nextAction !== null && row.nextAction.trim() !== "";
+    await tx.opportunity.update(opportunityId, {
+      nextAction: keepText ? row.nextAction : input.fallbackText,
+      nextActionAt: input.until,
+    });
+    return ok(null);
+  });
+}

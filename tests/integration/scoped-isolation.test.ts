@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
 import { makeTestDb, createTestUser, seedOneOfEach, type SeededIds } from "../helpers/db";
+import * as schema from "@/lib/db/schema";
+import type { Db } from "@/lib/db/client";
 import { scoped, type Scoped } from "@/lib/db/scoped";
+import { createOpportunity } from "@/lib/pipeline/create";
 
 type Case = {
   name: string;
-  run: (a: Scoped, b: Scoped, ids: SeededIds) => Promise<void>;
+  run: (a: Scoped, b: Scoped, ids: SeededIds, db: Db) => Promise<void>;
 };
 
 const cases: Case[] = [
@@ -413,6 +417,56 @@ const cases: Case[] = [
       expect(locked?.id).toBe(ids.companyId);
     },
   },
+  {
+    name: "opportunity.listForAttention hides A's jobs from B",
+    run: async (a, b) => {
+      expect(await b.opportunity.listForAttention()).toEqual([]);
+      const rows = await a.opportunity.listForAttention();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ companyName: "Acme Robotics", roleTitle: "Product Designer", stageKind: "saved" });
+    },
+  },
+  {
+    name: "opportunity.listForAttention ignores events with A's user id on B's job",
+    run: async (a, b, _ids, db) => {
+      const mine = await createOpportunity(b, { companyName: "Northwind Traders", roleTitle: "Design Lead" }, new Date("2026-10-01T09:00:00.000Z"));
+      if (!mine.ok) throw new Error(mine.message);
+      // The composite foreign key (user_id, opportunity_id) would refuse an
+      // event that names A's user id on B's job, so the constraint is dropped
+      // in this scratch database: the query itself must hold the line.
+      await db.execute(sql`alter table "event" drop constraint "event_opportunity_fk"`);
+      await db.insert(schema.event).values({
+        userId: a.userId,
+        opportunityId: mine.data.id,
+        kind: "note",
+        occurredAt: new Date("2026-10-09T09:00:00.000Z"),
+      });
+      const rows = await b.opportunity.listForAttention();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.lastEventAt).toEqual(new Date("2026-10-01T09:00:00.000Z"));
+    },
+  },
+  {
+    name: "stage.listScheduledActive hides A's scheduled stages from B",
+    run: async (a, b, ids) => {
+      const at = new Date("2026-10-12T09:00:00.000Z");
+      await a.stage.update(ids.stageId, { status: "scheduled", scheduledAt: at });
+      expect(await b.stage.listScheduledActive()).toEqual([]);
+      expect(await a.stage.listScheduledActive()).toEqual([
+        { id: ids.stageId, opportunityId: ids.opportunityId, label: "Saved", scheduledAt: at },
+      ]);
+    },
+  },
+  {
+    name: "event.listRecentPushes hides A's pushes from B",
+    run: async (a, b, ids) => {
+      await a.event.insert({ opportunityId: ids.opportunityId, kind: "artifact_pushed", meta: { items: [{ key: "cv" }] } });
+      expect(await b.event.listRecentPushes(5)).toEqual([]);
+      const pushes = await a.event.listRecentPushes(5);
+      expect(pushes).toHaveLength(1);
+      expect(pushes[0]).toMatchObject({ roleTitle: "Product Designer", companyName: "Acme Robotics" });
+    },
+  },
 ];
 
 describe("scoped tenant isolation", () => {
@@ -425,7 +479,7 @@ describe("scoped tenant isolation", () => {
         const a = scoped(db, userA.id);
         const b = scoped(db, userB.id);
         const ids = await seedOneOfEach(a);
-        await testCase.run(a, b, ids);
+        await testCase.run(a, b, ids, db);
       } finally {
         await close();
       }

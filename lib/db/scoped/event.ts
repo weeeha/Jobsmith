@@ -32,5 +32,32 @@ export function eventQueries(db: Db, userId: string) {
         .where(and(eq(schema.event.opportunityId, opportunityId), eq(schema.event.userId, userId)))
         .orderBy(desc(schema.event.occurredAt), desc(schema.event.createdAt));
     },
+    // The newest document pushes with the job they belong to, for Home. Both
+    // joins go through user_id.
+    async listRecentPushes(
+      limit: number,
+    ): Promise<{ id: string; occurredAt: Date; meta: unknown; slug: string; roleTitle: string; companyName: string }[]> {
+      return db
+        .select({
+          id: schema.event.id,
+          occurredAt: schema.event.occurredAt,
+          meta: schema.event.meta,
+          slug: schema.opportunity.slug,
+          roleTitle: schema.opportunity.roleTitle,
+          companyName: schema.company.name,
+        })
+        .from(schema.event)
+        .innerJoin(
+          schema.opportunity,
+          and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.id, schema.event.opportunityId)),
+        )
+        .innerJoin(
+          schema.company,
+          and(eq(schema.company.userId, userId), eq(schema.company.id, schema.opportunity.companyId)),
+        )
+        .where(and(eq(schema.event.userId, userId), eq(schema.event.kind, "artifact_pushed")))
+        .orderBy(desc(schema.event.occurredAt), desc(schema.event.createdAt))
+        .limit(limit);
+    },
   };
 }
