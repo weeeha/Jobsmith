@@ -10,7 +10,17 @@ export const NEXT_ACTION_OFFER_MS = 10_000;
  */
 export function offerNextAction(subject: { roleTitle: string; companyName: string }, open: () => void): void {
   toast(`What is next for ${subject.roleTitle} at ${subject.companyName}?`, {
-    action: { label: "Set next action", onClick: open },
+    action: {
+      label: "Set next action",
+      onClick: () => {
+        // Sonner returns focus to whatever had it before the toast once focus
+        // leaves the toaster. Blurring the button first lets that return
+        // happen now, so it cannot pull focus out of the dialog that
+        // `open` is about to show.
+        (document.activeElement as HTMLElement | null)?.blur();
+        open();
+      },
+    },
     duration: NEXT_ACTION_OFFER_MS,
   });
 }

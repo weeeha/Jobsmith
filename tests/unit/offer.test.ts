@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const toast = vi.hoisted(() => vi.fn());
@@ -16,7 +17,7 @@ describe("offerNextAction", () => {
     expect(NEXT_ACTION_OFFER_MS).toBe(10_000);
     expect(toast).toHaveBeenCalledTimes(1);
     expect(toast).toHaveBeenCalledWith("What is next for Product Designer at Northwind Traders?", {
-      action: { label: "Set next action", onClick: open },
+      action: { label: "Set next action", onClick: expect.any(Function) },
       duration: 10_000,
     });
   });
@@ -33,5 +34,23 @@ describe("offerNextAction", () => {
     const options = toast.mock.calls[0][1] as { action: { onClick: () => void } };
     options.action.onClick();
     expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  // Sonner returns focus to whatever had it before the toast once focus
+  // leaves the toaster. If the dialog took focus first, that return would
+  // pull focus out of the dialog and back to the page behind it.
+  it("lets focus leave the toast button before the dialog opens", () => {
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+    let focusedWhenOpened: Element | null = null;
+    const open = vi.fn(() => {
+      focusedWhenOpened = document.activeElement;
+    });
+    offerNextAction({ roleTitle: "Product Designer", companyName: "Northwind Traders" }, open);
+    const options = toast.mock.calls[0][1] as { action: { onClick: () => void } };
+    options.action.onClick();
+    expect(focusedWhenOpened).not.toBe(button);
+    button.remove();
   });
 });
