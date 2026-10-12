@@ -20,3 +20,19 @@ export function fieldErrorsFromZod(error: z.ZodError): Record<string, string> {
   }
   return fieldErrors;
 }
+
+/**
+ * First message per field, keyed by the full dotted path ("companySize.max",
+ * "attention.followUpDays"). Array indices are dropped, so every bad entry of
+ * a list reports under the list's own name ("titles"), which is the name of
+ * the field the form shows the message under.
+ */
+export function fieldErrorsByPath(error: z.ZodError): Record<string, string> {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = issue.path.filter((segment) => typeof segment === "string").join(".");
+    if (key === "" || key in fieldErrors) continue;
+    fieldErrors[key] = issue.message;
+  }
+  return fieldErrors;
+}

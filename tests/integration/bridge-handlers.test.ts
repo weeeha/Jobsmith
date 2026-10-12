@@ -8,6 +8,9 @@ import { handleListOpportunities, handleGetContext, handlePushArtifacts } from "
 import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
 import { defaultStages } from "@/lib/pipeline/rules";
 import { RATE_LIMIT_PER_MINUTE } from "@/lib/bridge/wire";
+import { parsePreferences } from "@/lib/preferences/schema";
+import { savePreferences } from "@/lib/profile/store";
+import { seedProfile } from "../helpers/profile";
 
 // Wraps a real db so that any `.insert(...)` call, at any nesting depth
 // (including inside a transaction's own tx), throws instead of writing. Used
@@ -319,6 +322,40 @@ describe("handleGetContext", () => {
       expect(text).toContain("## People");
       expect(text).toContain("## Preferences");
       expect(text).toContain("## Artifacts");
+    } finally {
+      await close();
+    }
+  });
+
+  it("lists the saved preferences, and never the resume or headline", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token, s } = await seedJob(db, { slug: "acme-designer", email: "ctx-prefs@example.com" });
+      await seedProfile(s, { headline: "Headline that stays private", resumeMd: "Resume text that stays private" });
+      await savePreferences(s, parsePreferences({ titles: ["Product Designer"], compFloor: 100 }));
+      const { deps } = testDeps(db);
+      const request = new Request(`${BASE}/api/bridge/opportunities/acme-designer/context`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const text = await (await handleGetContext(deps, request, "acme-designer")).text();
+      expect(text).toContain("## Preferences\n\n- Job titles: Product Designer\n- Pay floor: 100\n");
+      expect(text).not.toContain("No preferences saved yet.");
+      expect(text).not.toContain("stays private");
+    } finally {
+      await close();
+    }
+  });
+
+  it("says so when no preferences are saved", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token } = await seedJob(db, { slug: "acme-designer", email: "ctx-noprefs@example.com" });
+      const { deps } = testDeps(db);
+      const request = new Request(`${BASE}/api/bridge/opportunities/acme-designer/context`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const text = await (await handleGetContext(deps, request, "acme-designer")).text();
+      expect(text).toContain("## Preferences\n\nNo preferences saved yet.\n");
     } finally {
       await close();
     }

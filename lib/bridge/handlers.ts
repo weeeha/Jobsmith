@@ -9,6 +9,7 @@ import { authenticateBearer } from "@/lib/auth/api-token";
 import { scoped, type Scoped } from "@/lib/db/scoped";
 import type { Db } from "@/lib/db/client";
 import { getJobView } from "@/lib/pipeline/read";
+import { loadProfile } from "@/lib/profile/store";
 
 // The request id and error name only, never a message: drizzle wraps every
 // driver error in a DrizzleQueryError whose own message is the full SQL text
@@ -104,7 +105,8 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
     }
 
     const companyDocuments = await auth.s.artifact.listLatestForCompany(view.company.id);
-    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now });
+    const profile = await loadProfile(auth.s);
+    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now, preferences: profile.preferences });
     return new Response(doc, {
       status: 200,
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },

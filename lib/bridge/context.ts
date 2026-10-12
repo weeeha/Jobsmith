@@ -1,8 +1,10 @@
 import type { JobView } from "@/lib/pipeline/read";
 import type { ArtifactMeta } from "@/lib/db/scoped";
 import { PERSON_ROLE_LABELS } from "@/lib/pipeline/labels";
+import type { Preferences } from "@/lib/preferences/schema";
+import { preferencesSummaryLines } from "@/lib/preferences/summary";
 
-export type ContextInput = { view: JobView; companyDocuments: ArtifactMeta[]; generatedAt: Date };
+export type ContextInput = { view: JobView; companyDocuments: ArtifactMeta[]; generatedAt: Date; preferences: Preferences };
 
 // Table cells are single-line and pipe-delimited, so any value placed inside
 // one has its own pipes escaped and its line breaks collapsed to spaces.
@@ -108,11 +110,17 @@ export function buildContextDocument(input: ContextInput): string {
   }
   lines.push("");
 
-  // Preferences has no input to read yet: it is a fixed placeholder section
-  // until a later milestone adds real preference data.
+  // The resume and headline are deliberately not part of this document: the
+  // CLI's context file can be copied into prompts and other places outside
+  // the app. Preferences are, pay figures included.
   lines.push("## Preferences");
   lines.push("");
-  lines.push("No preferences saved yet.");
+  const preferenceLines = preferencesSummaryLines(input.preferences);
+  if (preferenceLines.length === 0) {
+    lines.push("No preferences saved yet.");
+  } else {
+    for (const line of preferenceLines) lines.push(`- ${line}`);
+  }
   lines.push("");
 
   lines.push("## Artifacts");

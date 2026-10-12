@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContextDocument } from "@/lib/bridge/context";
+import { DEFAULT_PREFERENCES, parsePreferences } from "@/lib/preferences/schema";
 import type { JobView } from "@/lib/pipeline/read";
 import type { OpportunityRow, CompanyRow, StageRow, LinkedPerson, PersonRow, ArtifactMeta } from "@/lib/db/scoped";
 
@@ -170,7 +171,7 @@ describe("buildContextDocument, a rich fixture", () => {
     artifactMeta({ key: "recon", kind: "research", updatedAt: new Date("2026-09-02T08:00:00.000Z") }),
   ];
 
-  const doc = buildContextDocument({ view, companyDocuments, generatedAt });
+  const doc = buildContextDocument({ view, companyDocuments, generatedAt, preferences: DEFAULT_PREFERENCES });
 
   it("matches the exact expected document", () => {
     expect(doc).toBe(
@@ -253,7 +254,7 @@ describe("buildContextDocument, a bare fixture", () => {
     documents: [],
   };
 
-  const doc = buildContextDocument({ view, companyDocuments: [], generatedAt });
+  const doc = buildContextDocument({ view, companyDocuments: [], generatedAt, preferences: DEFAULT_PREFERENCES });
 
   it("falls back to the fixed sentence in Posting, People and Artifacts, and still emits the Stages table", () => {
     expect(doc).toBe(
@@ -295,5 +296,48 @@ describe("buildContextDocument, a bare fixture", () => {
         "",
       ].join("\n"),
     );
+  });
+});
+
+describe("buildContextDocument, preferences", () => {
+  const stage = stageRow({ id: "s0", kind: "saved", label: "Saved", position: 0, status: "upcoming" });
+  const view: JobView = {
+    opportunity: opportunityRow({ slug: "bare-job", roleTitle: "Engineer" }),
+    company: companyRow({ name: "Bare Co" }),
+    stages: [stage],
+    currentStage: stage,
+    people: [],
+    events: [],
+    documents: [],
+  };
+  const section = (doc: string) => doc.slice(doc.indexOf("## Preferences"), doc.indexOf("## Artifacts"));
+
+  it("lists each saved preference as a bullet, pay included", () => {
+    const preferences = parsePreferences({
+      titles: ["Product Designer"],
+      workModes: ["remote"],
+      compFloor: 150,
+      currency: "EUR",
+      companySize: { min: 50 },
+    });
+    const doc = buildContextDocument({ view, companyDocuments: [], generatedAt, preferences });
+    expect(section(doc)).toBe(
+      [
+        "## Preferences",
+        "",
+        "- Job titles: Product Designer",
+        "- Work modes: Remote",
+        "- Pay floor: 150 EUR",
+        "- Company size: at least 50 people",
+        "",
+        "",
+      ].join("\n"),
+    );
+    expect(doc).not.toContain("No preferences saved yet.");
+  });
+
+  it("keeps the fixed sentence when nothing is saved", () => {
+    const doc = buildContextDocument({ view, companyDocuments: [], generatedAt, preferences: DEFAULT_PREFERENCES });
+    expect(section(doc)).toBe(["## Preferences", "", "No preferences saved yet.", "", ""].join("\n"));
   });
 });

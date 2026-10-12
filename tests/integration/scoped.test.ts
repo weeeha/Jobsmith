@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
+import { loadProfile } from "@/lib/profile/store";
 
 describe("scoped profile isolation", () => {
   it("prevents one user from reading or overwriting another user's profile", async () => {
@@ -57,6 +58,25 @@ describe("scoped profile isolation", () => {
       expect(row.userId).toBe(user.id);
       expect(row.timezone).toBe("UTC");
       expect(row.preferences).toEqual({});
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("loadProfile", () => {
+  it("reads only the caller's profile", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const alice = await createTestUser(db, "alice3@example.com");
+      const bob = await createTestUser(db, "bob3@example.com");
+      await scoped(db, alice.id).profile.upsert({ headline: "Alice's headline", resumeMd: "Alice's resume", timezone: "Asia/Tokyo" });
+
+      const seenByBob = await loadProfile(scoped(db, bob.id));
+      expect(seenByBob).toMatchObject({ headline: null, resumeMd: null, timezone: "UTC", updatedAt: null });
+
+      const seenByAlice = await loadProfile(scoped(db, alice.id));
+      expect(seenByAlice).toMatchObject({ headline: "Alice's headline", resumeMd: "Alice's resume", timezone: "Asia/Tokyo" });
     } finally {
       await close();
     }
