@@ -42,4 +42,21 @@ describe("TimeZoneProvider", () => {
     );
     expect(screen.getByTestId("zone").textContent).toBe("UTC");
   });
+
+  // The server cannot know what this browser accepts, so the first client
+  // render must match what the server rendered; the fallback comes after mount.
+  it("renders the given zone first and switches to the fallback after mount", () => {
+    const seen: string[] = [];
+    function Recorder() {
+      seen.push(String(useTimeZone()));
+      return null;
+    }
+    render(
+      <TimeZoneProvider zone="Mars/Olympus">
+        <Recorder />
+      </TimeZoneProvider>,
+    );
+    expect(seen[0]).toBe("Mars/Olympus");
+    expect(seen[seen.length - 1]).toBe("UTC");
+  });
 });

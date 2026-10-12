@@ -6,19 +6,30 @@ export type WallClock = { year: number; month: number; day: number; hour: number
 const DAY_MS = 86_400_000;
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
+function buildFormatter(zone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: zone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+// A zone this engine rejects reads as UTC instead of throwing: the page keeps
+// the saved zone for its first render (so it matches the server), and an old
+// browser must survive that one render before the fallback zone arrives.
 function formatterFor(zone: string): Intl.DateTimeFormat {
   let formatter = formatters.get(zone);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: zone,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    try {
+      formatter = buildFormatter(zone);
+    } catch {
+      formatter = buildFormatter("UTC");
+    }
     formatters.set(zone, formatter);
   }
   return formatter;
@@ -63,12 +74,15 @@ export function instantFromWallClock(wall: WallClock, zone: string): Date {
   return new Date(asUtc - before);
 }
 
-// "YYYY-MM-DDTHH:mm" only, and only real calendar dates.
+// "YYYY-MM-DDTHH:mm", and only real calendar dates. Some pickers and scripts
+// hand back ":ss" or ":ss.sss" as well; the seconds are accepted and ignored,
+// since the app works in whole minutes.
 export function parseLocalInputValue(value: string): WallClock | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?$/.exec(value);
   if (!match) return null;
-  const [year, month, day, hour, minute] = match.slice(1).map(Number);
-  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
+  const [year, month, day, hour, minute] = match.slice(1, 6).map(Number);
+  const seconds = match[6] === undefined ? 0 : Number(match[6]);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || seconds > 59) return null;
   const check = new Date(Date.UTC(year, month - 1, day));
   if (check.getUTCMonth() !== month - 1) return null;
   return { year, month, day, hour, minute };

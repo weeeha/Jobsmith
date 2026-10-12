@@ -6,6 +6,11 @@ import type { SnoozePreset } from "@/lib/attention/snooze";
 // <LocalTime> between them.
 export type ReasonParts = { before: string; time: Date | null; after: string };
 
+// A next action the user ended with a period would read "Email Priya.. Due".
+function withoutTrailingPeriod(text: string): string {
+  return text.endsWith(".") ? text.slice(0, -1) : text;
+}
+
 function dayCount(days: number | null): string {
   return days === 1 ? "1 day" : `${days ?? 0} days`;
 }
@@ -14,12 +19,14 @@ export function attentionReason(item: AttentionItem): ReasonParts {
   switch (item.rule) {
     case "interview_soon":
       return { before: `${item.stage?.label ?? "Interview"}, `, time: item.at, after: "" };
-    case "next_action_due":
+    case "next_action_due": {
+      const action = withoutTrailingPeriod(item.nextAction ?? "");
       return {
-        before: item.overdue ? `${item.nextAction ?? ""}. Overdue since ` : `${item.nextAction ?? ""}. Due `,
+        before: item.overdue ? `${action}. Overdue since ` : `${action}. Due `,
         time: item.at,
         after: ".",
       };
+    }
     case "follow_up":
       return { before: `Follow up? No news for ${dayCount(item.days)}.`, time: null, after: "" };
     case "apply_or_drop":

@@ -143,11 +143,19 @@ describe("parseLocalInputValue and formatLocalInputValue", () => {
     ["a day that does not exist", "2026-02-30T10:00"],
     ["month 13", "2026-13-01T10:00"],
     ["hour 24", "2026-02-03T24:00"],
-    ["seconds", "2026-02-03T10:00:00"],
+    ["a bare colon", "2026-02-03T10:00:"],
+    ["one-digit seconds", "2026-02-03T10:00:5"],
+    ["a fraction without seconds", "2026-02-03T10:00.5"],
     ["a space instead of T", "2026-02-03 10:00"],
     ["an empty string", ""],
   ])("rejects %s", (_name, value) => {
     expect(parseLocalInputValue(value)).toBeNull();
+  });
+
+  it("accepts and ignores seconds and fractions of a second", () => {
+    expect(parseLocalInputValue("2026-10-12T09:30:00")).toEqual({ year: 2026, month: 10, day: 12, hour: 9, minute: 30 });
+    expect(parseLocalInputValue("2026-10-12T09:30:45.123")).toEqual({ year: 2026, month: 10, day: 12, hour: 9, minute: 30 });
+    expect(parseLocalInputValue("2026-10-12T09:30:61")).toBeNull();
   });
 
   it("accepts 29 February in a leap year only", () => {

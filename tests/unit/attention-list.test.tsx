@@ -197,6 +197,13 @@ describe("AttentionList", () => {
     vi.useRealTimers();
   });
 
+  it("does not double the period when the next action already ends with one", () => {
+    renderList([{ ...DUE, nextAction: "Email Priya." }, { ...OVERDUE, key: "next_action_due:job-2", opportunityId: "job-2", nextAction: "Call back." }]);
+    const reasons = screen.getAllByRole("listitem").map(reasonOf);
+    expect(reasons[0]).toMatch(/^Email Priya\. Due .+\.$/);
+    expect(reasons[1]).toMatch(/^Call back\. Overdue since .+\.$/);
+  });
+
   it("marks a next action done, announces it, and calls the existing action with the job id", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     mockedDone.mockResolvedValue({ ok: true, data: null });
