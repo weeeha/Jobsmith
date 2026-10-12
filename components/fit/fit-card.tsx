@@ -22,7 +22,9 @@ import {
 import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { messageFor } from "@/lib/pipeline/messages";
 
-const LINK_CLASS = "text-primary underline-offset-4 hover:underline";
+// Underlined at rest: a link inside a line of muted text must differ from the
+// text by more than color (axe link-in-text-block).
+const LINK_CLASS = "text-foreground underline underline-offset-4";
 
 function buttonLabel(view: FitCardModel["view"]): string | null {
   if (view === "none") return FIT_MESSAGES.scoreThisJob;

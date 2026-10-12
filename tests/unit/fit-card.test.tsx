@@ -214,7 +214,10 @@ describe("FitCard: hard filters", () => {
   it("with none set: says so and links to Preferences, even when AI is off", () => {
     renderCard(modelOf({ readiness: "ai_off", hasHardFilters: false }));
     expect(screen.getByText(/No hard filters set\./)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Set preferences" }).getAttribute("href")).toBe("/preferences");
+    const link = screen.getByRole("link", { name: "Set preferences" });
+    expect(link.getAttribute("href")).toBe("/preferences");
+    // A link inside muted text needs more than color to stand out.
+    expect(link.classList.contains("underline")).toBe(true);
     expect(screen.queryByText("Passes your hard filters.")).toBeNull();
   });
 });
