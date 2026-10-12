@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const harness = vi.hoisted(() => ({
@@ -16,7 +17,7 @@ vi.mock("@/app/(app)/jobs/[slug]/actions", () => ({ scoreFitAction: vi.fn() }));
 import { scoreFitAction } from "@/app/(app)/jobs/[slug]/actions";
 import { FitCard } from "@/components/fit/fit-card";
 import { LiveAnnouncerProvider } from "@/components/live-announcer";
-import { FIT_POLL_MAX, FIT_POLL_MS, type FitCardModel } from "@/lib/fit/card";
+import { FIT_PENDING_STALE_MS, FIT_POLL_MAX, FIT_POLL_MS, type FitCardModel } from "@/lib/fit/card";
 
 const mockedScore = vi.mocked(scoreFitAction);
 
@@ -194,6 +195,54 @@ describe("FitCard: done", () => {
     expect(screen.getByRole("link", { name: "Open Settings" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Score again" })).toBeNull();
   });
+
+  it("done and not ready: never says the resume is needed to get a score under a score", () => {
+    renderCard(doneModel({ readiness: "no_resume" }));
+    expect(screen.queryByText(/to get a fit score/)).toBeNull();
+    expect(screen.getByText(/Add your resume in Settings to score this job again\./)).toBeTruthy();
+  });
+
+  it("done and ready: shows no readiness reason", () => {
+    renderCard(doneModel());
+    expect(screen.queryByText(/Add your resume/)).toBeNull();
+    expect(screen.queryByText(/not turned on/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Score again" })).toBeTruthy();
+  });
+});
+
+describe("FitCard: a stored score under a status", () => {
+  it.each([
+    ["failed", "Scoring did not work this time. The job is saved as it is.", "Try again"],
+    ["stalled", "Scoring did not finish.", "Try again"],
+  ] as const)("%s: keeps the stored score, summary and lists, with the status line under them", (view, line, button) => {
+    renderCard(modelOf({ view, fit: FIT, band: "strong" }));
+    expect(chipText()).toBe("Fit score 81, strong fit");
+    expect(screen.getByText("A strong match for internal tools work.")).toBeTruthy();
+    expect(screen.getByText("Eight years in design systems.")).toBeTruthy();
+    const summary = screen.getByText("A strong match for internal tools work.");
+    const status = screen.getByText(line);
+    expect(summary.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: button })).toBeTruthy();
+  });
+
+  it("pending: keeps the stored score above the pending line and offers no button", () => {
+    renderCard(modelOf({ view: "pending", fit: FIT, band: "strong" }));
+    expect(chipText()).toBe("Fit score 81, strong fit");
+    expect(screen.getByText("Scoring this job. This can take a few seconds.").getAttribute("role")).toBe("status");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("failed with no stored score: shows the status line alone", () => {
+    renderCard(modelOf({ view: "failed" }));
+    expect(chipText()).toBeUndefined();
+    expect(screen.getByText("Scoring did not work this time. The job is saved as it is.")).toBeTruthy();
+  });
+
+  it("failed and not ready: explains the missing button without promising a first score", () => {
+    renderCard(modelOf({ view: "failed", readiness: "no_resume", fit: FIT, band: "strong" }));
+    expect(screen.queryByText(/to get a fit score/)).toBeNull();
+    expect(screen.getByText(/to score this job again/)).toBeTruthy();
+  });
 });
 
 describe("FitCard: hard filters", () => {
@@ -338,5 +387,94 @@ describe("FitCard: polling while pending", () => {
       vi.advanceTimersByTime(FIT_POLL_MS * 5);
     });
     expect(harness.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes once more after the stale window when the poll budget ends still pending", () => {
+    vi.useFakeTimers();
+    renderCard(modelOf({ view: "pending" }));
+    // The budget is spent, then the next tick notices and arms the last refresh.
+    act(() => {
+      vi.advanceTimersByTime(FIT_POLL_MS * (FIT_POLL_MAX + 1));
+    });
+    expect(harness.refresh).toHaveBeenCalledTimes(FIT_POLL_MAX);
+    act(() => {
+      vi.advanceTimersByTime(FIT_PENDING_STALE_MS - 1);
+    });
+    expect(harness.refresh).toHaveBeenCalledTimes(FIT_POLL_MAX);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(harness.refresh).toHaveBeenCalledTimes(FIT_POLL_MAX + 1);
+    act(() => {
+      vi.advanceTimersByTime(FIT_PENDING_STALE_MS * 3);
+    });
+    expect(harness.refresh).toHaveBeenCalledTimes(FIT_POLL_MAX + 1);
+  });
+
+  it("does not refresh after the budget when the view left pending", () => {
+    vi.useFakeTimers();
+    const { rerender } = renderCard(modelOf({ view: "pending" }));
+    act(() => {
+      vi.advanceTimersByTime(FIT_POLL_MS * (FIT_POLL_MAX + 1));
+    });
+    rerender(
+      <LiveAnnouncerProvider>
+        <FitCard model={doneModel()} />
+      </LiveAnnouncerProvider>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(FIT_PENDING_STALE_MS * 2);
+    });
+    expect(harness.refresh).toHaveBeenCalledTimes(FIT_POLL_MAX);
+  });
+});
+
+describe("FitCard: announcing a background result", () => {
+  function rerenderWith(rerender: (ui: React.ReactElement) => void, model: FitCardModel) {
+    rerender(
+      <LiveAnnouncerProvider>
+        <FitCard model={model} />
+      </LiveAnnouncerProvider>,
+    );
+  }
+
+  it("announces the score when polling moves pending to done", () => {
+    vi.useFakeTimers();
+    const { rerender } = renderCard(modelOf({ view: "pending" }));
+    act(() => {
+      rerenderWith(rerender, doneModel());
+    });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(announced()).toBe("Scored Product Designer at Northwind Traders: 81.");
+  });
+
+  it("announces the failure line when polling moves pending to failed", () => {
+    vi.useFakeTimers();
+    const { rerender } = renderCard(modelOf({ view: "pending" }));
+    act(() => {
+      rerenderWith(rerender, modelOf({ view: "failed" }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(announced()).toBe("Scoring did not work this time. The job is saved as it is.");
+  });
+
+  it("announces nothing on first render or when the view did not come from pending", () => {
+    vi.useFakeTimers();
+    const { rerender } = renderCard(doneModel());
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(announced()).toBe("");
+    act(() => {
+      rerenderWith(rerender, modelOf({ view: "failed" }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(announced()).toBe("");
   });
 });

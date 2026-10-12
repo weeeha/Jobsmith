@@ -16,6 +16,8 @@ export const FIT_MESSAGES = {
   ai_off: "Fit scoring needs AI, and AI is not turned on for this server.",
   no_posting: "Fit scoring needs the posting text, and this job has none.",
   no_resume: "Add your resume in Settings to get a fit score.",
+  // Under a stored score the same reason reads as why it cannot be redone.
+  no_resume_again: "Add your resume in Settings to score this job again.",
   openSettings: "Open Settings",
   scoreThisJob: "Score this job",
   tryAgain: "Try again",

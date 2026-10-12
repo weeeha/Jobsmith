@@ -11,7 +11,7 @@ import { FIT_LINK_CLASS, HardFilterLines } from "@/components/fit/hard-filter-li
 import { useAnnounce } from "@/components/live-announcer";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@/components/ui/button";
-import { FIT_POLL_MAX, FIT_POLL_MS, type FitCardModel } from "@/lib/fit/card";
+import { FIT_PENDING_STALE_MS, FIT_POLL_MAX, FIT_POLL_MS, type FitCardModel } from "@/lib/fit/card";
 import { FIT_MESSAGES, scoreFailureToast, scoredAnnouncement } from "@/lib/fit/messages";
 import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { messageFor } from "@/lib/pipeline/messages";
@@ -39,16 +39,35 @@ export function FitCard({ model }: { model: FitCardModel }) {
       refreshesRef.current = 0;
       return;
     }
+    let lastRefresh: number | undefined;
     const timer = window.setInterval(() => {
       if (refreshesRef.current >= FIT_POLL_MAX) {
         window.clearInterval(timer);
+        // Staleness is measured from the row's last write, and an unrelated
+        // write while the run was pending moves it forward. One more look
+        // once the stale window has passed turns a lost run into a retry.
+        lastRefresh = window.setTimeout(() => router.refresh(), FIT_PENDING_STALE_MS);
         return;
       }
       refreshesRef.current += 1;
       router.refresh();
     }, FIT_POLL_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(lastRefresh);
+    };
   }, [model.view, router]);
+
+  // A run that finishes while the card is open arrives as a new model, not as
+  // a click, so the button path's announcement does not cover it.
+  const previousViewRef = React.useRef(model.view);
+  React.useEffect(() => {
+    const previous = previousViewRef.current;
+    previousViewRef.current = model.view;
+    if (previous !== "pending") return;
+    if (model.view === "done" && model.fit) announce(scoredAnnouncement(model, model.fit.score));
+    else if (model.view === "failed") announce(FIT_MESSAGES.failed);
+  }, [model, announce]);
 
   function score() {
     startScoring(async () => {
@@ -78,6 +97,9 @@ export function FitCard({ model }: { model: FitCardModel }) {
   const canScore = model.readiness === "ready";
   const label = buttonLabel(model.view);
   const showReason = model.view !== "pending" && !canScore;
+  // The same missing resume reads differently above a score that already exists.
+  const reasonKey =
+    model.readiness === "no_resume" && fit ? "no_resume_again" : (model.readiness as "ai_off" | "no_posting" | "no_resume");
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
@@ -85,7 +107,7 @@ export function FitCard({ model }: { model: FitCardModel }) {
         {FIT_MESSAGES.heading}
       </h2>
 
-      {model.view === "done" && fit ? (
+      {fit && model.view !== "none" ? (
         <>
           <FitResultBody fit={fit} threshold={model.threshold} headingLevel="h3" />
           <p className="text-sm text-muted-foreground">
@@ -95,8 +117,9 @@ export function FitCard({ model }: { model: FitCardModel }) {
             <p className="text-sm text-muted-foreground">{FIT_MESSAGES.changed}</p>
           ) : null}
         </>
-      ) : model.view !== "pending" ? (
-        <p className="text-sm text-muted-foreground">{FIT_MESSAGES[model.view === "done" ? "none" : model.view]}</p>
+      ) : null}
+      {model.view === "failed" || model.view === "stalled" || model.view === "none" ? (
+        <p className="text-sm text-muted-foreground">{FIT_MESSAGES[model.view]}</p>
       ) : null}
 
       {/* Always in the document, so a screen reader hears the line when it
@@ -107,7 +130,7 @@ export function FitCard({ model }: { model: FitCardModel }) {
 
       {showReason ? (
         <p className="text-sm text-muted-foreground">
-          {FIT_MESSAGES[model.readiness as "ai_off" | "no_posting" | "no_resume"]}
+          {FIT_MESSAGES[reasonKey]}
           {model.readiness === "no_resume" ? (
             <>
               {" "}
