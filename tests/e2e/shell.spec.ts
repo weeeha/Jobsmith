@@ -33,7 +33,8 @@ test("shell: login, board, home, navigation and accessibility", async ({ page },
 
   await test.step("home renders", async () => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Home" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Today" })).toBeVisible();
     await scanForViolations(page, "/ (Home)", testInfo);
   });
 
