@@ -54,7 +54,9 @@ test("Preferences shows the size range error under the field and returns focus t
 
   await expect(page.getByText("The smallest size must not be above the largest.")).toBeVisible();
   await expect(page.getByLabel("Company size to")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("alert")).toHaveText("Check the highlighted fields.");
+  await expect(page.getByRole("alert").filter({ hasText: "Check the highlighted fields." })).toHaveText(
+    "Check the highlighted fields.",
+  );
   await expect(page.getByRole("button", { name: "Save preferences" })).toBeFocused();
 });
 
