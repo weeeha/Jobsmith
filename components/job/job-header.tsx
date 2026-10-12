@@ -145,10 +145,10 @@ export function JobHeader({ opportunity, companyName, needsReview, fitScore }: J
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold text-foreground">{opportunity.roleTitle}</h1>
+            <h1 className="min-w-0 text-xl font-semibold break-words text-foreground">{opportunity.roleTitle}</h1>
             {fitScore !== null ? <FitChip score={fitScore} /> : null}
           </div>
-          <p className="text-muted-foreground">
+          <p className="break-words text-muted-foreground">
             {companyName}
             {opportunity.location ? <> · {opportunity.location}</> : null}
           </p>

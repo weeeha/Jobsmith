@@ -91,10 +91,10 @@ function SetNextActionForm({
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex flex-col gap-4">
+    <form onSubmit={(event) => submitViaTransition(event, formAction)} className="flex min-w-0 flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Set the next action</DialogTitle>
-        <DialogDescription>
+        <DialogDescription className="break-words">
           {initial.roleTitle} at {initial.companyName}
         </DialogDescription>
       </DialogHeader>

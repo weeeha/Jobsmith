@@ -177,6 +177,53 @@ describe("PreferencesForm", () => {
     expect(data.get("attention.savedDays")).toBe("5");
   });
 
+  async function typeInto(label: string, value: string) {
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    });
+  }
+
+  it("saves text left in a list box as an entry, and shows it as a chip with an empty box afterwards", async () => {
+    renderForm();
+    await typeInto("New entry for Job titles", "  Design Lead ");
+    await typeInto("New entry for Must-haves", "Design reviews");
+    await save();
+
+    expect(sent().getAll("titles")).toEqual(["Product Designer", "Design Lead"]);
+    expect(sent().getAll("mustHaves")).toEqual(["Design systems", "Design reviews"]);
+    expect(screen.getByRole("button", { name: "Remove Design Lead" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Remove Design reviews" })).not.toBeNull();
+    expect((screen.getByLabelText("New entry for Job titles") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("New entry for Must-haves") as HTMLInputElement).value).toBe("");
+  });
+
+  it("ignores a left-over duplicate and empties its box after a save", async () => {
+    renderForm();
+    await typeInto("New entry for Job titles", "product designer");
+    await save();
+
+    expect(sent().getAll("titles")).toEqual(["Product Designer"]);
+    expect(screen.getAllByRole("button", { name: /^Remove product designer$/i })).toHaveLength(1);
+    expect((screen.getByLabelText("New entry for Job titles") as HTMLInputElement).value).toBe("");
+  });
+
+  it("keeps an over-long left-over text in its box, with the server's message, when the save is refused", async () => {
+    mockedSave.mockResolvedValue({
+      ok: false,
+      code: "invalid",
+      message: "Check the highlighted fields.",
+      fieldErrors: { titles: "Keep each entry under 80 characters." },
+    });
+    renderForm();
+    await typeInto("New entry for Job titles", "x".repeat(81));
+    await save();
+
+    expect(sent().getAll("titles")).toEqual(["Product Designer", "x".repeat(81)]);
+    expect(within(screen.getByRole("group", { name: "Job titles" })).getByText("Keep each entry under 80 characters.")).not.toBeNull();
+    expect((screen.getByLabelText("New entry for Job titles") as HTMLInputElement).value).toBe("x".repeat(81));
+    expect(screen.queryByRole("button", { name: `Remove ${"x".repeat(81)}` })).toBeNull();
+  });
+
   it("posts a cleared number as an empty string", async () => {
     renderForm();
     await act(async () => {

@@ -17,6 +17,12 @@ interface ListInputProps {
   error?: string;
   placeholder: string;
   defaultValue: string[];
+  /**
+   * Changes to a new object each time the surrounding form saves
+   * successfully. The text that was left in the box when that form was
+   * submitted then becomes a chip.
+   */
+  saved?: object;
 }
 
 const LIMIT_MESSAGE = `Lists hold up to ${MAX_LIST_ITEMS} entries.`;
@@ -28,7 +34,7 @@ type Focus = { entry: string } | "input" | null;
  * A list of short strings: chips with remove buttons and a box to add more.
  * Enter in the box adds an entry and never submits the surrounding form.
  */
-export function ListInput({ name, label, hint, error, placeholder, defaultValue }: ListInputProps) {
+export function ListInput({ name, label, hint, error, placeholder, defaultValue, saved }: ListInputProps) {
   const id = React.useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -43,6 +49,40 @@ export function ListInput({ name, label, hint, error, placeholder, defaultValue 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const removeButtons = React.useRef(new Map<string, HTMLButtonElement>());
   const pendingFocus = React.useRef<Focus>(null);
+
+  // Text typed but not added is posted as one more entry, so a Save pressed
+  // without Add or Enter keeps it. A case-insensitive repeat of a chip is
+  // ignored, as Add ignores it; the server does the length and count checks.
+  const typed = draft.trim();
+  const isRepeat = (text: string) => entries.some((existing) => existing.toLowerCase() === text.toLowerCase());
+  const posted = typed !== "" && !isRepeat(typed) ? typed : "";
+
+  // What the box held when the form was last submitted, so text typed while
+  // the save runs is not shown as saved.
+  const typedRef = React.useRef(typed);
+  React.useEffect(() => {
+    typedRef.current = typed;
+  });
+  const [submitted, setSubmitted] = React.useState("");
+  React.useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return;
+    const remember = () => setSubmitted(typedRef.current);
+    form.addEventListener("submit", remember);
+    return () => form.removeEventListener("submit", remember);
+  }, []);
+
+  // A successful save moves what was submitted from the box to the chips.
+  // Adjusting state while rendering, keyed on the prop, needs no effect.
+  const [seenSave, setSeenSave] = React.useState(saved);
+  if (saved !== seenSave) {
+    setSeenSave(saved);
+    if (saved !== undefined && submitted !== "") {
+      if (!isRepeat(submitted)) setEntries([...entries, submitted]);
+      if (typed === submitted) setDraft("");
+      setSubmitted("");
+    }
+  }
 
   const full = entries.length >= MAX_LIST_ITEMS;
   const status = full ? LIMIT_MESSAGE : refusal;
@@ -154,6 +194,7 @@ export function ListInput({ name, label, hint, error, placeholder, defaultValue 
       {entries.map((entry) => (
         <input key={entry} type="hidden" name={name} value={entry} />
       ))}
+      {posted !== "" ? <input type="hidden" name={name} value={posted} /> : null}
     </fieldset>
   );
 }

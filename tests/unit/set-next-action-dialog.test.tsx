@@ -63,6 +63,16 @@ describe("SetNextActionDialog", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("lets an 80-character role and company name in the description break inside the word", async () => {
+    await renderDialog({ ...SUBJECT, roleTitle: "r".repeat(80), companyName: "c".repeat(80) });
+    const description = within(dialog()).getByText(`${"r".repeat(80)} at ${"c".repeat(80)}`);
+    expect(description.getAttribute("data-slot")).toBe("dialog-description");
+    expect(description.className).toContain("break-words");
+    // The dialog is a grid, and a grid item without min-w-0 is as wide as its
+    // longest word however the text may break.
+    expect(dialog().querySelector("form")!.className).toContain("min-w-0");
+  });
+
   it("opens with the title, the job in the description, and focus on What is next", async () => {
     await renderDialog();
     expect(within(dialog()).getByText("Product Designer at Northwind Traders")).toBeTruthy();

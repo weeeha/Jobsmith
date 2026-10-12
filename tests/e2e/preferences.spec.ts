@@ -17,6 +17,16 @@ async function ensureTitle(page: Page, title: string) {
   }
 }
 
+// Types a must-have into its box and leaves it there, without Enter or Add:
+// pressing Save preferences has to keep it. Every test here that saves also
+// leaves it in the box, so a save from another project never removes it.
+async function leaveMustHaveInBox(page: Page, text: string) {
+  const mustHaves = page.getByRole("group", { name: "Must-haves" });
+  if ((await mustHaves.getByRole("button", { name: `Remove ${text}` }).count()) === 0) {
+    await mustHaves.getByLabel("New entry for Must-haves").fill(text);
+  }
+}
+
 async function ensureRemotePressed(page: Page) {
   const remote = page.getByRole("button", { name: "Remote", exact: true });
   if ((await remote.getAttribute("aria-pressed")) !== "true") await remote.click();
@@ -33,12 +43,22 @@ test("Preferences keeps a title added with the keyboard and a pressed work mode 
 
   await ensureTitle(page, "Product Designer");
   await ensureRemotePressed(page);
+  await leaveMustHaveInBox(page, "Design reviews");
   await page.getByRole("button", { name: "Save preferences" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Preferences saved." })).toBeVisible();
+
+  // The text left in the box was saved as an entry: it is a chip now and the
+  // box is empty.
+  const mustHaves = page.getByRole("group", { name: "Must-haves" });
+  await expect(mustHaves.getByRole("button", { name: "Remove Design reviews" })).toBeVisible();
+  await expect(mustHaves.getByLabel("New entry for Must-haves")).toHaveValue("");
 
   await page.reload();
   await expect(
     page.getByRole("group", { name: "Job titles" }).getByRole("button", { name: "Remove Product Designer" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Must-haves" }).getByRole("button", { name: "Remove Design reviews" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Remote", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
@@ -79,6 +99,7 @@ test("Test against a posting scores a pasted posting with the saved preferences 
 
   await page.goto("/preferences");
   await ensureTitle(page, "Product Designer");
+  await leaveMustHaveInBox(page, "Design reviews");
   await page.getByRole("button", { name: "Save preferences" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Preferences saved." })).toBeVisible();
 

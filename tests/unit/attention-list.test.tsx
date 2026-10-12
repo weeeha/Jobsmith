@@ -102,6 +102,17 @@ describe("AttentionList", () => {
     expect(link.getAttribute("href")).toBe("/jobs/design-lead-northwind");
   });
 
+  // An unbroken name has no space to wrap at, so the elements that hold it
+  // must be allowed to break inside a word.
+  it("lets an 80-character role and company name break inside the word", () => {
+    renderList([item({ roleTitle: "r".repeat(80), companyName: "c".repeat(80), nextAction: "n".repeat(80), rule: "next_action_due", key: "next_action_due:job-1" })]);
+    const link = screen.getByRole("link", { name: `${"r".repeat(80)} at ${"c".repeat(80)}` });
+    expect(link.className).toContain("break-words");
+    const reason = document.querySelector("[data-attention-reason]") as HTMLElement;
+    expect(reason.textContent).toContain("n".repeat(80));
+    expect(reason.className).toContain("break-words");
+  });
+
   it.each([
     ["interview_soon", INTERVIEW, /^Phone screen, .+$/],
     ["next_action_due", DUE, /^Send portfolio\. Due .+\.$/],

@@ -132,6 +132,9 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   }, [state, announce]);
 
   const errors = state?.ok === false ? state.fieldErrors : undefined;
+  // A new object per successful save: the list boxes turn the text they held
+  // at submit into chips.
+  const saved = state?.ok ? state : undefined;
 
   return (
     // noValidate: the server's messages are the ones to show, not the
@@ -151,6 +154,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           error={errors?.titles}
           placeholder="Add a title"
           defaultValue={initial.titles}
+          saved={saved}
         />
         <ToggleField
           name="workModes"
@@ -166,6 +170,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           error={errors?.locations}
           placeholder="Add a place"
           defaultValue={initial.locations}
+          saved={saved}
         />
         <NumberField
           name="compFloor"
@@ -207,6 +212,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           error={errors?.mustHaves}
           placeholder="Add a must-have"
           defaultValue={initial.mustHaves}
+          saved={saved}
         />
         <ListInput
           name="dealbreakers"
@@ -214,6 +220,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           error={errors?.dealbreakers}
           placeholder="Add a dealbreaker"
           defaultValue={initial.dealbreakers}
+          saved={saved}
         />
         <ListInput
           name="industriesAvoid"
@@ -221,6 +228,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           error={errors?.industriesAvoid}
           placeholder="Add an industry"
           defaultValue={initial.industriesAvoid}
+          saved={saved}
         />
         <NumberField
           name="companySize.min"

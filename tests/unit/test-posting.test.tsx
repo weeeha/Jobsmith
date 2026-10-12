@@ -59,6 +59,25 @@ afterEach(() => {
   cleanup();
 });
 
+describe("TestPostingBox result with long unbroken text", () => {
+  it("lets the title, the summary and the lists break inside a word", async () => {
+    renderBox();
+    const word = "w".repeat(80);
+    await submitWith(
+      result({
+        roleTitle: "r".repeat(80),
+        companyName: "c".repeat(80),
+        fit: { score: 81, summary: word, pros: [word], cons: [word] },
+      }),
+    );
+    const title = within(resultRegion()).getByText(`${"r".repeat(80)} at ${"c".repeat(80)}`);
+    expect(title.className).toContain("break-words");
+    const elements = within(resultRegion()).getAllByText(word);
+    expect(elements).toHaveLength(3);
+    for (const element of elements) expect(element.className).toContain("break-words");
+  });
+});
+
 describe("TestPostingBox", () => {
   it("has its heading, intro, two fields and a Test button, and nothing else until it runs", () => {
     renderBox();

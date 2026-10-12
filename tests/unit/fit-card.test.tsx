@@ -151,6 +151,14 @@ describe("FitCard: done", () => {
     expect(screen.getByRole("button", { name: "Score again" })).toBeTruthy();
   });
 
+  it("lets an 80-character word in the summary, a pro and a con break inside the word", () => {
+    const word = "z".repeat(80);
+    renderCard(doneModel({ fit: { ...FIT, summary: word, pros: [word], cons: [word] } }));
+    const elements = screen.getAllByText(word);
+    expect(elements).toHaveLength(3);
+    for (const element of elements) expect(element.className).toContain("break-words");
+  });
+
   it("says Below when the score is under the line, and Above at exactly the line", () => {
     const { unmount } = renderCard(doneModel({ threshold: 90 }));
     expect(screen.getByText("Below your good-fit line of 90.")).toBeTruthy();

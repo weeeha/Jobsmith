@@ -61,6 +61,69 @@ describe("ListInput", () => {
     expect(statusOf(group)).toBe("");
   });
 
+  // The box's text is posted as one more entry when the form is submitted
+  // without pressing Add, under the same rules as Add.
+  it("posts text typed but not added as one more entry, trimmed", async () => {
+    const { group } = renderList({ defaultValue: ["Product Designer"] });
+    await type("  Design Lead  ");
+    expect(hiddenValues(group)).toEqual(["Product Designer", "Design Lead"]);
+    expect(chipNames(group)).toEqual(["Remove Product Designer"]);
+  });
+
+  it("posts nothing extra for a blank box or a case-insensitive duplicate", async () => {
+    const { group } = renderList({ defaultValue: ["Product Designer"] });
+    await type("   ");
+    expect(hiddenValues(group)).toEqual(["Product Designer"]);
+    await type("product DESIGNER");
+    expect(hiddenValues(group)).toEqual(["Product Designer"]);
+  });
+
+  it("posts an over-long box as typed, for the server to refuse with its own message", async () => {
+    const { group } = renderList();
+    await type("x".repeat(81));
+    expect(hiddenValues(group)).toEqual(["x".repeat(81)]);
+  });
+
+  it("folds the posted text into the chips and empties the box when a save succeeds", async () => {
+    function Harness({ saved }: { saved?: object }) {
+      return (
+        <LiveAnnouncerProvider>
+          <form>
+            <ListInput name="titles" label="Job titles" placeholder="Add a title" defaultValue={["Product Designer"]} saved={saved} />
+          </form>
+        </LiveAnnouncerProvider>
+      );
+    }
+    const view = render(<Harness />);
+    const group = screen.getByRole("group", { name: "Job titles" });
+    await type("Design Lead");
+    await act(async () => {
+      group.closest("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    // Typing after the submit is not part of what was saved.
+    await type("Design Lead and more");
+    expect(chipNames(group)).toEqual(["Remove Product Designer"]);
+
+    view.rerender(<Harness saved={{}} />);
+    expect(chipNames(group)).toEqual(["Remove Product Designer", "Remove Design Lead"]);
+    expect(hiddenValues(group)).toEqual(["Product Designer", "Design Lead", "Design Lead and more"]);
+    expect(input().value).toBe("Design Lead and more");
+  });
+
+  it("lets an 80-character entry break inside the word, in the chip and its text", () => {
+    const long = "y".repeat(80);
+    const { group } = renderList({ defaultValue: [long] });
+    const chip = within(group).getByRole("listitem");
+    expect(chip.className).toContain("max-w-full");
+    const badge = chip.querySelector('[data-slot="badge"]') as HTMLElement;
+    expect(badge.className).toContain("max-w-full");
+    expect(badge.className).toContain("break-words");
+    const text = within(badge).getByText(long);
+    expect(text.className).toContain("min-w-0");
+    expect(text.className).toContain("break-words");
+    expect(group.className).toContain("min-w-0");
+  });
+
   it("renders no list when there are no entries", () => {
     const { group } = renderList();
     expect(within(group).queryByRole("list")).toBeNull();
