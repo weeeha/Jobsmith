@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { Result } from "@/lib/result";
 import type { AiProvider } from "./config";
 
-export const AI_TASKS = ["extract_posting"] as const;
+export const AI_TASKS = ["extract_posting", "score_fit"] as const;
 export type AiTask = (typeof AI_TASKS)[number];
 
 export type AiErrorCode = "ai_timeout" | "ai_bad_output" | "ai_error";
