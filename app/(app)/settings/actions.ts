@@ -9,6 +9,7 @@ import { messageFor } from "@/lib/pipeline/messages";
 import { fieldErrorsByPath, type FormState } from "@/lib/forms/state";
 import { profileFormSchema, readProfileForm } from "@/lib/profile/schema";
 import { saveProfile } from "@/lib/profile/store";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 import { fail, type Result } from "@/lib/result";
 
 export async function createTokenAction(_prev: TokenFormState, formData: FormData): Promise<TokenFormState> {
@@ -44,7 +45,14 @@ export async function saveProfileAction(_prev: FormState, formData: FormData): P
   if (!parsed.success) {
     return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsByPath(parsed.error) };
   }
-  await saveProfile(scopedFor(user.id), parsed.data);
+  try {
+    await saveProfile(scopedFor(user.id), parsed.data);
+  } catch (error) {
+    // The thrown error carries the resume and headline; the form keeps what
+    // the user typed and shows the message instead of the error page.
+    logDbErrorSafely("[profile]", {}, error);
+    return { ok: false, code: "server_error", message: messageFor("server_error") };
+  }
   // The zone shows in every page's times and the preferences in every job's
   // hard-filter line, so the whole app re-renders.
   revalidatePath("/", "layout");

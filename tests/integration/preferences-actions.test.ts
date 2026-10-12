@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DrizzleQueryError } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { scoped } from "@/lib/db/scoped";
 import type { PGlite } from "@electric-sql/pglite";
@@ -21,6 +22,7 @@ const harness = vi.hoisted(() => ({
   db: undefined as Db | undefined,
   userId: "",
   deps: undefined as (() => AddJobDeps) | undefined,
+  upsertError: undefined as unknown,
 }));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
@@ -38,11 +40,28 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/db/scoped", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/scoped")>();
-  return { ...actual, scopedFor: (userId: string) => actual.scoped(harness.db!, userId) };
+  return {
+    ...actual,
+    scopedFor: (userId: string) => {
+      const real = actual.scoped(harness.db!, userId);
+      if (!harness.upsertError) return real;
+      return {
+        ...real,
+        profile: {
+          ...real.profile,
+          upsert: async () => {
+            throw harness.upsertError;
+          },
+        },
+      };
+    },
+  };
 });
 
 afterEach(() => {
   revalidatePathMock.mockClear();
+  harness.upsertError = undefined;
+  vi.restoreAllMocks();
 });
 
 function form(entries: [string, string][]): FormData {
@@ -206,6 +225,26 @@ describe("savePreferencesAction", () => {
     try {
       const state = await savePreferencesAction(undefined, form([["workModes", "moon"]]));
       expect(state).toMatchObject({ ok: false, code: "invalid" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("returns server_error and logs no preference value when the write throws", async () => {
+    const { close } = await setup("prefs-throws@example.com");
+    try {
+      const cause = Object.assign(new Error("timeout SECRET-PREF"), { code: "57014" });
+      harness.upsertError = new DrizzleQueryError('update "profile" -- SECRET-PREF', ["SECRET-PREF"], cause);
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      const infoLog = vi.spyOn(console, "info").mockImplementation(() => {});
+
+      const state = await savePreferencesAction(undefined, form([["titles", "SECRET-PREF"], ["compFloor", "123456"]]));
+
+      expect(state).toEqual({ ok: false, code: "server_error", message: "Something went wrong. Try again." });
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify([errorLog.mock.calls, infoLog.mock.calls])).not.toContain("SECRET");
+      expect(JSON.stringify([errorLog.mock.calls, infoLog.mock.calls])).not.toContain("123456");
     } finally {
       await close();
     }

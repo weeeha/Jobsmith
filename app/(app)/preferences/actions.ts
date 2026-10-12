@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
-import { logFitError } from "@/lib/fit/log";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 import { testPosting, testPostingFormSchema, type TestPostingResult } from "@/lib/fit/test-posting";
 import { fieldErrorsByPath, fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
 import { intakeDeps } from "@/lib/intake/deps";
@@ -20,7 +20,14 @@ export async function savePreferencesAction(_prev: FormState, formData: FormData
   if (!parsed.success) {
     return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsByPath(parsed.error) };
   }
-  await savePreferences(scopedFor(user.id), parsed.data);
+  try {
+    await savePreferences(scopedFor(user.id), parsed.data);
+  } catch (error) {
+    // The thrown error carries every preference value; the form keeps what
+    // the user typed and shows the message instead of the error page.
+    logDbErrorSafely("[preferences]", {}, error);
+    return { ok: false, code: "server_error", message: messageFor("server_error") };
+  }
   // Hard filters show on every job page and in the bridge context, and the
   // Home reminder days change what Home lists, so the whole app re-renders.
   revalidatePath("/", "layout");
@@ -58,7 +65,7 @@ export async function testPostingAction(_prev: TestPostingState, formData: FormD
     }
     return { ok: true, data: outcome.result };
   } catch (error) {
-    logFitError(error);
+    logDbErrorSafely("[fit]", {}, error);
     return { ok: false, code: "server_error", message: messageFor("unexpected") };
   }
 }

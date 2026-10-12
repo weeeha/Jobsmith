@@ -1,7 +1,8 @@
 import { getUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
-import { buildExport, exportFileName, logExportError } from "@/lib/export/build";
-import { loadProfile } from "@/lib/profile/store";
+import { buildExport, exportFileName } from "@/lib/export/build";
+import { logDbErrorSafely } from "@/lib/log/db-error";
+import { canonicalTimeZone } from "@/lib/time/zone";
 
 // A download, so it is never cached and never served to anyone else. The proxy
 // already redirects a request with no session cookie to /login; the 401 below
@@ -18,7 +19,6 @@ export async function GET(): Promise<Response> {
     const s = scopedFor(user.id);
     const now = new Date();
     const doc = await buildExport(s, now);
-    const profile = await loadProfile(s);
     const body = JSON.stringify(doc, null, 2);
     // Counts and timing only: the body holds the resume and every note.
     console.info("[export]", JSON.stringify({ requestId, ms: Date.now() - started }));
@@ -26,12 +26,12 @@ export async function GET(): Promise<Response> {
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "content-disposition": `attachment; filename="${exportFileName(now, profile.timezone)}"`,
+        "content-disposition": `attachment; filename="${exportFileName(now, canonicalTimeZone(doc.profile?.timezone ?? "") ?? "UTC")}"`,
         "cache-control": "no-store",
       },
     });
   } catch (error) {
-    logExportError(requestId, error);
+    logDbErrorSafely("[export]", { requestId }, error);
     return Response.json({ error: "server_error" }, { status: 500 });
   }
 }

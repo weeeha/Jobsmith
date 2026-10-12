@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DrizzleQueryError } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { scoped } from "@/lib/db/scoped";
 import { saveProfileAction } from "@/app/(app)/settings/actions";
@@ -9,7 +10,7 @@ import { seedProfile } from "../helpers/profile";
 // Same harness as the other action tests: the signed-in user and path
 // revalidation need a live Next.js request, so both are stubbed; scopedFor
 // points at a real PGlite database through the real scoped().
-const harness = vi.hoisted(() => ({ db: undefined as Db | undefined, userId: "" }));
+const harness = vi.hoisted(() => ({ db: undefined as Db | undefined, userId: "", upsertError: undefined as unknown }));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/session", () => ({
@@ -22,11 +23,28 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/db/scoped", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/scoped")>();
-  return { ...actual, scopedFor: (userId: string) => actual.scoped(harness.db!, userId) };
+  return {
+    ...actual,
+    scopedFor: (userId: string) => {
+      const real = actual.scoped(harness.db!, userId);
+      if (!harness.upsertError) return real;
+      return {
+        ...real,
+        profile: {
+          ...real.profile,
+          upsert: async () => {
+            throw harness.upsertError;
+          },
+        },
+      };
+    },
+  };
 });
 
 afterEach(() => {
   revalidatePathMock.mockClear();
+  harness.upsertError = undefined;
+  vi.restoreAllMocks();
 });
 
 function profileForm(values: { headline?: string; resumeMd?: string; timezone?: string }): FormData {
@@ -124,6 +142,26 @@ describe("saveProfileAction", () => {
       expect(profile.headline).toBeNull();
       expect(profile.resumeMd).toBeNull();
       expect(profile.preferences.titles).toEqual(["Product Designer"]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("returns server_error and logs no resume or headline when the write throws", async () => {
+    const { close } = await setup("profile-throws@example.com");
+    try {
+      const cause = Object.assign(new Error("deadlock SECRET-RESUME"), { code: "40P01", constraint: "profile_pkey" });
+      harness.upsertError = new DrizzleQueryError('insert into "profile" -- SECRET-RESUME', ["SECRET-RESUME", "SECRET-HEADLINE"], cause);
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      const infoLog = vi.spyOn(console, "info").mockImplementation(() => {});
+
+      const state = await saveProfileAction(undefined, profileForm({ headline: "SECRET-HEADLINE", resumeMd: "SECRET-RESUME" }));
+
+      expect(state).toEqual({ ok: false, code: "server_error", message: "Something went wrong. Try again." });
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorLog.mock.calls[0]![1] as string)).toEqual({ error: "DrizzleQueryError", code: "40P01", constraint: "profile_pkey" });
+      expect(JSON.stringify([errorLog.mock.calls, infoLog.mock.calls])).not.toContain("SECRET");
     } finally {
       await close();
     }

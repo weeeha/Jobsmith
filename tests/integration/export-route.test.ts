@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DrizzleQueryError } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { scoped } from "@/lib/db/scoped";
-import { logExportError } from "@/lib/export/build";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 import { GET } from "@/app/(app)/settings/export/route";
 import { makeTestDb, createTestUser, seedOneOfEach } from "../helpers/db";
 import { seedProfile } from "../helpers/profile";
@@ -116,11 +116,11 @@ describe("GET /settings/export", () => {
   });
 });
 
-describe("logExportError", () => {
+describe("logDbErrorSafely with the export tag", () => {
   it("logs a Drizzle error by name, Postgres code and constraint, never the SQL or its parameters", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const cause = Object.assign(new Error("SECRET-ROW"), { code: "57014", constraint: undefined });
-    logExportError("req-1", new DrizzleQueryError('select "resume_md" -- SECRET-ROW', ["SECRET-ROW"], cause));
+    logDbErrorSafely("[export]", { requestId: "req-1" }, new DrizzleQueryError('select "resume_md" -- SECRET-ROW', ["SECRET-ROW"], cause));
     const [tag, line] = error.mock.calls[0] as [string, string];
     expect(tag).toBe("[export]");
     expect(JSON.parse(line)).toEqual({ requestId: "req-1", error: "DrizzleQueryError", code: "57014" });
@@ -129,7 +129,7 @@ describe("logExportError", () => {
 
   it("logs a thrown non-error as UnknownError", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    logExportError("req-2", "SECRET-ROW");
+    logDbErrorSafely("[export]", { requestId: "req-2" }, "SECRET-ROW");
     const [, line] = error.mock.calls[0] as [string, string];
     expect(JSON.parse(line)).toEqual({ requestId: "req-2", error: "UnknownError" });
   });

@@ -1,4 +1,3 @@
-import { DrizzleQueryError } from "drizzle-orm";
 import type {
   ExportApiToken,
   ExportArtifact,
@@ -83,17 +82,4 @@ export async function buildExport(s: Scoped, now: Date): Promise<ExportDocument>
 /** "jobsmith-export-2026-10-11.json", dated in the zone the user reads times in. */
 export function exportFileName(now: Date, timeZone: string): string {
   return `jobsmith-export-${zonedDateKey(now, timeZone)}.json`;
-}
-
-// The request id, the error's constructor name, and for a database error the
-// Postgres code and constraint. Never the message: Drizzle's carries the SQL
-// and every bound parameter, which here would be the user's resume and notes.
-export function logExportError(requestId: string, error: unknown): void {
-  const name = error instanceof Error ? error.constructor.name : "UnknownError";
-  if (error instanceof DrizzleQueryError) {
-    const cause = error.cause as { code?: string; constraint?: string } | undefined;
-    console.error("[export]", JSON.stringify({ requestId, error: name, code: cause?.code, constraint: cause?.constraint }));
-    return;
-  }
-  console.error("[export]", JSON.stringify({ requestId, error: name }));
 }

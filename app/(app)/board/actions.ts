@@ -19,7 +19,7 @@ import { readAddJobForm, addJobFormSchema, encodeDraft } from "@/lib/intake/form
 import { intakeDeps } from "@/lib/intake/deps";
 import { logIntakeError } from "@/lib/intake/log";
 import { fitDeps } from "@/lib/fit/deps";
-import { logFitError } from "@/lib/fit/log";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 import { queueFitScoring, scoreSafely } from "@/lib/fit/score-opportunity";
 import type { AddJobState } from "@/lib/intake/state";
 import { NEEDS_TEXT_MESSAGES, NEEDS_DETAILS_MESSAGES, DUPLICATE_MESSAGE, POSTING_TEXT_HINT } from "@/lib/intake/messages";
@@ -164,7 +164,7 @@ export async function addJobAction(_prev: AddJobState, formData: FormData): Prom
       after(() => scoreSafely(scopedFor(user.id), result.id, deps));
     }
   } catch (error) {
-    logFitError(error);
+    logDbErrorSafely("[fit]", {}, error);
   }
 
   revalidatePath("/");

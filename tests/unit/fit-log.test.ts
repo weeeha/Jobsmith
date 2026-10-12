@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DrizzleQueryError } from "drizzle-orm";
-import { logFit, logFitError } from "@/lib/fit/log";
+import { logFit } from "@/lib/fit/log";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -33,10 +34,10 @@ describe("logFit", () => {
   });
 });
 
-describe("logFitError", () => {
+describe("logDbErrorSafely with the fit tag", () => {
   it("logs a plain error by constructor name only, never its message", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    logFitError(new TypeError("SECRET-RESUME-TEXT"));
+    logDbErrorSafely("[fit]", {}, new TypeError("SECRET-RESUME-TEXT"));
     expect(error).toHaveBeenCalledTimes(1);
     const [tag, body] = error.mock.calls[0] as [string, string];
     expect(tag).toBe("[fit]");
@@ -47,7 +48,7 @@ describe("logFitError", () => {
   it("logs a Drizzle error by name, Postgres code and constraint, never the SQL or its parameters", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const cause = Object.assign(new Error("duplicate key value SECRET-RESUME-TEXT"), { code: "23505", constraint: "opportunity_fit_score_check" });
-    logFitError(new DrizzleQueryError('update "opportunity" set "fit" = $1 -- SECRET-RESUME-TEXT', ["SECRET-RESUME-TEXT"], cause));
+    logDbErrorSafely("[fit]", {}, new DrizzleQueryError('update "opportunity" set "fit" = $1 -- SECRET-RESUME-TEXT', ["SECRET-RESUME-TEXT"], cause));
     const [, body] = error.mock.calls[0] as [string, string];
     expect(JSON.parse(body)).toEqual({ error: "DrizzleQueryError", code: "23505", constraint: "opportunity_fit_score_check" });
     expect(JSON.stringify(error.mock.calls)).not.toContain("SECRET");
@@ -55,7 +56,7 @@ describe("logFitError", () => {
 
   it("logs a thrown non-error as UnknownError", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    logFitError("SECRET-RESUME-TEXT");
+    logDbErrorSafely("[fit]", {}, "SECRET-RESUME-TEXT");
     const [, body] = error.mock.calls[0] as [string, string];
     expect(JSON.parse(body)).toEqual({ error: "UnknownError" });
   });

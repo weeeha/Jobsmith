@@ -4,7 +4,8 @@ import { messageFor } from "@/lib/pipeline/messages";
 import { loadProfile } from "@/lib/profile/store";
 import { fail, ok, type Result } from "@/lib/result";
 import type { FitDeps } from "./deps";
-import { logFit, logFitError } from "./log";
+import { logFit } from "./log";
+import { logDbErrorSafely } from "@/lib/log/db-error";
 import { fitReadiness, type FitReadiness } from "./readiness";
 import { toStoredFit } from "./stored";
 
@@ -105,11 +106,11 @@ export async function scoreSafely(s: Scoped, opportunityId: string, deps: FitDep
     const result = await scoreOpportunity(s, opportunityId, deps);
     return result.ok ? result.data : null;
   } catch (error) {
-    logFitError(error);
+    logDbErrorSafely("[fit]", {}, error);
     try {
       await s.opportunity.settleFitStatusIfPending(opportunityId, "failed");
     } catch (secondError) {
-      logFitError(secondError);
+      logDbErrorSafely("[fit]", {}, secondError);
     }
     return { status: "failed", score: null };
   }
