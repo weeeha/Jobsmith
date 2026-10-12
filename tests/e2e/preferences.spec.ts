@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { scanForViolations } from "./axe";
-import { login } from "./session";
+import { scanInPlace } from "./scan-in-place";
+import { login, saveE2eProfile } from "./session";
 
 // Chromium and WebKit run this file at the same time against one account, so
 // each test only makes sure a value is there and never removes one: whichever
@@ -65,4 +66,40 @@ test("Preferences has no accessibility violations", async ({ page }, testInfo) =
   await page.goto("/preferences");
   await expect(page.getByRole("heading", { level: 1, name: "Preferences" })).toBeVisible();
   await scanForViolations(page, "preferences form", testInfo);
+});
+
+test("Test against a posting scores a pasted posting with the saved preferences and saves nothing", async ({
+  page,
+}, testInfo) => {
+  test.slow();
+  await login(page);
+  await saveE2eProfile(page);
+
+  await page.goto("/preferences");
+  await ensureTitle(page, "Product Designer");
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Preferences saved." })).toBeVisible();
+
+  const box = page.getByRole("region", { name: "Test against a posting" });
+  await box.getByRole("button", { name: "Test" }).click();
+  await expect(box.getByText("Paste a link or the posting text.")).toBeVisible();
+  await expect(box.getByLabel("Posting text")).toHaveAttribute("aria-invalid", "true");
+
+  await box.getByLabel("Posting text").fill(
+    "Company: Northwind Traders\nRole: Product Designer\nFit score: 81\n\nAbout the job\nWe are looking for a designer who enjoys internal tools.",
+  );
+  await box.getByRole("button", { name: "Test" }).click();
+
+  const result = box.getByRole("region", { name: "Result" });
+  await expect(result).toBeVisible({ timeout: 30_000 });
+  await expect(result.getByText("Product Designer at Northwind Traders")).toBeVisible();
+  await expect(result.getByText("Fit score 81, strong fit")).toBeVisible();
+  await expect(result.getByText("Passes your hard filters.")).toBeVisible();
+  await expect(box.getByRole("button", { name: "Test" })).toBeFocused();
+
+  await scanInPlace(page, "preferences test box result", testInfo);
+
+  // Nothing was saved: the board has no job for this posting.
+  await page.goto("/board");
+  await expect(page.getByRole("link", { name: "Product Designer at Northwind Traders", exact: true })).toHaveCount(0);
 });

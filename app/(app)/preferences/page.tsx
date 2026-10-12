@@ -1,6 +1,8 @@
 import { PreferencesForm } from "@/components/preferences/preferences-form";
+import { TestPostingBox } from "@/components/preferences/test-posting";
 import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
+import { hasHardFilters } from "@/lib/preferences/schema";
 import { loadProfile } from "@/lib/profile/store";
 
 // The test box on this page fetches a posting and scores it in one request
@@ -19,6 +21,10 @@ export default async function PreferencesPage() {
         preferences. A job that misses a filter is only flagged, never hidden.
       </p>
       <PreferencesForm preferences={profile.preferences} />
+      <TestPostingBox
+        hasHardFilters={hasHardFilters(profile.preferences)}
+        threshold={profile.preferences.scoreThreshold}
+      />
     </div>
   );
 }
