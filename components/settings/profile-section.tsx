@@ -78,7 +78,10 @@ export function ProfileSection({ profile, timeZones }: ProfileSectionProps) {
   }, [items]);
 
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
-  const offerDeviceZone = deviceZone !== null && deviceZone !== zone;
+  // The saved zone is named by the server's engine and the device zone by this
+  // browser's. Two engines can spell one zone differently, so both go through
+  // this browser's canonicalTimeZone before they are compared.
+  const offerDeviceZone = deviceZone !== null && deviceZone !== canonicalTimeZone(zone);
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">

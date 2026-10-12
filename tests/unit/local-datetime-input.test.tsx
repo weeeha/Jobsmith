@@ -91,3 +91,17 @@ describe("LocalDateTimeInput inside a TimeZoneProvider", () => {
     expect((document.querySelector('input[name="scheduledAt"]') as HTMLInputElement).value).toBe("");
   });
 });
+
+describe("LocalDateTimeInput with a zone this browser does not know", () => {
+  it("reads and writes wall-clock time in UTC without throwing", () => {
+    render(
+      <TimeZoneProvider zone="Mars/Olympus">
+        <LocalDateTimeInput id="when" name="scheduledAt" defaultValue="2026-10-01T13:30:00.000Z" />
+      </TimeZoneProvider>,
+    );
+    const visible = document.getElementById("when") as HTMLInputElement;
+    expect(visible.value).toBe("2026-10-01T13:30");
+    fireEvent.change(visible, { target: { value: "2026-11-05T14:00" } });
+    expect((document.querySelector('input[name="scheduledAt"]') as HTMLInputElement).value).toBe("2026-11-05T14:00:00.000Z");
+  });
+});

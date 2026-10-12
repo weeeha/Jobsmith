@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   atTimeDaysLater,
   calendarDaysBetween,
@@ -8,6 +8,7 @@ import {
   listTimeZones,
   parseLocalInputValue,
   startOfDayIn,
+  usableTimeZone,
   wallClockIn,
   zonedDateKey,
 } from "@/lib/time/zone";
@@ -173,6 +174,40 @@ describe("canonicalTimeZone", () => {
     for (const name of ["UTC", "utc", "Etc/UTC", "GMT"]) expect(canonicalTimeZone(name)).toBe("UTC");
   });
 
+  // An engine that reports the name it was given, in the spelling the list
+  // uses (WebKit says Etc/UTC where Node says UTC), must not change which
+  // names count as UTC.
+  describe("on an engine that does not fold zone aliases", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const UTC_ALIASES = [
+      "UTC", "Etc/UTC", "Etc/UCT", "UCT", "Etc/Universal", "Universal", "Etc/Zulu", "Zulu",
+      "Etc/GMT", "GMT", "Etc/GMT0", "GMT0", "Etc/GMT+0", "Etc/GMT-0", "GMT+0", "GMT-0", "Etc/Greenwich", "Greenwich",
+    ];
+
+    function stubEngine() {
+      vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (_locales?: string | string[], options?: Intl.DateTimeFormatOptions) {
+        const asked = options?.timeZone ?? "";
+        const spelled = [...UTC_ALIASES, "Asia/Kolkata"].find((name) => name.toLowerCase() === asked.toLowerCase()) ?? asked;
+        return { resolvedOptions: () => ({ timeZone: spelled }) } as unknown as Intl.DateTimeFormat;
+      } as never);
+    }
+
+    it.each(UTC_ALIASES)("maps %s to UTC in any case", (name) => {
+      stubEngine();
+      expect(canonicalTimeZone(name)).toBe("UTC");
+      expect(canonicalTimeZone(name.toLowerCase())).toBe("UTC");
+      expect(canonicalTimeZone(name.toUpperCase())).toBe("UTC");
+    });
+
+    it("still reports a normal zone as the engine names it", () => {
+      stubEngine();
+      expect(canonicalTimeZone("asia/kolkata")).toBe("Asia/Kolkata");
+    });
+  });
+
   it("keeps a normal zone name", () => {
     expect(canonicalTimeZone("Europe/Amsterdam")).toBe("Europe/Amsterdam");
     expect(canonicalTimeZone("europe/amsterdam")).toBe("Europe/Amsterdam");
@@ -182,6 +217,17 @@ describe("canonicalTimeZone", () => {
     expect(canonicalTimeZone("Mars/Olympus")).toBeNull();
     expect(canonicalTimeZone("")).toBeNull();
     expect(canonicalTimeZone("A".repeat(65))).toBeNull();
+  });
+});
+
+describe("usableTimeZone", () => {
+  it("keeps a zone the engine knows", () => {
+    expect(usableTimeZone("Asia/Tokyo")).toBe("Asia/Tokyo");
+  });
+
+  it("falls back to UTC for a zone the engine rejects with a RangeError", () => {
+    expect(usableTimeZone("Mars/Olympus")).toBe("UTC");
+    expect(usableTimeZone("")).toBe("UTC");
   });
 });
 

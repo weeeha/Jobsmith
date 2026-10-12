@@ -106,3 +106,31 @@ describe("LocalTime inside a TimeZoneProvider", () => {
     expect(html).toContain(">2026-10-01 20:30 UTC<");
   });
 });
+
+describe("LocalTime with a zone this browser does not know", () => {
+  const LATE = "2026-10-01T20:30:00.000Z";
+
+  it("shows the server text and the formatted text in UTC without throwing", () => {
+    const html = renderToString(
+      <TimeZoneProvider zone="Mars/Olympus">
+        <LocalTime value={LATE} mode="datetime" />
+      </TimeZoneProvider>,
+    );
+    expect(html).toContain(">2026-10-01 20:30<");
+
+    render(
+      <TimeZoneProvider zone="Mars/Olympus">
+        <LocalTime value={LATE} mode="datetime" />
+      </TimeZoneProvider>,
+    );
+    const expected = new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }).format(new Date(LATE));
+    expect(screen.getByText(expected).tagName).toBe("TIME");
+  });
+});

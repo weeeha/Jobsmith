@@ -115,14 +115,37 @@ export function zonedDateKey(instant: Date, zone: string): string {
   return `${pad(w.year, 4)}-${pad(w.month)}-${pad(w.day)}`;
 }
 
-// The name Intl itself uses for `zone`, or null when it is not a zone. "utc",
-// "Etc/UTC" and "GMT" all come back as "UTC".
+// Every name the tz database treats as UTC. Engines disagree on the spelling
+// they report for these (Node says "UTC", WebKit says "Etc/UTC"), so they are
+// folded here and not left to Intl.
+const UTC_ALIASES = new Set([
+  "utc", "etc/utc", "etc/uct", "uct", "etc/universal", "universal", "etc/zulu", "zulu",
+  "etc/gmt", "gmt", "etc/gmt0", "gmt0", "etc/gmt+0", "etc/gmt-0", "gmt+0", "gmt-0", "etc/greenwich", "greenwich",
+]);
+
+// The name Intl itself uses for `zone`, or null when it is not a zone. Every
+// spelling of UTC comes back as "UTC" on every engine; other names are
+// whatever the running engine reports, so two engines can differ for them
+// (Asia/Calcutta and Asia/Kolkata): compare names that were both canonicalized
+// by the same engine.
 export function canonicalTimeZone(zone: string): string | null {
   if (zone.length === 0 || zone.length > 64) return null;
+  if (UTC_ALIASES.has(zone.toLowerCase())) return "UTC";
   try {
     return new Intl.DateTimeFormat("en-US", { timeZone: zone }).resolvedOptions().timeZone;
   } catch {
     return null;
+  }
+}
+
+// `zone` when this engine knows it, otherwise "UTC". A saved zone can be newer
+// than an old browser's time zone data, and Intl then throws a RangeError.
+export function usableTimeZone(zone: string): string {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return zone;
+  } catch {
+    return "UTC";
   }
 }
 

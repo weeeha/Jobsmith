@@ -40,6 +40,30 @@ function stubDeviceZone(zone: string) {
   } as never);
 }
 
+// A browser that names zones its own way: it says Asia/Kolkata and Europe/Kyiv
+// where Node (which built the list and the saved value) says Asia/Calcutta
+// and Europe/Kiev, for the device zone and for any zone it is asked about.
+const BROWSER_NAMES: Record<string, string> = { "Asia/Calcutta": "Asia/Kolkata", "Europe/Kiev": "Europe/Kyiv" };
+function stubBrowserNames(deviceZone: string) {
+  const Real = Intl.DateTimeFormat;
+  vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (
+    locales?: string | string[],
+    options?: Intl.DateTimeFormatOptions,
+  ) {
+    if (options?.timeZone === undefined) return { resolvedOptions: () => ({ timeZone: deviceZone }) } as Intl.DateTimeFormat;
+    const real = new Real(locales, options);
+    return new Proxy(real, {
+      get(target, key) {
+        if (key === "resolvedOptions") {
+          return () => ({ ...target.resolvedOptions(), timeZone: BROWSER_NAMES[options.timeZone!] ?? options.timeZone });
+        }
+        const value = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  } as never);
+}
+
 function submittedForm(): FormData {
   const form = screen.getByRole("button", { name: "Save profile" }).closest("form")!;
   return new FormData(form);
@@ -153,6 +177,18 @@ describe("ProfileSection", () => {
     stubDeviceZone("Etc/UTC");
     renderSection();
     // Give the mount effect a turn, then check that nothing was offered.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("button", { name: /Use this device's time zone/ })).toBeNull();
+  });
+
+  it.each([
+    ["Asia/Calcutta", "Asia/Kolkata"],
+    ["Europe/Kiev", "Europe/Kyiv"],
+  ])("offers nothing when the browser spells the selected %s as %s", async (saved, device) => {
+    stubBrowserNames(device);
+    renderSection({ ...PROFILE, timezone: saved });
     await act(async () => {
       await Promise.resolve();
     });

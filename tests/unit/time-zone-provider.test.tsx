@@ -32,4 +32,14 @@ describe("TimeZoneProvider", () => {
     );
     expect(screen.getByTestId("zone").textContent).toBe("Europe/Amsterdam");
   });
+
+  // A saved zone can be newer than this browser's time zone data.
+  it("gives UTC for a zone this browser does not know", () => {
+    render(
+      <TimeZoneProvider zone="Mars/Olympus">
+        <Probe />
+      </TimeZoneProvider>,
+    );
+    expect(screen.getByTestId("zone").textContent).toBe("UTC");
+  });
 });
