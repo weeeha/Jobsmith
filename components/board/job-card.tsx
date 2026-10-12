@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 
 import { Badge } from "@/components/ui/badge";
+import { FitChip } from "@/components/fit/fit-chip";
 import { LocalTime } from "@/components/local-time";
 import { MoveMenu } from "@/components/board/move-menu";
 import { daysInStage } from "@/lib/board/days";
@@ -105,7 +106,7 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
       </div>
       {hasChips && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {card.fitScore !== null && <Badge variant="secondary">{card.fitScore}</Badge>}
+          {card.fitScore !== null && <FitChip score={card.fitScore} size="sm" />}
           {showStageLabel && <Badge variant="outline">{card.stage.label}</Badge>}
           {days !== null && <Badge variant="outline">{daysLabel(days)}</Badge>}
         </div>

@@ -1,7 +1,9 @@
 import { DetailFields, type DetailField } from "@/components/super-ai/detail-fields";
+import { FitCard } from "@/components/fit/fit-card";
 import { EditCompanyDialogTrigger } from "@/components/job/edit-company-dialog";
 import { Markdown } from "@/components/markdown";
 import { LocalTime } from "@/components/local-time";
+import type { FitCardModel } from "@/lib/fit/card";
 import type { CompanyRow } from "@/lib/db/scoped";
 
 interface TabOverviewOpportunity {
@@ -34,10 +36,12 @@ export function TabOverview({
   opportunity,
   company,
   opportunityId,
+  fit,
 }: {
   opportunity: TabOverviewOpportunity;
   company: CompanyRow;
   opportunityId: string;
+  fit: FitCardModel;
 }) {
   const payFields: DetailField[] = [
     { id: "range", label: "Pay range", value: formatPayRange(opportunity.compMin, opportunity.compMax, opportunity.compCurrency) },
@@ -68,6 +72,10 @@ export function TabOverview({
 
   return (
     <section aria-label="Overview" className="flex flex-col gap-6 py-4">
+      {/* First, above the posting: a posting can run to thousands of words,
+          and the score is what the reader came here to see. */}
+      <FitCard model={fit} />
+
       <div className="flex flex-col gap-2">
         <h2 className="text-base font-semibold text-foreground">Posting</h2>
         {opportunity.postingMd ? (

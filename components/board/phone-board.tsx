@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FitChip } from "@/components/fit/fit-chip";
 import { EmptyState } from "@/components/super-ai/empty-state";
 import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
@@ -256,7 +257,7 @@ export function PhoneBoard({
                         </div>
                         {hasChips && (
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {card.fitScore !== null && <Badge variant="secondary">{card.fitScore}</Badge>}
+                            {card.fitScore !== null && <FitChip score={card.fitScore} size="sm" />}
                             {showStageLabel && <Badge variant="outline">{card.stage.label}</Badge>}
                             {days !== null && <Badge variant="outline">{daysLabel(days)}</Badge>}
                           </div>

@@ -14,6 +14,7 @@ import {
 import { CloseDialog } from "@/components/board/close-dialog";
 import { EditDetailsDialog } from "@/components/job/edit-details-dialog";
 import { ReviewNotice } from "@/components/job/review-notice";
+import { FitChip } from "@/components/fit/fit-chip";
 import { LocalTime } from "@/components/local-time";
 import { useAnnounce } from "@/components/live-announcer";
 import { closeAction, reopenAction } from "@/app/(app)/board/actions";
@@ -47,9 +48,10 @@ interface JobHeaderProps {
   };
   companyName: string;
   needsReview: boolean;
+  fitScore: number | null;
 }
 
-export function JobHeader({ opportunity, companyName, needsReview }: JobHeaderProps) {
+export function JobHeader({ opportunity, companyName, needsReview, fitScore }: JobHeaderProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [closeOpen, setCloseOpen] = React.useState(false);
   const [isReopenPending, startReopenTransition] = React.useTransition();
@@ -142,7 +144,10 @@ export function JobHeader({ opportunity, companyName, needsReview }: JobHeaderPr
     <header className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-foreground">{opportunity.roleTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold text-foreground">{opportunity.roleTitle}</h1>
+            {fitScore !== null ? <FitChip score={fitScore} /> : null}
+          </div>
           <p className="text-muted-foreground">
             {companyName}
             {opportunity.location ? <> · {opportunity.location}</> : null}

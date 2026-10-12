@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
+import { getAiDriver } from "@/lib/ai";
+import { fitCardModel } from "@/lib/fit/card";
+import { loadProfile } from "@/lib/profile/store";
 import { scopedFor } from "@/lib/db/scoped";
 import { getJobView } from "@/lib/pipeline/read";
 import { toOpportunityState, stageControlsFor } from "@/lib/pipeline/stage-controls";
@@ -47,12 +50,25 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
   const tab = resolveTab(searchParams.tab);
   const docRef = parseDocRef(searchParams.doc);
   const version = resolveVersion(searchParams.v);
+  const profile = await loadProfile(s);
+  const fit = fitCardModel({
+    opportunity: view.opportunity,
+    companyName: view.company.name,
+    profile,
+    aiOn: getAiDriver() !== null,
+    now: new Date(),
+  });
   const stageOptions = view.stages.map((stage) => ({ id: stage.id, label: stage.label }));
   const basePath = `/jobs/${slug}`;
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <JobHeader opportunity={view.opportunity} companyName={view.company.name} needsReview={view.opportunity.needsReview} />
+      <JobHeader
+        opportunity={view.opportunity}
+        companyName={view.company.name}
+        needsReview={view.opportunity.needsReview}
+        fitScore={view.opportunity.fitScore}
+      />
       <StageStepper
         opportunity={view.opportunity}
         companyName={view.company.name}
@@ -64,7 +80,7 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
       <div>
         <JobTabs activeTab={tab} basePath={basePath} />
         {tab === "overview" && (
-          <TabOverview opportunity={view.opportunity} company={view.company} opportunityId={view.opportunity.id} />
+          <TabOverview opportunity={view.opportunity} company={view.company} opportunityId={view.opportunity.id} fit={fit} />
         )}
         {tab === "research" && (
           <TabResearch
