@@ -10,8 +10,8 @@ provider key.
 Next.js 16 and React 19 with Tailwind CSS 4, Postgres through Drizzle ORM, Better Auth for sign-in, and
 the Vercel AI SDK for the optional AI features (`package.json`).
 
-Pages: `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/settings`, and `/` (Home).
-`/library` and `/preferences` are placeholders for later milestones. Without a session, every page
+Pages: `/` (Home), `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/preferences`
+and `/settings`. `/library` is a placeholder for a later milestone. Without a session, every page
 redirects to `/login`, except `/setup` and `/login` themselves.
 
 ## Requirements
@@ -87,8 +87,9 @@ it plain and moving the card afterward.
 
 ### AI (optional)
 
-Jobsmith works with no AI configured; intake then asks for the company and role by hand. Four
-environment variables turn it on, read in `.env.example`:
+Jobsmith works with no AI configured; intake then asks for the company and role by hand, and jobs
+get no fit score (hard filters still work). Four environment variables turn it on, read in
+`.env.example`, and the same four serve intake and fit scoring:
 
 - `AI_PROVIDER`: `gateway` (Vercel AI Gateway), `anthropic` (the Anthropic API directly), or `fake`
   (the test suite's own stand-in, which never sends text anywhere). Unset means AI stays off.
@@ -114,6 +115,82 @@ the card where it was.
 
 Below 768px wide the board is a list grouped by stage instead of columns;
 each row's "Move to" button opens the same seven choices in a sheet.
+
+After every successful move (a drag, a digit key, the "Move to" menu, the phone sheet, or the stage
+sheet on a job page) a toast asks "What is next for ..." with a "Set next action" button that stays for
+ten seconds. The button opens a small dialog for the next action and its time. Nothing opens by
+itself, so keyboard use is never interrupted. On a focused card, `n` opens the same dialog directly.
+
+## Fit scoring
+
+A job added with a posting is scored after the page responds, so adding never waits for the model.
+Scoring needs three things: AI turned on (above), the posting text, and a resume saved in Settings.
+Without a resume the job stays unscored and its fit card links to Settings. On a job page, "Score this
+job", "Try again" and "Score again" run it by hand. Nothing else triggers a score: importing, editing
+a job's details and saving preferences or the resume leave existing scores alone, and the card says
+"Your profile changed after this score." when the profile is newer than the score.
+
+What is sent to the model: the job's role, company, location, work mode and pay, the posting text
+(first 12,000 characters), the resume with its headline (first 12,000 characters), and a short
+summary of your preferences, each inside a fixed wrapper that tells the model to treat it as data.
+Nothing about your account goes with it. The result is a score from 0 to 100, one sentence on why, up
+to three pros and up to three cons, stored with the model id and the time. Logs carry ids, codes,
+durations and token counts, never posting, resume, preference or summary text.
+
+The chip on the board and the job page uses three bands, kept in `lib/fit/bands.ts`: strong from 70,
+partial from 40 to 69, weak below 40, shown as a mark (a check, a dot or a minus) beside the number.
+"Good fit from" in Preferences is separate: it sets the line the fit card says the score is above or
+below.
+
+Hard filters run in code, with or without AI, every time a job page renders: job titles, work modes,
+locations and a pay floor. A job that misses one is flagged on its fit card and never hidden or moved.
+A filter whose fact the posting does not state is listed as "Not checked" instead of failing.
+
+If a run fails, the job is saved as it is and the card offers "Try again". A job still marked as
+scoring after two minutes shows "Scoring did not finish." with the same button. With AI off the card
+says so and still shows the hard filters.
+
+## Home
+
+`/` lists what to do today, in this order: interviews in the next 72 hours (with "Open prep"), next
+actions that are due today or overdue (with "Done"), applied jobs with no news for "Follow up after"
+days and no next action, saved jobs older than "Apply or drop after" days with no next action, and
+past interviews to close out. Every item has one main action. Due next actions, follow-ups and
+apply-or-drop items also have "Snooze", which sets the next action to 09:00 tomorrow, in three days or
+in a week, in your time zone, and keeps the existing next action text. Interviews cannot be snoozed.
+Beside the list sit a count of jobs per column and the last five documents pushed from the command
+line. Days are counted in your profile's time zone, so a next action due "today" is the same whether
+you look in the morning or late at night.
+
+## Preferences
+
+`/preferences` stores one versioned document in your profile. Four fields are hard filters: job
+titles, work modes, locations and the pay floor (with its currency). Seniority, pay target,
+must-haves, dealbreakers, industries to avoid and company size only feed the model's prompt, and a
+dealbreaker never flags a job in code. "Good fit from" sets the fit card's line, and the two Home
+reminder fields set the days for follow-ups and for saved jobs. A stored value that no longer parses
+falls back to its default for that field alone, so a bad value never breaks a page.
+
+"Test against a posting" scores a link or pasted text against your saved preferences and resume
+without saving a job. It reads the posting the way Add job does, so a LinkedIn link asks for the
+text. Save your changes first: the box ignores edits you have not saved.
+
+## Settings, time zone and export
+
+`/settings` has three sections. Profile holds a headline (up to 200 characters), the resume as markdown
+(up to 50,000 characters) and your time zone. The resume is used only for fit scoring: it never
+appears in the command line context, and it is included in your export. API tokens are unchanged.
+
+Every date and time in the app is shown in the profile time zone, and times you type are read in it.
+It starts as UTC; nothing is detected for you. "Use this device's time zone" appears when your
+browser's zone differs from the saved one. A time that does not exist on a clock-change day (the hour
+that is skipped in spring) moves later by the length of the gap; a time that happens twice (autumn)
+means the first one.
+
+"Export my data" downloads `jobsmith-export-<date>.json` from `/settings/export`: your profile
+(including the resume), companies, jobs, stages, people, events, every version of every document and
+your API token records. It leaves out sign-in sessions, password hashes, token secrets and the
+derived values the app recomputes (such as duplicate-check hashes).
 
 ## Documents and the command line
 

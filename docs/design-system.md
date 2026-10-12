@@ -68,3 +68,24 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   or similar inline notice pattern to copy from; it reuses the exact
   `rounded-lg border border-border bg-muted p-3 text-sm` shell `job-header.tsx`'s own closed-job
   banner already uses, rather than inventing a second one.
+- `components/forms/stacked-field.tsx`: hand-written. The registry's `field-row` puts the label in a
+  fixed 6rem column beside the control, which wraps labels such as "Apply or drop after" onto three
+  lines on the Settings and Preferences pages. `StackedField` puts the label above the control and
+  wires the hint and error into `aria-describedby`; `field-row` stays in use for the dialogs.
+- `components/forms/list-input.tsx` (`ListInput`): hand-written. None of the installed registry items
+  or `base-nova` primitives is a list-of-strings input. It is a fieldset with removable chips
+  (`Badge`, `Button`), an `Input` and an Add button, and posts one hidden input per entry.
+- `components/home/attention-list.tsx` (`AttentionList`): hand-written. The registry's `feed-view`
+  renders each row as one button, and a Home row needs a link to the job, a primary action and a
+  snooze menu (`DropdownMenu`) as separate controls.
+- `components/fit/fit-chip.tsx` (`FitChip`): a thin composition of the `base-nova` `Badge` and a
+  `lucide-react` mark. None of the installed registry items shows a score with a tone. The tone rides
+  on the mark and the number stays in the foreground color, because the status tokens are tuned for
+  icons, not text contrast.
+- `components/fit/fit-card.tsx` (`FitCard`): hand-written. None of the installed registry items is a
+  score card with a summary, two lists, a retry and a polling state. It composes `FitChip` and
+  `Button`.
+- `components/next-action/set-next-action-dialog.tsx` (`SetNextActionDialog`): the `base-nova`
+  `Dialog` around the same two fields as the job page's next action form (`FieldRow`,
+  `LocalDateTimeInput`). None of the installed registry items is a dialog that opens from a toast and
+  from a card key.

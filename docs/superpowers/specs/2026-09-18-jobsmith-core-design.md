@@ -89,6 +89,13 @@ ever sees the shared `AiDriver` interface, never a provider SDK directly. AI sta
 `AI_PROVIDER` is set, on purpose, so a developer's own leftover API key in the shell environment
 never sends a posting anywhere by accident.
 
+**Milestone 5 note.** Decision D2: `lib/fit`, `lib/preferences`, `lib/profile`, `lib/home` and
+`lib/export` are added to the module map. `lib/fit` holds score bands, hard filters, the stored fit
+document and the scoring runner. `lib/preferences` and `lib/profile` hold the versioned preferences
+schema and the profile reads and writes. `lib/home` assembles the Home view and `lib/export` the data
+export. `lib/time/zone.ts` holds all time zone math. The pure modules import no database or framework
+code.
+
 ## 4. Data model
 
 Core creates these tables. `prep_question`, `library_item` and `asset` appear on the board's data model but ship with the Prep cycle.
@@ -163,6 +170,12 @@ A card shows company, role, fit score, a chip for a custom stage label, days in 
 
 **Milestone 2 notes.** Decision D8 (the "Move to" menu, above) is already noted inline. Rule 6's offer to set the next action after a move is not built in Milestone 2; it arrives with Home in Milestone 5, which owns next-action prompting.
 
+**Milestone 5 note.** Decision D22: rule 6 is built as an offer. After every successful move from the
+board (drag, digit keys, "Move to" menu), the phone sheet and the job page's stage sheet, a toast asks
+"What is next for ..." with a "Set next action" button for ten seconds, and the button opens a dialog
+that reuses the next action form. On a focused desktop card, `n` opens the dialog directly. Nothing
+opens on its own, so the board stays fully usable by keyboard.
+
 ### 5.2 Job page
 
 Route `/jobs/[slug]`. The header has the role, company, location, fit chip, a link to the original posting and a menu with Close and Reopen. Below it sit the stage stepper with "Edit stages" and the next action bar with Done and Edit.
@@ -186,6 +199,13 @@ ones; Documents adds a version list, an in-place editor with a Write/Preview tog
 sent. A `Paste markdown` button on each of the three tabs, and `Paste a new version` on every
 document, write with origin `pasted`. The tab order is Overview, Research, People, Documents,
 Timeline, Prep, and the strip wraps to a second row rather than growing the page at phone width.
+
+**Milestone 5 notes.** Decisions D17 and D10: the fit card is the first section of Overview, above the
+posting, and it always shows the hard-filter result, even with AI off or no score, so the Milestone 2
+rule that hid it while `fit_score` was null no longer applies. The chip beside the job title and on
+each board card is an outlined badge with the number, a band mark that carries the tone (strong from
+70, partial from 40, weak below 40) and screen-reader text with the band word. The "good fit from"
+preference only sets the line the card compares the score with.
 
 ### 5.3 Artifacts
 
@@ -296,6 +316,18 @@ Two parts, kept separate so the cheap part always works:
 
 Scoring runs after the response is sent. `fit_status` moves from `pending` to `done` or `failed`, and the job page offers a retry. With an empty resume text the status stays `none` and the fit card links to Settings. Posting and resume text are truncated to fixed limits before the call and are never logged. Score bands for the chip color are constants in one file.
 
+**Milestone 5 notes.** Decisions D8, D11, D12, D13 and D15. Hard filters (D8) match whole words after
+normalizing case, accents and punctuation; remote postings skip the location check; a filter whose
+posting fact is missing is "not checked", not failed. They are computed when a page renders and never
+stored. Scoring (D11) runs only for a newly added job and from the job page's buttons, never on
+import, edits or saves; it runs whatever the hard filters say. Readiness (D12) is checked in the order
+AI off, no posting, no resume, and a job that is not ready keeps status `none` with the reason on the
+card. The background run (D13) sets `pending` inside the request and runs through `after()`; the
+runner never throws and never leaves `pending` behind, and a `pending` older than two minutes shows as
+stalled with a retry. The model-facing schema (D15) has no numeric or length limits, because provider
+support for them varies; the sanitizer enforces every limit and treats an unusable answer as a failed
+run.
+
 ### 5.7 Preferences
 
 Route `/preferences`. Stored in `profile.preferences` as one document validated by a versioned Zod schema, so fields can change without migrations:
@@ -303,6 +335,13 @@ Route `/preferences`. Stored in `profile.preferences` as one document validated 
 `titles[]`, `seniority[]`, `locations[]`, `workModes[]`, `compFloor`, `compTarget`, `currency`, `mustHaves[]`, `dealbreakers[]`, `industriesAvoid[]`, `companySize { min, max }`, `scoreThreshold` (default 70), `attention { followUpDays: 7, savedDays: 3 }`.
 
 The page explains which fields are hard filters and which feed the scoring prompt. A "Test against a posting" box that scores a pasted URL is the last task of milestone 5 and is the first thing cut if the milestone runs long.
+
+**Milestone 5 notes.** Decisions D6 and D7: the document is validated by `preferencesSchema` version 1.
+`{}` parses to all defaults. Stored data is parsed whole first and then field by field, each failing
+top-level field falling back to its own default. Lists are trimmed, capped at 20 entries of 80
+characters and de-duplicated without regard to case. Job titles, work modes, locations and the pay
+floor are hard filters; every other field feeds only the scoring prompt or Home, and the page says
+which is which. Hard filters flag and never hide.
 
 ### 5.8 Home
 
@@ -316,6 +355,17 @@ Route `/`. `lib/attention` is one pure function over opportunities, stages and t
 
 Each item has one primary action and a snooze that sets the next action date. Beside the list: counts per column and the last five artifact pushes. The feed block on the wireframe belongs to the Feed cycle.
 
+**Milestone 5 notes.** Decisions D19, D20 and D21. Items are per rule and job (or per rule and stage),
+so one job can appear under a stage rule and a next-action rule at once. Rules 3 and 4 apply only to a
+job with no next action, and a job with an undated next action never shows under rules 2 to 4. Rule 1
+covers now through 72 hours inclusive. Rule 2 means due before the start of tomorrow in the profile
+zone, and "overdue" before the start of today. Rules 3 and 4 count calendar days in the profile zone.
+Snooze is offered on rules 2, 3 and 4 only, with the presets tomorrow, in three days and next week at
+09:00 in the profile zone, and it writes no timeline event. On phones Home is one column; from the
+`lg` breakpoint, Today sits beside a Pipeline and Recent pushes column. The list is hand-written
+because the registry's feed view renders each row as one button, and a row here needs a link or button
+plus a menu.
+
 ### 5.9 Settings
 
 Profile (headline, resume text as markdown, timezone), API tokens (create, reveal once, revoke), and "Export my data", which downloads every row the user owns as JSON with no secrets. Export exists in Core because it is cheap now and the hosted version needs it.
@@ -323,6 +373,13 @@ Profile (headline, resume text as markdown, timezone), API tokens (create, revea
 **Milestone 3 note.** Decision D27: API tokens ship in Core, in this milestone, ahead of the rest of
 Settings - Profile and Export both arrive in Milestone 5, on the same page. A token is shown once, at
 creation, and never again; only its sha256 hash and an eight-character display prefix are stored.
+
+**Milestone 5 notes.** Decisions D24 and D26. Settings has three sections under one `h1`: Profile,
+API tokens and Export my data. Export is `GET /settings/export`; it answers 401 without a session and
+otherwise sends one JSON file with `cache-control: no-store`. It excludes sessions, accounts,
+verification rows, rate limit rows, token hashes and rate counters, every `user_id`, and derived
+values (`name_key`, `dedupe_hash`, `content_hash`, `source_hash`). It includes every document
+version, person emails and links, and the resume.
 
 ### 5.10 Login and first run
 
@@ -341,6 +398,15 @@ creation, and never again; only its sha256 hash and an eight-character display p
 - Each route segment has an error boundary with a retry. Logs carry a request id and no posting text, resume text or tokens.
 - Times are stored as `timestamptz` (UTC instants) and shown in the profile timezone.
 - Milestone 2 note (decision D7): there is no Settings page and no stored profile time zone until Milestone 5. Until then, every timestamp shown in the UI is rendered and entered in the browser's own time zone, through `components/local-time.tsx` and `components/local-datetime-input.tsx` only, so adding the real profile time zone later touches just those two files.
+
+**Milestone 5 note.** Decisions D3, D4 and D5: the profile time zone is read once in the app layout and
+handed to client components through a provider, so the existing `LocalTime` and `LocalDateTimeInput`
+call sites do not change; the provider adds a third file to the two named above. Server-side day math
+(Home, snooze, the export file name) uses `lib/time/zone.ts` with the same zone. Zone math uses `Intl`
+only, with no date library. A wall time that was skipped by a clock change moves later by the gap, and
+a repeated one resolves to the earlier instant. Existing profiles keep `UTC` until the owner picks a
+zone in Settings, which offers the device zone with one click. The stored value is the canonical name
+of an accepted zone, so `Etc/UTC` and `GMT` are stored as `UTC`.
 
 ## 7. Security and privacy
 
@@ -366,6 +432,12 @@ never send a job posting anywhere without an explicit choice to turn intake's AI
 (section 5.5) is the only code path in the app that makes an outbound request to a user-supplied
 address, and every request it makes is checked against the same address and port policy before it
 connects.
+
+**Milestone 5 note.** Decisions D25 and D27: the headline is at most 200 characters and the resume at
+most 50,000, with line endings normalized. The resume is never part of the bridge context and never
+logged; it is in the export. The bridge context's Preferences section lists the saved preferences,
+including the pay floor and target, so pay figures reach command line context files; the resume and
+headline never do.
 
 ## 8. Testing
 
