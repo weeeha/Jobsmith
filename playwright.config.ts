@@ -23,13 +23,13 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|settings)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|settings|preferences)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "webkit",
-      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|settings)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|settings|preferences)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Safari"] },
     },
