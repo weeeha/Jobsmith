@@ -570,6 +570,8 @@ Where a task's text and this Contract differ on a listed point, the task's text 
 - Task 12: new phone test in `fit-home-phone.spec.ts` (80-character role and company with no space; board, the next action dialog, Home and the job page at 390 px with no sideways scroll), two mutation checks (4 and 5, watched failing with `Received: false` for the dialog and 684 px for the job page), and the e2e counts moved to 22 for the Step 5 run, 60 for the Step 7 run (phone 8), because Review Focus line 4.
 - Task 13: `TestPostingBox` result unit test with 80-character title, summary and list text asserting `break-words`, and mutation check 3; counts 18 in the file, "30 tests: 8, 18 and 4", and `leaveMustHaveInBox` added to the diff of `preferences.spec.ts` (hunk headers moved to `-86,3 +87,40`), because Review Focus lines 3 and 4.
 - Task 14: final counts are `Tests  1707 passed | 2 skipped (1709)` and `Test Files  158 passed | 1 skipped (159)`, and the e2e gate is `62 passed` (phone 8) and `60 passed` without Task 13, because Review Focus lines 1 to 5 added 50 unit and integration tests and one phone test.
+- After the build, from the final review (2026-10-12): rule 4 counts from the later of stage entry and the latest event, not stage entry alone, because marking a snoozed "Apply or drop" next action done otherwise brought the job straight back to Home.
+- After the build, from the final review: under an existing score, a missing resume reads `Add your resume in Settings to score this job again.` (`no_resume_again` in `FIT_MESSAGES`), because "to get a fit score" under a score contradicted it; a failed, pending or stalled run keeps showing the stored score with the status line below it.
 
 ### Task list and drafter split
 

@@ -359,7 +359,10 @@ Each item has one primary action and a snooze that sets the next action date. Be
 so one job can appear under a stage rule and a next-action rule at once. Rules 3 and 4 apply only to a
 job with no next action, and a job with an undated next action never shows under rules 2 to 4. Rule 1
 covers now through 72 hours inclusive. Rule 2 means due before the start of tomorrow in the profile
-zone, and "overdue" before the start of today. Rules 3 and 4 count calendar days in the profile zone.
+zone, and "overdue" before the start of today. Rules 3 and 4 count calendar days in the profile zone:
+rule 3 from the latest event, and rule 4 from the later of stage entry and the latest event, so
+marking a snoozed "Apply or drop" next action done restarts the clock instead of bringing the job
+straight back (a change to "saved for `savedDays`" made after the final review).
 Snooze is offered on rules 2, 3 and 4 only, with the presets tomorrow, in three days and next week at
 09:00 in the profile zone, and it writes no timeline event. On phones Home is one column; from the
 `lg` breakpoint, Today sits beside a Pipeline and Recent pushes column. The list is hand-written

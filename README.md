@@ -154,7 +154,8 @@ says so and still shows the hard filters.
 
 `/` lists what to do today, in this order: interviews in the next 72 hours (with "Open prep"), next
 actions that are due today or overdue (with "Done"), applied jobs with no news for "Follow up after"
-days and no next action, saved jobs older than "Apply or drop after" days with no next action, and
+days and no next action, saved jobs with no activity for "Apply or drop after" days and no next
+action, and
 past interviews to close out. Every item has one main action. Due next actions, follow-ups and
 apply-or-drop items also have "Snooze", which sets the next action to 09:00 tomorrow, in three days or
 in a week, in your time zone, and keeps the existing next action text. Interviews cannot be snoozed.
