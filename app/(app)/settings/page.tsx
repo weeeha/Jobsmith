@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const [tokens, profile] = await Promise.all([listApiTokens(s), loadProfile(s)]);
 
   return (
-    <div className="flex flex-col gap-8 p-6">
+    <div className="flex flex-col gap-6 p-6">
       <h1 className="text-lg font-semibold">Settings</h1>
       <ProfileSection
         profile={{ headline: profile.headline, resumeMd: profile.resumeMd, timezone: profile.timezone }}

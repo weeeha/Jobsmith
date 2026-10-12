@@ -152,7 +152,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   return (
     // noValidate: the server's messages are the ones to show, not the
     // browser's own bubbles on a number box.
-    <form noValidate onSubmit={(event) => submitViaTransition(event, formAction)} className="flex max-w-2xl flex-col gap-8">
+    <form noValidate onSubmit={(event) => submitViaTransition(event, formAction)} className="flex max-w-2xl flex-col gap-6">
       {state?.ok === false ? (
         <p role="alert" className="text-sm text-destructive">
           {state.message}
