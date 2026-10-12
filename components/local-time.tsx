@@ -2,6 +2,9 @@
 
 import * as React from "react";
 
+import { useTimeZone } from "@/components/time-zone-provider";
+import { formatLocalInputValue, wallClockIn, zonedDateKey } from "@/lib/time/zone";
+
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
 const DATETIME_OPTIONS: Intl.DateTimeFormatOptions = {
   ...DATE_OPTIONS,
@@ -18,6 +21,7 @@ export function LocalTime({
 }) {
   const date = typeof value === "string" ? new Date(value) : value;
   const iso = date.toISOString();
+  const zone = useTimeZone();
 
   // Server render and the first client render both take this branch, so they
   // produce identical HTML and there is no hydration mismatch to suppress.
@@ -33,9 +37,18 @@ export function LocalTime({
     setMounted(true);
   }, []);
 
-  const fallback = mode === "datetime" ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : iso.slice(0, 10);
+  // With a profile zone the fallback is already in that zone; without one it
+  // stays UTC text, labelled as such.
+  const fallback = zone
+    ? mode === "datetime"
+      ? formatLocalInputValue(wallClockIn(date, zone)).replace("T", " ")
+      : zonedDateKey(date, zone)
+    : mode === "datetime"
+      ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`
+      : iso.slice(0, 10);
+  const options = mode === "datetime" ? DATETIME_OPTIONS : DATE_OPTIONS;
   const formatted = mounted
-    ? new Intl.DateTimeFormat(undefined, mode === "datetime" ? DATETIME_OPTIONS : DATE_OPTIONS).format(date)
+    ? new Intl.DateTimeFormat(undefined, { ...options, timeZone: zone ?? undefined }).format(date)
     : fallback;
 
   return <time dateTime={iso}>{formatted}</time>;

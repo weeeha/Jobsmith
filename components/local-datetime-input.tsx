@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { useTimeZone } from "@/components/time-zone-provider";
 import { Input } from "@/components/ui/input";
 import { toInstant, toLocalInputValue } from "@/lib/time/local";
 
@@ -18,8 +19,9 @@ export function LocalDateTimeInput({
   disabled?: boolean;
   "aria-describedby"?: string;
 }) {
+  const zone = useTimeZone();
   const [localValue, setLocalValue] = React.useState(() =>
-    defaultValue ? toLocalInputValue(defaultValue) : "",
+    defaultValue ? toLocalInputValue(defaultValue, zone) : "",
   );
 
   return (
@@ -35,7 +37,7 @@ export function LocalDateTimeInput({
         aria-describedby={ariaDescribedBy}
         onChange={(event) => setLocalValue(event.target.value)}
       />
-      <input type="hidden" name={name} value={toInstant(localValue)} disabled={disabled} />
+      <input type="hidden" name={name} value={toInstant(localValue, zone)} disabled={disabled} />
     </>
   );
 }

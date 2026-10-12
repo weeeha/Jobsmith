@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { LocalDateTimeInput } from "@/components/local-datetime-input";
+import { TimeZoneProvider } from "@/components/time-zone-provider";
 import { toInstant } from "@/lib/time/local";
 
 describe("LocalDateTimeInput", () => {
@@ -47,5 +48,46 @@ describe("LocalDateTimeInput", () => {
     render(<LocalDateTimeInput id="when" name="scheduledAt" defaultValue={null} />);
     const visible = document.getElementById("when") as HTMLInputElement;
     expect(visible.disabled).toBe(false);
+  });
+});
+
+describe("LocalDateTimeInput inside a TimeZoneProvider", () => {
+  it("seeds the visible field from the instant in the profile zone", () => {
+    render(
+      <TimeZoneProvider zone="America/New_York">
+        <LocalDateTimeInput id="when" name="scheduledAt" defaultValue="2026-10-01T13:30:00.000Z" />
+      </TimeZoneProvider>,
+    );
+    expect((document.getElementById("when") as HTMLInputElement).value).toBe("2026-10-01T09:30");
+  });
+
+  it("converts a typed value as wall-clock time in the profile zone", () => {
+    render(
+      <TimeZoneProvider zone="Asia/Tokyo">
+        <LocalDateTimeInput id="when" name="scheduledAt" defaultValue={null} />
+      </TimeZoneProvider>,
+    );
+    fireEvent.change(document.getElementById("when") as HTMLInputElement, { target: { value: "2026-11-05T14:00" } });
+    expect((document.querySelector('input[name="scheduledAt"]') as HTMLInputElement).value).toBe("2026-11-05T05:00:00.000Z");
+  });
+
+  it("moves a time that daylight saving skips to the later instant", () => {
+    render(
+      <TimeZoneProvider zone="America/New_York">
+        <LocalDateTimeInput id="when" name="scheduledAt" defaultValue={null} />
+      </TimeZoneProvider>,
+    );
+    fireEvent.change(document.getElementById("when") as HTMLInputElement, { target: { value: "2026-03-08T02:30" } });
+    expect((document.querySelector('input[name="scheduledAt"]') as HTMLInputElement).value).toBe("2026-03-08T07:30:00.000Z");
+  });
+
+  it("leaves the hidden value empty while the typed value is incomplete", () => {
+    render(
+      <TimeZoneProvider zone="Asia/Tokyo">
+        <LocalDateTimeInput id="when" name="scheduledAt" defaultValue={null} />
+      </TimeZoneProvider>,
+    );
+    fireEvent.change(document.getElementById("when") as HTMLInputElement, { target: { value: "" } });
+    expect((document.querySelector('input[name="scheduledAt"]') as HTMLInputElement).value).toBe("");
   });
 });
