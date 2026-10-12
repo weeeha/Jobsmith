@@ -9,6 +9,7 @@ import { FieldRow } from "@/components/super-ai/field-row";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { BoardCard } from "@/lib/db/scoped";
 import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
 
@@ -19,6 +20,17 @@ export type NextActionSubject = {
   nextAction: string | null;
   nextActionAt: Date | null;
 };
+
+// The fields the dialog needs from a board card, shared by both boards.
+export function subjectOf(card: BoardCard): NextActionSubject {
+  return {
+    id: card.id,
+    roleTitle: card.roleTitle,
+    companyName: card.companyName,
+    nextAction: card.nextAction,
+    nextActionAt: card.nextActionAt,
+  };
+}
 
 /**
  * The dialog behind the next action offer. Open while `subject` is not null;

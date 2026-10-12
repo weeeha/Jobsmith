@@ -6,25 +6,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { scoreFitAction } from "@/app/(app)/jobs/[slug]/actions";
-import { FitChip } from "@/components/fit/fit-chip";
+import { FitResultBody } from "@/components/fit/fit-result-body";
+import { FIT_LINK_CLASS, HardFilterLines } from "@/components/fit/hard-filter-lines";
 import { useAnnounce } from "@/components/live-announcer";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@/components/ui/button";
 import { FIT_POLL_MAX, FIT_POLL_MS, type FitCardModel } from "@/lib/fit/card";
-import {
-  FIT_MESSAGES,
-  missesFiltersLine,
-  scoreFailureToast,
-  scoredAnnouncement,
-  thresholdLine,
-  uncheckedFiltersLine,
-} from "@/lib/fit/messages";
+import { FIT_MESSAGES, scoreFailureToast, scoredAnnouncement } from "@/lib/fit/messages";
 import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { messageFor } from "@/lib/pipeline/messages";
-
-// Underlined at rest: a link inside a line of muted text must differ from the
-// text by more than color (axe link-in-text-block).
-const LINK_CLASS = "text-foreground underline underline-offset-4";
 
 function buttonLabel(view: FitCardModel["view"]): string | null {
   if (view === "none") return FIT_MESSAGES.scoreThisJob;
@@ -97,35 +87,7 @@ export function FitCard({ model }: { model: FitCardModel }) {
 
       {model.view === "done" && fit ? (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <FitChip score={fit.score} />
-            <p className="text-sm text-muted-foreground">{thresholdLine(fit.score, model.threshold)}</p>
-          </div>
-          <p className="break-words text-foreground">{fit.summary}</p>
-          {fit.pros.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium text-foreground">{FIT_MESSAGES.whyItFits}</h3>
-              <ul className="list-disc pl-5 text-sm text-foreground">
-                {fit.pros.map((pro, index) => (
-                  <li key={index} className="break-words">
-                    {pro}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {fit.cons.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium text-foreground">{FIT_MESSAGES.mayNotFit}</h3>
-              <ul className="list-disc pl-5 text-sm text-foreground">
-                {fit.cons.map((con, index) => (
-                  <li key={index} className="break-words">
-                    {con}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <FitResultBody fit={fit} threshold={model.threshold} headingLevel="h3" />
           <p className="text-sm text-muted-foreground">
             Scored <LocalTime value={fit.scoredAt} mode="datetime" /> by {fit.modelId}.
           </p>
@@ -149,7 +111,7 @@ export function FitCard({ model }: { model: FitCardModel }) {
           {model.readiness === "no_resume" ? (
             <>
               {" "}
-              <Link href="/settings" className={LINK_CLASS}>
+              <Link href="/settings" className={FIT_LINK_CLASS}>
                 {FIT_MESSAGES.openSettings}
               </Link>
             </>
@@ -165,26 +127,7 @@ export function FitCard({ model }: { model: FitCardModel }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-foreground">{FIT_MESSAGES.hardFilters}</h3>
-        {model.hasHardFilters ? (
-          <>
-            <p className="text-sm text-foreground">
-              {hardFilters.failed.length > 0 ? missesFiltersLine(hardFilters.failed) : FIT_MESSAGES.passes}
-            </p>
-            {hardFilters.unchecked.length > 0 ? (
-              <p className="text-sm text-muted-foreground">{uncheckedFiltersLine(hardFilters.unchecked)}</p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {FIT_MESSAGES.noFiltersSet}{" "}
-            <Link href="/preferences" className={LINK_CLASS}>
-              {FIT_MESSAGES.setPreferences}
-            </Link>
-          </p>
-        )}
-      </div>
+      <HardFilterLines hardFilters={hardFilters} hasHardFilters={model.hasHardFilters} headingLevel="h3" />
     </section>
   );
 }

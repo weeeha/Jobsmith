@@ -25,7 +25,7 @@ import { JobCard } from "@/components/board/job-card";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { AddJobDialog } from "@/components/board/add-job-dialog";
 import { offerNextAction } from "@/components/next-action/offer";
-import { SetNextActionDialog, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
+import { SetNextActionDialog, subjectOf, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
@@ -128,16 +128,6 @@ export function Board({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
-
-  function subjectOf(card: BoardCard): NextActionSubject {
-    return {
-      id: card.id,
-      roleTitle: card.roleTitle,
-      companyName: card.companyName,
-      nextAction: card.nextAction,
-      nextActionAt: card.nextActionAt,
-    };
-  }
 
   function requestNextAction(cardId: string) {
     const card = optimisticCards.find((c) => c.id === cardId);

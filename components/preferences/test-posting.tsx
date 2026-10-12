@@ -4,17 +4,17 @@ import * as React from "react";
 import Link from "next/link";
 
 import { testPostingAction, type TestPostingState } from "@/app/(app)/preferences/actions";
-import { FitChip } from "@/components/fit/fit-chip";
+import { FitResultBody } from "@/components/fit/fit-result-body";
+import { FIT_LINK_CLASS, HardFilterLines } from "@/components/fit/hard-filter-lines";
 import { StackedField } from "@/components/forms/stacked-field";
 import { useAnnounce } from "@/components/live-announcer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TestPostingResult } from "@/lib/fit/test-posting";
-import { FIT_MESSAGES, missesFiltersLine, thresholdLine, uncheckedFiltersLine } from "@/lib/fit/messages";
+import { FIT_MESSAGES } from "@/lib/fit/messages";
 import { submitViaTransition } from "@/lib/forms/submit";
 
-const LINK_CLASS = "text-foreground underline underline-offset-4";
 const PENDING_TEXT = "Reading and scoring the posting. This can take up to half a minute.";
 
 function titleOf(result: TestPostingResult): string {
@@ -41,44 +41,14 @@ function ResultView({
       <p className="font-medium break-words text-foreground">{titleOf(result)}</p>
 
       {fit ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <FitChip score={fit.score} />
-            <p className="text-sm text-muted-foreground">{thresholdLine(fit.score, threshold)}</p>
-          </div>
-          <p className="break-words text-foreground">{fit.summary}</p>
-          {fit.pros.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              <h4 className="text-sm font-medium text-foreground">{FIT_MESSAGES.whyItFits}</h4>
-              <ul className="list-disc pl-5 text-sm text-foreground">
-                {fit.pros.map((pro, index) => (
-                  <li key={index} className="break-words">
-                    {pro}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {fit.cons.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              <h4 className="text-sm font-medium text-foreground">{FIT_MESSAGES.mayNotFit}</h4>
-              <ul className="list-disc pl-5 text-sm text-foreground">
-                {fit.cons.map((con, index) => (
-                  <li key={index} className="break-words">
-                    {con}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </>
+        <FitResultBody fit={fit} threshold={threshold} headingLevel="h4" />
       ) : note ? (
         <p className="text-sm text-muted-foreground">
           {FIT_MESSAGES[note]}
           {note === "no_resume" ? (
             <>
               {" "}
-              <Link href="/settings" className={LINK_CLASS}>
+              <Link href="/settings" className={FIT_LINK_CLASS}>
                 {FIT_MESSAGES.openSettings}
               </Link>
             </>
@@ -86,26 +56,7 @@ function ResultView({
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-1">
-        <h4 className="text-sm font-medium text-foreground">{FIT_MESSAGES.hardFilters}</h4>
-        {hasHardFilters ? (
-          <>
-            <p className="text-sm text-foreground">
-              {hardFilters.failed.length > 0 ? missesFiltersLine(hardFilters.failed) : FIT_MESSAGES.passes}
-            </p>
-            {hardFilters.unchecked.length > 0 ? (
-              <p className="text-sm text-muted-foreground">{uncheckedFiltersLine(hardFilters.unchecked)}</p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {FIT_MESSAGES.noFiltersSet}{" "}
-            <Link href="/preferences" className={LINK_CLASS}>
-              {FIT_MESSAGES.setPreferences}
-            </Link>
-          </p>
-        )}
-      </div>
+      <HardFilterLines hardFilters={hardFilters} hasHardFilters={hasHardFilters} headingLevel="h4" />
     </section>
   );
 }

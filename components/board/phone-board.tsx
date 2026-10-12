@@ -14,7 +14,7 @@ import { MoveSheet } from "@/components/board/move-sheet";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { AddJobDialog } from "@/components/board/add-job-dialog";
 import { offerNextAction } from "@/components/next-action/offer";
-import { SetNextActionDialog, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
+import { SetNextActionDialog, subjectOf, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
@@ -100,16 +100,6 @@ export function PhoneBoard({
   // (that group's own heading disappears along with it, unlike the desktop
   // board's column rail, which stays in the DOM to be focused instead).
   const addJobButtonRef = React.useRef<HTMLButtonElement>(null);
-
-  function subjectOf(card: BoardCard): NextActionSubject {
-    return {
-      id: card.id,
-      roleTitle: card.roleTitle,
-      companyName: card.companyName,
-      nextAction: card.nextAction,
-      nextActionAt: card.nextActionAt,
-    };
-  }
 
   // The toast's button that opened the dialog is gone by the time it
   // closes, so focus goes to the card's own Move to button, wherever the

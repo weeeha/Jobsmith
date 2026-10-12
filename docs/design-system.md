@@ -85,6 +85,10 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
 - `components/fit/fit-card.tsx` (`FitCard`): hand-written. None of the installed registry items is a
   score card with a summary, two lists, a retry and a polling state. It composes `FitChip` and
   `Button`.
+- `components/fit/fit-result-body.tsx` (`FitResultBody`) and `components/fit/hard-filter-lines.tsx`
+  (`HardFilterLines`): hand-written, no registry item reads a score with its summary, lists and
+  hard-filter lines. They hold the markup `FitCard` and the Preferences test box share, with the
+  heading level as a prop because the two sit at different depths.
 - `components/next-action/set-next-action-dialog.tsx` (`SetNextActionDialog`): the `base-nova`
   `Dialog` around the same two fields as the job page's next action form (`FieldRow`,
   `LocalDateTimeInput`). None of the installed registry items is a dialog that opens from a toast and
