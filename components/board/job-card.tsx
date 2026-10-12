@@ -20,6 +20,7 @@ interface JobCardProps {
   now: Date;
   onMove: (target: MoveTarget) => void;
   onRequestClose: () => void;
+  onRequestNextAction: () => void;
   overlay?: boolean;
 }
 
@@ -35,7 +36,7 @@ function daysLabel(days: number): string {
   return `${days} days`;
 }
 
-export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardProps) {
+export function JobCard({ card, now, onMove, onRequestClose, onRequestNextAction, overlay }: JobCardProps) {
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: card.id, disabled: overlay });
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -57,6 +58,7 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
     if (!action) return;
     event.preventDefault();
     if (action.type === "close") onRequestClose();
+    else if (action.type === "next_action") onRequestNextAction();
     else onMove({ kind: action.kind });
   }
 

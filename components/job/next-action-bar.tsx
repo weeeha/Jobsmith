@@ -85,6 +85,9 @@ export function NextActionBar({ opportunity }: NextActionBarProps) {
     });
   }
 
+  // data-next-action-trigger marks whichever of Add and Edit is on screen:
+  // the stage stepper's next action offer sends focus back to it once its
+  // dialog closes, without knowing which one the job's state is showing.
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-base font-semibold text-foreground">Next action</h2>
@@ -94,7 +97,7 @@ export function NextActionBar({ opportunity }: NextActionBarProps) {
       ) : opportunity.nextAction === null ? (
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground">No next action.</p>
-          <Button ref={addRef} variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button ref={addRef} variant="outline" size="sm" data-next-action-trigger onClick={() => setEditing(true)}>
             Add
           </Button>
         </div>
@@ -112,7 +115,7 @@ export function NextActionBar({ opportunity }: NextActionBarProps) {
           <Button ref={doneRef} variant="outline" size="sm" disabled={isDonePending} onClick={handleDone}>
             Done
           </Button>
-          <Button ref={editRef} variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button ref={editRef} variant="outline" size="sm" data-next-action-trigger onClick={() => setEditing(true)}>
             Edit
           </Button>
         </div>

@@ -24,6 +24,8 @@ import { BoardColumn } from "@/components/board/board-column";
 import { JobCard } from "@/components/board/job-card";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { AddJobDialog } from "@/components/board/add-job-dialog";
+import { offerNextAction } from "@/components/next-action/offer";
+import { SetNextActionDialog, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
@@ -67,7 +69,7 @@ const silentAnnouncements: Announcements = {
 };
 const screenReaderInstructions: ScreenReaderInstructions = {
   draggable:
-    "To move this job, open its Move menu, or focus its title and press 1 through 7 to change its column, or C to close it. Dragging with a pointer also works.",
+    "To move this job, open its Move menu, or focus its title and press 1 through 7 to change its column, or C to close it. Press N to set its next action. Dragging with a pointer also works.",
 };
 
 export function BoardViewSwitch({ view }: { view: "active" | "closed" }) {
@@ -109,6 +111,7 @@ export function Board({
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [pendingCloseId, setPendingCloseId] = React.useState<string | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [nextActionSubject, setNextActionSubject] = React.useState<NextActionSubject | null>(null);
   const isDragging = activeId !== null;
   // Attached to the "Add job" button in both the empty and non-empty
   // branches below (only one is ever mounted at once, matching
@@ -125,6 +128,32 @@ export function Board({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
+
+  function subjectOf(card: BoardCard): NextActionSubject {
+    return {
+      id: card.id,
+      roleTitle: card.roleTitle,
+      companyName: card.companyName,
+      nextAction: card.nextAction,
+      nextActionAt: card.nextActionAt,
+    };
+  }
+
+  function requestNextAction(cardId: string) {
+    const card = optimisticCards.find((c) => c.id === cardId);
+    if (card) setNextActionSubject(subjectOf(card));
+  }
+
+  // The dialog closes for a save, Cancel, Escape and a click outside alike.
+  // Base UI would return focus to whatever opened it, but when the toast's
+  // button opened it that button is gone by now, and the card itself may
+  // have moved column since: so focus is sent to the card's title link
+  // wherever it is, and only if it was actually lost.
+  function handleNextActionClose() {
+    const id = nextActionSubject?.id;
+    setNextActionSubject(null);
+    if (id) correctFocusOnceLost(() => focusCardLink(id));
+  }
 
   function runMove(cardId: string, target: MoveTarget) {
     const card = optimisticCards.find((c) => c.id === cardId);
@@ -146,6 +175,7 @@ export function Board({
           return;
         }
         announce(`Moved ${card.roleTitle} at ${card.companyName} to ${columnTitle(result.data.to.kind)}.`);
+        offerNextAction(card, () => setNextActionSubject(subjectOf(card)));
         // The moved card's old title link (or its Move menu trigger, itself
         // inside the same card) unmounted the instant the optimistic dispatch
         // above swapped it into its new column. correctFocusOnceLost, not a
@@ -305,6 +335,7 @@ export function Board({
                         now={now}
                         onMove={(target) => runMove(card.id, target)}
                         onRequestClose={() => setPendingCloseId(card.id)}
+                        onRequestNextAction={() => requestNextAction(card.id)}
                       />
                     ))}
                   </BoardColumn>
@@ -314,7 +345,14 @@ export function Board({
             {isDragging && <ClosedDropZone />}
             <DragOverlay>
               {activeCard ? (
-                <JobCard card={activeCard} now={now} onMove={() => {}} onRequestClose={() => {}} overlay />
+                <JobCard
+                  card={activeCard}
+                  now={now}
+                  onMove={() => {}}
+                  onRequestClose={() => {}}
+                  onRequestNextAction={() => {}}
+                  overlay
+                />
               ) : null}
             </DragOverlay>
           </DndContext>
@@ -331,6 +369,10 @@ export function Board({
         </div>
       )}
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} companyNames={companyNames} />
+      {/* Written once, as a stable sibling like AddJobDialog above, so it
+          survives the board flipping between its empty and populated
+          branches while a save is in flight. */}
+      <SetNextActionDialog subject={nextActionSubject} onClose={handleNextActionClose} />
     </>
   );
 }

@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { StageDetailSheet } from "@/components/job/stage-detail-sheet";
 import { EditStagesDialog } from "@/components/job/edit-stages-dialog";
 import { LocalTime } from "@/components/local-time";
+import { offerNextAction } from "@/components/next-action/offer";
+import { SetNextActionDialog } from "@/components/next-action/set-next-action-dialog";
+import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { STAGE_STATUS_WORDS } from "@/lib/pipeline/labels";
 import { cn } from "@/lib/utils";
 import type { StageControls } from "@/lib/pipeline/stage-controls";
@@ -24,7 +27,13 @@ type StepperStage = {
 };
 
 interface StageStepperProps {
-  opportunity: { id: string; roleTitle: string; status: OpportunityStatus };
+  opportunity: {
+    id: string;
+    roleTitle: string;
+    status: OpportunityStatus;
+    nextAction: string | null;
+    nextActionAt: Date | null;
+  };
   companyName: string;
   stages: StepperStage[];
   currentStageId: string;
@@ -44,8 +53,17 @@ const DOT_CLASS_BY_STATUS: Record<StageStatus, string> = {
 export function StageStepper({ opportunity, companyName, stages, currentStageId, controls }: StageStepperProps) {
   const [openStageId, setOpenStageId] = React.useState<string | null>(null);
   const [editStagesOpen, setEditStagesOpen] = React.useState(false);
+  const [nextActionOpen, setNextActionOpen] = React.useState(false);
   const isClosed = opportunity.status === "closed";
   const openStage = stages.find((stage) => stage.id === openStageId) ?? null;
+
+  function handleNextActionClose() {
+    setNextActionOpen(false);
+    // Add or Edit in the next action bar. The toast button that opened the
+    // dialog is gone by now, and a save replaces Add with Edit, so the
+    // element is looked up when focus is actually lost, not captured here.
+    correctFocusOnceLost(() => document.querySelector<HTMLElement>("[data-next-action-trigger]")?.focus());
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -129,6 +147,25 @@ export function StageStepper({ opportunity, companyName, stages, currentStageId,
           }
         }
         isCurrent={openStage !== null && openStage.id === currentStageId}
+        onMoved={() =>
+          offerNextAction({ roleTitle: opportunity.roleTitle, companyName }, () => setNextActionOpen(true))
+        }
+      />
+      {/* Built from the live props while open, so it shows the next action
+          the page holds now, not the one it held when the move happened. */}
+      <SetNextActionDialog
+        subject={
+          nextActionOpen
+            ? {
+                id: opportunity.id,
+                roleTitle: opportunity.roleTitle,
+                companyName,
+                nextAction: opportunity.nextAction,
+                nextActionAt: opportunity.nextActionAt,
+              }
+            : null
+        }
+        onClose={handleNextActionClose}
       />
       <EditStagesDialog
         open={editStagesOpen}

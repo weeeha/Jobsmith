@@ -13,6 +13,8 @@ import { useAnnounce } from "@/components/live-announcer";
 import { MoveSheet } from "@/components/board/move-sheet";
 import { CloseDialog } from "@/components/board/close-dialog";
 import { AddJobDialog } from "@/components/board/add-job-dialog";
+import { offerNextAction } from "@/components/next-action/offer";
+import { SetNextActionDialog, type NextActionSubject } from "@/components/next-action/set-next-action-dialog";
 import { moveAction, closeAction } from "@/app/(app)/board/actions";
 import { applyMove, removeCard } from "@/lib/board/optimistic";
 import { actionFailureMessage } from "@/lib/board/messages";
@@ -90,6 +92,7 @@ export function PhoneBoard({
   const [moveSheetCardId, setMoveSheetCardId] = React.useState<string | null>(null);
   const [pendingCloseId, setPendingCloseId] = React.useState<string | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [nextActionSubject, setNextActionSubject] = React.useState<NextActionSubject | null>(null);
   // Attached to the "Add job" button in both the empty and non-empty
   // branches below (only one is ever mounted at once), so this always
   // points at whichever one is currently on screen - the fallback runClose
@@ -97,6 +100,25 @@ export function PhoneBoard({
   // (that group's own heading disappears along with it, unlike the desktop
   // board's column rail, which stays in the DOM to be focused instead).
   const addJobButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  function subjectOf(card: BoardCard): NextActionSubject {
+    return {
+      id: card.id,
+      roleTitle: card.roleTitle,
+      companyName: card.companyName,
+      nextAction: card.nextAction,
+      nextActionAt: card.nextActionAt,
+    };
+  }
+
+  // The toast's button that opened the dialog is gone by the time it
+  // closes, so focus goes to the card's own Move to button, wherever the
+  // move left it, and only if it was actually lost.
+  function handleNextActionClose() {
+    const id = nextActionSubject?.id;
+    setNextActionSubject(null);
+    if (id) correctFocusOnceLost(() => focusCardButton(id));
+  }
 
   function runMove(cardId: string, target: MoveTarget) {
     const card = optimisticCards.find((c) => c.id === cardId);
@@ -116,6 +138,7 @@ export function PhoneBoard({
           return;
         }
         announce(`Moved ${card.roleTitle} at ${card.companyName} to ${columnTitle(result.data.to.kind)}.`);
+        offerNextAction(card, () => setNextActionSubject(subjectOf(card)));
         // The sheet already tried to return focus to the "Move to" button
         // that opened it (Sheet's own default), but that button belonged to
         // this card's row in its OLD group, which unmounted the instant the
@@ -312,6 +335,7 @@ export function PhoneBoard({
           - one call site at a fixed position keeps this instance mounted
           across that transition, so its state survives. */}
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} companyNames={companyNames} />
+      <SetNextActionDialog subject={nextActionSubject} onClose={handleNextActionClose} />
     </div>
   );
 }

@@ -14,11 +14,17 @@ describe("keyToAction", () => {
     expect(keyToAction("C")).toEqual({ type: "close" });
   });
 
+  it("maps n and N to the next action", () => {
+    expect(keyToAction("n")).toEqual({ type: "next_action" });
+    expect(keyToAction("N")).toEqual({ type: "next_action" });
+  });
+
   it("returns null for 0, 8 and other keys", () => {
     expect(keyToAction("0")).toBeNull();
     expect(keyToAction("8")).toBeNull();
     expect(keyToAction("Enter")).toBeNull();
     expect(keyToAction(" ")).toBeNull();
+    expect(keyToAction("m")).toBeNull();
   });
 
   it("returns null for a multi-character string", () => {

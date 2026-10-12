@@ -50,6 +50,8 @@ interface StageDetailSheetProps {
   companyName: string;
   stage: StageDetailStage;
   isCurrent: boolean;
+  /** Called once after a successful "Move here", for the host's next action offer. */
+  onMoved: () => void;
 }
 
 export function StageDetailSheet({
@@ -59,6 +61,7 @@ export function StageDetailSheet({
   companyName,
   stage,
   isCurrent,
+  onMoved,
 }: StageDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,6 +78,7 @@ export function StageDetailSheet({
           companyName={companyName}
           stage={stage}
           isCurrent={isCurrent}
+          onMoved={onMoved}
         />
       </SheetContent>
     </Sheet>
@@ -87,6 +91,7 @@ function StageDetailSheetBody({
   companyName,
   stage,
   isCurrent,
+  onMoved,
 }: Omit<StageDetailSheetProps, "open">) {
   const [state, formAction, pending] = React.useActionState<FormState, FormData>(
     saveStageDetailAction.bind(null, opportunity.id, stage.id),
@@ -136,6 +141,7 @@ function StageDetailSheetBody({
         }
         announce(`Moved ${opportunity.roleTitle} at ${companyName} to ${columnTitle(result.data.to.kind)}.`);
         onOpenChange(false);
+        onMoved();
       } catch (error) {
         // moveAction can reject before ever returning a Result - see
         // board.tsx's runMove for the same case.
