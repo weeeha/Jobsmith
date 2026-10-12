@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SNOOZABLE_RULES, type AttentionItem, type SnoozableRule } from "@/lib/attention";
+import { isSnoozableRule, type AttentionItem } from "@/lib/attention";
 import {
   SNOOZE_LABELS,
   attentionReason,
@@ -27,12 +27,8 @@ import {
   snoozedAnnouncement,
 } from "@/lib/attention/messages";
 import { SNOOZE_PRESETS, type SnoozePreset } from "@/lib/attention/snooze";
-import { focusWasLost, correctFocusOnceLost } from "@/lib/dom/focus";
+import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { messageFor } from "@/lib/pipeline/messages";
-
-function isSnoozableRule(rule: AttentionItem["rule"]): rule is SnoozableRule {
-  return (SNOOZABLE_RULES as readonly string[]).includes(rule);
-}
 
 // A finished item leaves the list, so the button that was clicked disappears
 // with it. Focus goes to the Today heading, which the page makes focusable.
@@ -64,7 +60,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
         const result = await completeNextActionAction(item.opportunityId);
         if (!result.ok) {
           toast.error(doneFailure(result.message));
-          if (focusWasLost()) doneRef.current?.focus();
+          correctFocusOnceLost(() => doneRef.current?.focus());
           return;
         }
         announce(doneAnnouncement(item));
@@ -75,7 +71,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
         // focus to be.
         console.error("complete next action failed", error);
         toast.error(doneFailure(messageFor("unexpected")));
-        if (focusWasLost()) doneRef.current?.focus();
+        correctFocusOnceLost(() => doneRef.current?.focus());
       }
     });
   }
@@ -88,7 +84,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
         const result = await snoozeAction(item.opportunityId, rule, preset);
         if (!result.ok) {
           toast.error(snoozeFailure(item, result.message));
-          if (focusWasLost()) snoozeRef.current?.focus();
+          correctFocusOnceLost(() => snoozeRef.current?.focus());
           return;
         }
         announce(snoozedAnnouncement(item));
@@ -96,7 +92,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
       } catch (error) {
         console.error("snooze failed", error);
         toast.error(snoozeFailure(item, messageFor("unexpected")));
-        if (focusWasLost()) snoozeRef.current?.focus();
+        correctFocusOnceLost(() => snoozeRef.current?.focus());
       }
     });
   }
@@ -132,7 +128,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
             {action.label}
           </Button>
         )}
-        {item.snoozable && isSnoozableRule(item.rule) ? (
+        {isSnoozableRule(item.rule) ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={

@@ -208,6 +208,9 @@ describe("AttentionList", () => {
     });
     expect(mockedDone).toHaveBeenCalledWith("job-1");
     expect(screen.getByRole("status").textContent).toBe("Marked the next action done for Product Designer at Acme Robotics.");
+    // The row is still here in the test (no revalidation), and the pressed
+    // button was disabled by the transition, so focus is lost and goes to Today.
+    expect(document.activeElement).toBe(document.getElementById("home-today"));
     vi.useRealTimers();
   });
 
@@ -224,15 +227,22 @@ describe("AttentionList", () => {
       await Promise.resolve();
       vi.advanceTimersByTime(200);
     });
+    // The menu closes and focus falls to <body> while the trigger is still
+    // disabled by the transition; the trigger takes focus once it is usable.
+    await act(async () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      vi.advanceTimersByTime(200);
+    });
     vi.useRealTimers();
     expect(toastError).toHaveBeenCalledWith(
       "Could not snooze Product Designer at Acme Robotics. This job is closed. Reopen it first.",
     );
     expect(screen.getByRole("status").textContent).toBe("");
-    expect(document.activeElement).not.toBe(document.getElementById("home-today"));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Snooze Product Designer at Acme Robotics" }));
   });
 
-  it("toasts a failed Done and a rejected action, and keeps the row", async () => {
+  it("toasts a failed Done and a rejected action, keeps the row, and puts focus back on Done", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.spyOn(console, "error").mockImplementation(() => {});
     const toastError = vi.spyOn(toast, "error");
     renderList([DUE]);
@@ -240,16 +250,25 @@ describe("AttentionList", () => {
 
     mockedDone.mockResolvedValueOnce({ ok: false, code: "nothing_to_complete", message: "There is no next action." });
     await act(async () => {
+      button.focus();
       fireEvent.click(button);
       await Promise.resolve();
+      // The browser drops focus when the pressed button is disabled.
+      (document.activeElement as HTMLElement | null)?.blur();
+      vi.advanceTimersByTime(200);
     });
     expect(toastError).toHaveBeenLastCalledWith("Could not mark the next action done. There is no next action.");
+    expect(document.activeElement).toBe(button);
 
     mockedDone.mockRejectedValueOnce(new Error("network"));
     await act(async () => {
       fireEvent.click(button);
       await Promise.resolve();
+      (document.activeElement as HTMLElement | null)?.blur();
+      vi.advanceTimersByTime(200);
     });
+    expect(document.activeElement).toBe(button);
+    vi.useRealTimers();
     expect(toastError).toHaveBeenLastCalledWith("Could not mark the next action done. Something went wrong. Try again.");
     expect(screen.getByRole("status").textContent).toBe("");
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
