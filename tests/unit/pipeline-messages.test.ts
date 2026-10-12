@@ -23,6 +23,7 @@ describe("messageFor", () => {
     ["not_sendable", "Only CVs, cover letters and messages can be marked as sent."],
     ["already_sent", "This version is already marked as sent."],
     ["token_not_found", "This token no longer exists."],
+    ["not_ready", "This job cannot be scored yet."],
   ];
 
   it.each(cases)("maps %s to its fixed message", (code, expected) => {

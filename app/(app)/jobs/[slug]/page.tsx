@@ -15,6 +15,11 @@ import { TabDocuments } from "@/components/job/tab-documents";
 import { TabTimeline } from "@/components/job/tab-timeline";
 import { TabPrep } from "@/components/job/tab-prep";
 
+// Sets the timeout of this page's own server actions (the Next 16 docs on
+// page-level maxDuration). Scoring a job from the fit card awaits one model
+// call of up to 20 seconds, past the framework's default.
+export const maxDuration = 60;
+
 const TAB_IDS: readonly JobTabId[] = ["overview", "research", "people", "documents", "timeline", "prep"];
 
 function resolveTab(value: string | string[] | undefined): JobTabId {

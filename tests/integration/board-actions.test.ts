@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { addJobAction } from "@/app/(app)/board/actions";
+import { addJobAction, moveAction } from "@/app/(app)/board/actions";
+import type { AiDriver } from "@/lib/ai/driver";
+import { createFakeDriver } from "@/lib/ai/fake";
+import { parseStoredFit } from "@/lib/fit/stored";
 import { UNREADABLE_INPUT_VALUE } from "@/lib/forms/submit";
 import { makeTestDb, createTestUser } from "../helpers/db";
 import { scoped } from "@/lib/db/scoped";
 import { fakeGuardedFetch } from "../helpers/intake";
+import { seedProfile } from "../helpers/profile";
 
 // addJobAction turns the Add job form's text into numbers before
 // addJobFormSchema sees it, so addJob's own tests cannot catch a bad
@@ -14,15 +18,62 @@ import { fakeGuardedFetch } from "../helpers/intake";
 // path revalidation need a live Next.js request, so both are stubbed;
 // scopedFor is pointed at a real PGlite database through the real scoped();
 // intakeDeps is stubbed so no test ever touches the network or a real model.
-const harness = vi.hoisted(() => ({ db: undefined as Db | undefined, userId: "", throwDeps: false }));
+// after() only works inside a request, so it is replaced by a list of
+// callbacks that each test runs (or deliberately leaves unrun); fitDeps is
+// stubbed with the driver the test chooses and a fixed clock.
+const harness = vi.hoisted(() => ({
+  db: undefined as Db | undefined,
+  userId: "",
+  throwDeps: false,
+  throwQueue: false,
+  ai: null as AiDriver | null,
+  afterCallbacks: [] as (() => unknown)[],
+  revalidated: [] as string[],
+}));
 
 vi.mock("@/lib/auth/session", () => ({
   requireUser: async () => ({ id: harness.userId }),
 }));
 
 vi.mock("next/cache", () => ({
-  revalidatePath: () => {},
+  revalidatePath: (path: string) => {
+    harness.revalidated.push(path);
+  },
 }));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: (() => unknown) | Promise<unknown>) => {
+    harness.afterCallbacks.push(typeof task === "function" ? task : () => task);
+  },
+}));
+
+async function runAfterCallbacks() {
+  for (const callback of harness.afterCallbacks.splice(0)) await callback();
+}
+
+vi.mock("@/lib/fit/deps", () => ({
+  fitDeps: () => ({ ai: harness.ai, now: () => new Date("2026-10-11T20:30:00.000Z") }),
+}));
+
+vi.mock("@/lib/fit/score-opportunity", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/fit/score-opportunity")>();
+  return {
+    ...actual,
+    queueFitScoring: (...args: Parameters<typeof actual.queueFitScoring>) => {
+      if (harness.throwQueue) throw new Error("SECRET-POSTING-TEXT");
+      return actual.queueFitScoring(...args);
+    },
+  };
+});
+
+afterEach(() => {
+  harness.ai = null;
+  harness.afterCallbacks.length = 0;
+  harness.revalidated.length = 0;
+  harness.throwQueue = false;
+  vi.restoreAllMocks();
+});
 
 vi.mock("@/lib/db/scoped", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/scoped")>();
@@ -153,6 +204,166 @@ describe("addJobAction server_error", () => {
       expect(await db.select().from(schema.opportunity)).toHaveLength(0);
     } finally {
       harness.throwDeps = false;
+      await close();
+    }
+  });
+});
+
+function jobWithPosting(posting: string | null): FormData {
+  const formData = addJobForm({});
+  if (posting !== null) formData.set("postingText", posting);
+  return formData;
+}
+
+async function onlyOpportunity(db: Db) {
+  const [row] = await db.select().from(schema.opportunity);
+  return row!;
+}
+
+describe("addJobAction fit scoring", () => {
+  it("leaves the job pending when the action returns, and done once the after callback has run", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+      harness.ai = createFakeDriver();
+      vi.spyOn(console, "info").mockImplementation(() => {});
+
+      const state = await addJobAction(undefined, jobWithPosting("About the job\nWe design internal tools."));
+      expect(state).toMatchObject({ ok: true });
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "pending", fitScore: null });
+      expect(harness.afterCallbacks).toHaveLength(1);
+
+      await runAfterCallbacks();
+      const row = await onlyOpportunity(db);
+      expect(row).toMatchObject({ fitStatus: "done", fitScore: 64 });
+      expect(parseStoredFit(row.fit)).toMatchObject({ v: 1, score: 64, modelId: "fake-extractor" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("scores with the number on the posting's Fit score line", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+      harness.ai = createFakeDriver();
+      vi.spyOn(console, "info").mockImplementation(() => {});
+
+      await addJobAction(undefined, jobWithPosting("Fit score: 81\nAbout the job"));
+      await runAfterCallbacks();
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "done", fitScore: 81 });
+    } finally {
+      await close();
+    }
+  });
+
+  it("ends failed, not pending, when the model fails", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+      harness.ai = createFakeDriver();
+      vi.spyOn(console, "info").mockImplementation(() => {});
+
+      await addJobAction(undefined, jobWithPosting("Fit score: fail\nAbout the job"));
+      await runAfterCallbacks();
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "failed", fitScore: null });
+    } finally {
+      await close();
+    }
+  });
+
+  it("queues nothing when there is no resume", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId), { resumeMd: null });
+      harness.ai = createFakeDriver();
+
+      expect(await addJobAction(undefined, jobWithPosting("About the job"))).toMatchObject({ ok: true });
+      expect(harness.afterCallbacks).toHaveLength(0);
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "none" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("queues nothing when AI is off", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+
+      expect(await addJobAction(undefined, jobWithPosting("About the job"))).toMatchObject({ ok: true });
+      expect(harness.afterCallbacks).toHaveLength(0);
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "none" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("queues nothing for a job added without a posting", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+      harness.ai = createFakeDriver();
+
+      expect(await addJobAction(undefined, jobWithPosting(null))).toMatchObject({ ok: true });
+      expect(harness.afterCallbacks).toHaveLength(0);
+      expect(await onlyOpportunity(db)).toMatchObject({ fitStatus: "none" });
+    } finally {
+      await close();
+    }
+  });
+
+  it("still adds the job, and logs only the error name, when queueing throws", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await seedProfile(scoped(db, harness.userId));
+      harness.ai = createFakeDriver();
+      harness.throwQueue = true;
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      expect(await addJobAction(undefined, jobWithPosting("About the job"))).toMatchObject({ ok: true });
+      expect(await db.select().from(schema.opportunity)).toHaveLength(1);
+      expect(harness.afterCallbacks).toHaveLength(0);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(JSON.parse((error.mock.calls[0] as [string, string])[1])).toEqual({ error: "Error" });
+      expect(JSON.stringify(error.mock.calls)).not.toContain("SECRET");
+    } finally {
+      await close();
+    }
+  });
+
+  it("revalidates Home and the board", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "scorer@example.com");
+      await addJobAction(undefined, addJobForm({}));
+      expect(harness.revalidated).toEqual(expect.arrayContaining(["/", "/board"]));
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("board actions and Home", () => {
+  it("moveAction revalidates Home along with the board and the job", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      await signInAs(db, "mover@example.com");
+      await addJobAction(undefined, addJobForm({}));
+      const row = await onlyOpportunity(db);
+      harness.revalidated.length = 0;
+
+      const result = await moveAction(row.id, { kind: "applied" });
+      expect(result.ok).toBe(true);
+      expect(harness.revalidated).toEqual(expect.arrayContaining(["/", "/board", `/jobs/${row.slug}`]));
+    } finally {
       await close();
     }
   });
