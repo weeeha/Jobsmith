@@ -5,6 +5,7 @@ import { loadProfile } from "@/lib/profile/store";
 import { listTimeZones } from "@/lib/time/zone";
 import { timeZoneItems } from "@/lib/time/zone-list";
 import { ApiTokensSection } from "@/components/settings/api-tokens-section";
+import { ExportSection } from "@/components/settings/export-section";
 import { ProfileSection } from "@/components/settings/profile-section";
 
 export default async function SettingsPage() {
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
         timeZones={timeZoneItems(listTimeZones(), [profile.timezone])}
       />
       <ApiTokensSection tokens={tokens} />
+      <ExportSection />
     </div>
   );
 }

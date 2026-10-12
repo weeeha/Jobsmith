@@ -467,6 +467,69 @@ const cases: Case[] = [
       expect(pushes[0]).toMatchObject({ roleTitle: "Product Designer", companyName: "Acme Robotics" });
     },
   },
+  {
+    name: "dataExport.user returns only B's own user",
+    run: async (a, b) => {
+      expect((await b.dataExport.user())?.id).toBe(b.userId);
+      expect((await a.dataExport.user())?.id).toBe(a.userId);
+    },
+  },
+  {
+    name: "dataExport.companies hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.companies()).toEqual([]);
+      expect((await a.dataExport.companies()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.opportunities hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.opportunities()).toEqual([]);
+      expect((await a.dataExport.opportunities()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.stages hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.stages()).toEqual([]);
+      expect((await a.dataExport.stages()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.people hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.people()).toEqual([]);
+      expect((await a.dataExport.people()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.opportunityPeople hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.opportunityPeople()).toEqual([]);
+      expect((await a.dataExport.opportunityPeople()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.events hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.events()).toEqual([]);
+      expect((await a.dataExport.events()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.artifacts hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.artifacts()).toEqual([]);
+      expect((await a.dataExport.artifacts()).length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: "dataExport.apiTokens hides A's rows from B",
+    run: async (a, b) => {
+      expect(await b.dataExport.apiTokens()).toEqual([]);
+      expect((await a.dataExport.apiTokens()).length).toBeGreaterThan(0);
+    },
+  },
 ];
 
 describe("scoped tenant isolation", () => {
