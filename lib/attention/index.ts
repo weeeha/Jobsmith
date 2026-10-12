@@ -33,7 +33,7 @@ export type AttentionItem = {
   snoozable: boolean;
 };
 
-function isSnoozable(rule: AttentionRule): boolean {
+export function isSnoozableRule(rule: AttentionRule): rule is SnoozableRule {
   return (SNOOZABLE_RULES as readonly AttentionRule[]).includes(rule);
 }
 
@@ -89,7 +89,7 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
       nextAction: null,
       days: null,
       overdue: false,
-      snoozable: isSnoozable(rule),
+      snoozable: isSnoozableRule(rule),
     });
   }
 
@@ -128,7 +128,11 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
         });
       }
     } else if (job.stageKind === "saved") {
-      const since = job.stageEnteredAt ?? job.createdAt;
+      // The later of entering the stage and the latest event, so finishing
+      // an Apply or drop action (which writes an event) restarts the count
+      // instead of listing the job again the same day.
+      const entered = job.stageEnteredAt ?? job.createdAt;
+      const since = job.lastEventAt !== null && job.lastEventAt.getTime() > entered.getTime() ? job.lastEventAt : entered;
       const days = calendarDaysBetween(since, now, timeZone);
       if (days >= settings.savedDays) {
         groups.apply_or_drop.push({

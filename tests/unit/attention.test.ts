@@ -195,8 +195,22 @@ describe("rules 3 and 4: quiet jobs", () => {
     const saved = (entered: string, over: Partial<AttentionOpportunity> = {}) => attentionOpp("j", { stageEnteredAt: new Date(entered), ...over });
     expect(keys(input([saved("2026-10-08T07:00:00.000Z")]))).toEqual(["apply_or_drop:j"]);
     expect(keys(input([saved("2026-10-09T07:00:00.000Z")]))).toEqual([]);
-    // Recent events do not reset a saved job's clock.
-    expect(keys(input([saved("2026-10-08T07:00:00.000Z", { lastEventAt: ATTENTION_NOW })]))).toEqual(["apply_or_drop:j"]);
+    // An event older than entering the stage changes nothing.
+    expect(keys(input([saved("2026-10-08T07:00:00.000Z", { lastEventAt: new Date("2026-09-01T00:00:00.000Z") })]))).toEqual(["apply_or_drop:j"]);
+  });
+
+  it("does not bring a saved job straight back after Done on its Apply or drop action", () => {
+    const entered = "2026-10-01T07:00:00.000Z";
+    const saved = (lastEventAt: string | null) =>
+      attentionOpp("j", { stageEnteredAt: new Date(entered), lastEventAt: lastEventAt === null ? null : new Date(lastEventAt) });
+    // Before Done it is listed; Done writes an event, so the count restarts.
+    expect(keys(input([saved(null)]))).toEqual(["apply_or_drop:j"]);
+    expect(keys(input([saved(ATTENTION_NOW.toISOString())]))).toEqual([]);
+    // It returns after savedDays more days, counted from that event.
+    expect(keys(input([saved("2026-10-09T07:00:00.000Z")]))).toEqual([]);
+    const back = attentionItems(input([saved("2026-10-08T07:00:00.000Z")]));
+    expect(back).toHaveLength(1);
+    expect(back[0]).toMatchObject({ rule: "apply_or_drop", at: new Date("2026-10-08T07:00:00.000Z"), days: 3 });
   });
 
   it("honors a different savedDays and falls back to creation", () => {

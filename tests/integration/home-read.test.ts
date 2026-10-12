@@ -46,9 +46,11 @@ describe("getHomeView", () => {
       const closed = await job(s, "Acme Robotics", "Intern", "applied", new Date("2026-09-01T09:00:00.000Z"));
       await closeOpportunity(s, closed.id, "rejected", ATTENTION_NOW);
 
+      // On the closed job: a push on the saved job would count as activity
+      // there and push its Apply or drop reminder back.
       for (let i = 0; i < RECENT_PUSHES_LIMIT + 1; i++) {
         await s.event.insert({
-          opportunityId: saved.id,
+          opportunityId: closed.id,
           kind: "artifact_pushed",
           occurredAt: new Date(Date.UTC(2026, 9, 5 + i, 10)),
           meta: { items: Array.from({ length: i === 5 ? 2 : 1 }, (_, n) => ({ key: `doc-${n}`, scope: "opportunity", status: "created", version: 1 })) },
@@ -75,7 +77,7 @@ describe("getHomeView", () => {
         { kind: "offer", label: "Offer", count: 0 },
       ]);
       expect(view.pushes).toHaveLength(RECENT_PUSHES_LIMIT);
-      expect(view.pushes[0]).toMatchObject({ slug: saved.slug, roleTitle: "Product Designer", companyName: "Northwind Traders", documents: 2 });
+      expect(view.pushes[0]).toMatchObject({ slug: closed.slug, roleTitle: "Intern", companyName: "Acme Robotics", documents: 2 });
       expect(view.pushes[0]?.occurredAt).toEqual(new Date("2026-10-10T10:00:00.000Z"));
       expect(view.pushes.map((push) => push.documents)).toEqual([2, 1, 1, 1, 1]);
     } finally {
