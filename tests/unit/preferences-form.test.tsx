@@ -233,6 +233,30 @@ describe("PreferencesForm", () => {
     expect(sent().get("compFloor")).toBe("");
   });
 
+  it("shows what was stored, not what was typed, in the number and currency boxes after a save", async () => {
+    const view = (preferences: Preferences) => (
+      <LiveAnnouncerProvider>
+        <PreferencesForm preferences={preferences} />
+      </LiveAnnouncerProvider>
+    );
+    const { rerender } = render(view(SAVED));
+    await act(async () => {
+      fireEvent.change(field("Good fit from"), { target: { value: "" } });
+      fireEvent.change(field("Currency"), { target: { value: "eur" } });
+    });
+    expect(field("Good fit from").value).toBe("");
+    // The server action re-renders the page with the stored values (the
+    // default 70, and EUR) in the same response that carries its result.
+    mockedSave.mockImplementation(async () => {
+      rerender(view({ ...SAVED, scoreThreshold: 70, currency: "EUR" }));
+      return { ok: true };
+    });
+    await save();
+
+    expect(field("Good fit from").value).toBe("70");
+    expect(field("Currency").value).toBe("EUR");
+  });
+
   it("announces Preferences saved. after a successful save", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     renderForm();

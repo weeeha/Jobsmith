@@ -121,6 +121,22 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   const [initial] = React.useState(preferences);
   const submitRef = React.useRef<HTMLButtonElement>(null);
 
+  // A new object per successful save: the list boxes turn the text they held
+  // at submit into chips.
+  const saved = state?.ok ? state : undefined;
+  // Counts saves, so the number and currency boxes can start over from what
+  // was stored (a blank box is stored as the default, "eur" as "EUR"). Set
+  // while rendering, the way React documents adjusting state to a changed
+  // value.
+  const [seenSaved, setSeenSaved] = React.useState(saved);
+  const [saveCount, setSaveCount] = React.useState(0);
+  if (saved !== seenSaved) {
+    setSeenSaved(saved);
+    if (saved) setSaveCount((count) => count + 1);
+  }
+  // After a save the page re-rendered with the stored values.
+  const shown = saveCount > 0 ? preferences : initial;
+
   React.useEffect(() => {
     if (state?.ok) {
       announce("Preferences saved.");
@@ -132,9 +148,6 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   }, [state, announce]);
 
   const errors = state?.ok === false ? state.fieldErrors : undefined;
-  // A new object per successful save: the list boxes turn the text they held
-  // at submit into chips.
-  const saved = state?.ok ? state : undefined;
 
   return (
     // noValidate: the server's messages are the ones to show, not the
@@ -173,11 +186,12 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           saved={saved}
         />
         <NumberField
+          key={saveCount}
           name="compFloor"
           label="Pay floor"
           hint="A job fails only when its stated pay tops out below this."
           error={errors?.compFloor}
-          defaultValue={initial.compFloor}
+          defaultValue={shown.compFloor}
         />
         <StackedField
           label="Currency"
@@ -186,11 +200,12 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
         >
           {(id, describedBy) => (
             <Input
+              key={saveCount}
               id={id}
               name="currency"
               className="max-w-40"
               autoCapitalize="characters"
-              defaultValue={initial.currency ?? ""}
+              defaultValue={shown.currency ?? ""}
               aria-describedby={describedBy}
               aria-invalid={Boolean(errors?.currency)}
             />
@@ -205,7 +220,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           options={SENIORITY_LEVELS.map((level) => ({ value: level, label: SENIORITY_LABELS[level] }))}
           defaultValue={initial.seniority}
         />
-        <NumberField name="compTarget" label="Pay target" error={errors?.compTarget} defaultValue={initial.compTarget} />
+        <NumberField key={saveCount} name="compTarget" label="Pay target" error={errors?.compTarget} defaultValue={shown.compTarget} />
         <ListInput
           name="mustHaves"
           label="Must-haves"
@@ -231,41 +246,46 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           saved={saved}
         />
         <NumberField
+          key={saveCount}
           name="companySize.min"
           label="Company size from"
           error={errors?.["companySize.min"]}
-          defaultValue={initial.companySize.min}
+          defaultValue={shown.companySize.min}
         />
         <NumberField
+          key={saveCount}
           name="companySize.max"
           label="Company size to"
           hint="Number of people."
           error={errors?.["companySize.max"]}
-          defaultValue={initial.companySize.max}
+          defaultValue={shown.companySize.max}
         />
         <NumberField
+          key={saveCount}
           name="scoreThreshold"
           label="Good fit from"
           hint="Scores at or above this count as a good fit. 0 to 100."
           error={errors?.scoreThreshold}
-          defaultValue={initial.scoreThreshold}
+          defaultValue={shown.scoreThreshold}
         />
       </FormSection>
 
       <FormSection title="Home reminders" intro="When Home asks you to act on a quiet job.">
         <NumberField
+          key={saveCount}
           name="attention.followUpDays"
           label="Follow up after"
           hint="Days without news on an applied job."
           error={errors?.["attention.followUpDays"]}
-          defaultValue={initial.attention.followUpDays}
+          defaultValue={shown.attention.followUpDays}
         />
         <NumberField
+          key={saveCount}
           name="attention.savedDays"
           label="Apply or drop after"
           hint="Days a saved job can wait."
           error={errors?.["attention.savedDays"]}
-          defaultValue={initial.attention.savedDays}
+          defaultValue={shown.attention.savedDays}
         />
       </FormSection>
 
