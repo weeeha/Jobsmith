@@ -186,7 +186,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           saved={saved}
         />
         <NumberField
-          key={saveCount}
+          key={`compFloor-${saveCount}`}
           name="compFloor"
           label="Pay floor"
           hint="A job fails only when its stated pay tops out below this."
@@ -200,7 +200,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
         >
           {(id, describedBy) => (
             <Input
-              key={saveCount}
+              key={`currency-${saveCount}`}
               id={id}
               name="currency"
               className="max-w-40"
@@ -220,7 +220,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           options={SENIORITY_LEVELS.map((level) => ({ value: level, label: SENIORITY_LABELS[level] }))}
           defaultValue={initial.seniority}
         />
-        <NumberField key={saveCount} name="compTarget" label="Pay target" error={errors?.compTarget} defaultValue={shown.compTarget} />
+        <NumberField key={`compTarget-${saveCount}`} name="compTarget" label="Pay target" error={errors?.compTarget} defaultValue={shown.compTarget} />
         <ListInput
           name="mustHaves"
           label="Must-haves"
@@ -246,14 +246,14 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           saved={saved}
         />
         <NumberField
-          key={saveCount}
+          key={`companySize.min-${saveCount}`}
           name="companySize.min"
           label="Company size from"
           error={errors?.["companySize.min"]}
           defaultValue={shown.companySize.min}
         />
         <NumberField
-          key={saveCount}
+          key={`companySize.max-${saveCount}`}
           name="companySize.max"
           label="Company size to"
           hint="Number of people."
@@ -261,7 +261,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           defaultValue={shown.companySize.max}
         />
         <NumberField
-          key={saveCount}
+          key={`scoreThreshold-${saveCount}`}
           name="scoreThreshold"
           label="Good fit from"
           hint="Scores at or above this count as a good fit. 0 to 100."
@@ -272,7 +272,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
 
       <FormSection title="Home reminders" intro="When Home asks you to act on a quiet job.">
         <NumberField
-          key={saveCount}
+          key={`attention.followUpDays-${saveCount}`}
           name="attention.followUpDays"
           label="Follow up after"
           hint="Days without news on an applied job."
@@ -280,7 +280,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
           defaultValue={shown.attention.followUpDays}
         />
         <NumberField
-          key={saveCount}
+          key={`attention.savedDays-${saveCount}`}
           name="attention.savedDays"
           label="Apply or drop after"
           hint="Days a saved job can wait."
