@@ -108,6 +108,19 @@ const cases: Case[] = [
     },
   },
   {
+    name: "opportunity.settleFitStatusIfPending cannot touch A's row from B, and only moves a pending row",
+    run: async (a, b, ids) => {
+      await a.opportunity.update(ids.opportunityId, { fitStatus: "pending" });
+      expect(await b.opportunity.settleFitStatusIfPending(ids.opportunityId, "failed")).toBe(false);
+      expect((await a.opportunity.getById(ids.opportunityId))?.fitStatus).toBe("pending");
+      expect(await a.opportunity.settleFitStatusIfPending(ids.opportunityId, "failed")).toBe(true);
+      expect((await a.opportunity.getById(ids.opportunityId))?.fitStatus).toBe("failed");
+      await a.opportunity.update(ids.opportunityId, { fitStatus: "done" });
+      expect(await a.opportunity.settleFitStatusIfPending(ids.opportunityId, "none")).toBe(false);
+      expect((await a.opportunity.getById(ids.opportunityId))?.fitStatus).toBe("done");
+    },
+  },
+  {
     name: "opportunity.insert ignores a smuggled userId",
     run: async (a, b, ids) => {
       const row = await a.opportunity.insert({

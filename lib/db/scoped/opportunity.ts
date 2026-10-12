@@ -307,5 +307,22 @@ export function opportunityQueries(db: Db, userId: string) {
         .returning();
       return row ?? null;
     },
+    // Moves a job to `failed` or `none` only while it is still `pending`. Two
+    // scoring runs can overlap, and a run that ends badly must not overwrite
+    // the `done` a newer run already stored. Returns false when nothing changed.
+    async settleFitStatusIfPending(id: string, status: "failed" | "none"): Promise<boolean> {
+      const rows = await db
+        .update(schema.opportunity)
+        .set({ fitStatus: status, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.opportunity.id, id),
+            eq(schema.opportunity.userId, userId),
+            eq(schema.opportunity.fitStatus, "pending"),
+          ),
+        )
+        .returning({ id: schema.opportunity.id });
+      return rows.length > 0;
+    },
   };
 }

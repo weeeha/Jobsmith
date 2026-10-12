@@ -151,6 +151,7 @@ describe("scoreOpportunity", () => {
       await scoreOpportunity(s, id, depsWith(createFakeDriver()));
       const before = await stored(s, id);
       const failing = createFakeDriver({ score_fit: () => ({ error: "ai_timeout" }) });
+      await queueFitScoring(s, id, depsWith(failing));
       const result = await scoreOpportunity(s, id, depsWith(failing));
       expect(result).toEqual({ ok: true, data: { status: "failed", score: null } });
       const after = await stored(s, id);
@@ -166,6 +167,7 @@ describe("scoreOpportunity", () => {
     const { s, id, close } = await setup();
     try {
       const blank = createFakeDriver({ score_fit: () => ({ score: 50, summary: " ", pros: [], cons: [] }) });
+      await queueFitScoring(s, id, depsWith(blank));
       expect(await scoreOpportunity(s, id, depsWith(blank))).toEqual({ ok: true, data: { status: "failed", score: null } });
       expect((await stored(s, id)).fitStatus).toBe("failed");
     } finally {
@@ -337,11 +339,132 @@ describe("scoreSafely", () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
       const broken: Scoped = {
         ...s,
-        opportunity: { ...s.opportunity, update: async () => { throw new Error("SECRET-POSTING-TEXT"); } },
+        opportunity: {
+          ...s.opportunity,
+          update: async () => { throw new Error("SECRET-POSTING-TEXT"); },
+          settleFitStatusIfPending: async () => { throw new Error("SECRET-POSTING-TEXT"); },
+        },
       };
       await expect(scoreSafely(broken, id, depsWith(createFakeDriver()))).resolves.toEqual({ status: "failed", score: null });
       expect(vi.mocked(console.error)).toHaveBeenCalledTimes(2);
       expect(loggedText()).not.toContain("SECRET");
+    } finally {
+      await close();
+    }
+  });
+});
+
+// The after() run of an add can still be going when the user presses Try again
+// or Score again, so two runs for one job overlap. A driver whose answer waits
+// for a gate lets a test choose which run finishes first.
+describe("two runs for one job at once", () => {
+  function gated(inner: AiDriver) {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started: () => void = () => {};
+    const reachedModel = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const driver: AiDriver = {
+      ...inner,
+      generate: async (request) => {
+        started();
+        await gate;
+        return inner.generate(request);
+      },
+    };
+    return { driver, release, reachedModel };
+  }
+
+  it("keeps a stored score when an older run fails after a newer run stored it", async () => {
+    const { s, id, close } = await setup({ posting: `Fit score: 81\n${POSTING}` });
+    try {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      const older = gated(createFakeDriver({ score_fit: () => ({ error: "ai_timeout" }) }));
+      await queueFitScoring(s, id, depsWith(older.driver));
+      const olderRun = scoreSafely(s, id, depsWith(older.driver));
+      await older.reachedModel;
+
+      await queueFitScoring(s, id, depsWith(createFakeDriver()));
+      expect(await scoreSafely(s, id, depsWith(createFakeDriver()))).toEqual({ status: "done", score: 81 });
+
+      older.release();
+      expect(await olderRun).toEqual({ status: "failed", score: null });
+      expect(await stored(s, id)).toMatchObject({ fitStatus: "done", fitScore: 81 });
+    } finally {
+      await close();
+    }
+  });
+
+  it("keeps a stored score when an older run throws after a newer run stored it", async () => {
+    const { s, id, close } = await setup();
+    try {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const throwing: AiDriver = { name: "fake", modelId: "fake-extractor", generate: async () => { throw new Error("late"); } };
+      const older = gated(throwing);
+      await queueFitScoring(s, id, depsWith(older.driver));
+      const olderRun = scoreSafely(s, id, depsWith(older.driver));
+      await older.reachedModel;
+
+      await scoreSafely(s, id, depsWith(createFakeDriver()));
+      older.release();
+      await olderRun;
+      expect(await stored(s, id)).toMatchObject({ fitStatus: "done", fitScore: 64 });
+    } finally {
+      await close();
+    }
+  });
+
+  it("ends done when the older run fails first and the newer run finishes later", async () => {
+    const { s, id, close } = await setup();
+    try {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      const newer = gated(createFakeDriver());
+      await queueFitScoring(s, id, depsWith(newer.driver));
+      const newerRun = scoreSafely(s, id, depsWith(newer.driver));
+      await newer.reachedModel;
+
+      await scoreSafely(s, id, depsWith(createFakeDriver({ score_fit: () => ({ error: "ai_timeout" }) })));
+      expect((await stored(s, id)).fitStatus).toBe("failed");
+
+      newer.release();
+      await newerRun;
+      expect(await stored(s, id)).toMatchObject({ fitStatus: "done", fitScore: 64 });
+    } finally {
+      await close();
+    }
+  });
+
+  it("never ends pending when both runs fail", async () => {
+    const { s, id, close } = await setup();
+    try {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      const failing = () => createFakeDriver({ score_fit: () => ({ error: "ai_timeout" }) });
+      const first = gated(failing());
+      await queueFitScoring(s, id, depsWith(first.driver));
+      const firstRun = scoreSafely(s, id, depsWith(first.driver));
+      await first.reachedModel;
+      await queueFitScoring(s, id, depsWith(failing()));
+      await scoreSafely(s, id, depsWith(failing()));
+      first.release();
+      await firstRun;
+      expect((await stored(s, id)).fitStatus).toBe("failed");
+    } finally {
+      await close();
+    }
+  });
+
+  it("does not turn a stored score into none when an older run finds the job not ready", async () => {
+    const { s, id, close } = await setup({ posting: `Fit score: 81\n${POSTING}` });
+    try {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      await queueFitScoring(s, id, depsWith(createFakeDriver()));
+      await scoreSafely(s, id, depsWith(createFakeDriver()));
+      expect(await scoreSafely(s, id, depsWith(null))).toEqual({ status: "none", score: null });
+      expect(await stored(s, id)).toMatchObject({ fitStatus: "done", fitScore: 81 });
     } finally {
       await close();
     }

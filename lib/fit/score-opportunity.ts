@@ -30,8 +30,9 @@ export async function queueFitScoring(
 
 /**
  * Scores one job and writes the result. A failed or not-ready run changes
- * only `fit_status`: the previous score and fit document stay, so a failed
- * retry never wipes a good score.
+ * only `fit_status`, and only while the job is still `pending`: the previous
+ * score and fit document stay, so a failed retry never wipes a good score, and
+ * a run that ends late never overwrites the `done` of a newer run.
  */
 export async function scoreOpportunity(
   s: Scoped,
@@ -48,7 +49,7 @@ export async function scoreOpportunity(
 
   const readiness = fitReadiness({ aiOn: deps.ai !== null, postingMd: opportunity.postingMd, resumeMd: profile.resumeMd });
   if (readiness !== "ready" || opportunity.postingMd === null || profile.resumeMd === null) {
-    await s.opportunity.update(opportunityId, { fitStatus: "none" });
+    await s.opportunity.settleFitStatusIfPending(opportunityId, "none");
     logFit({ opportunityId, outcome: "none", reason: readiness, modelId: null, ms: elapsed(), inputTokens: null, outputTokens: null });
     return ok({ status: "none", score: null });
   }
@@ -86,7 +87,7 @@ export async function scoreOpportunity(
     return ok({ status: "done", score: outcome.fit.score });
   }
 
-  await s.opportunity.update(opportunityId, { fitStatus: "failed" });
+  await s.opportunity.settleFitStatusIfPending(opportunityId, "failed");
   logFit({ opportunityId, outcome: "failed", reason: outcome.error, modelId: outcome.modelId, ms: elapsed(), ...tokens });
   return ok({ status: "failed", score: null });
 }
@@ -106,7 +107,7 @@ export async function scoreSafely(s: Scoped, opportunityId: string, deps: FitDep
   } catch (error) {
     logFitError(error);
     try {
-      await s.opportunity.update(opportunityId, { fitStatus: "failed" });
+      await s.opportunity.settleFitStatusIfPending(opportunityId, "failed");
     } catch (secondError) {
       logFitError(secondError);
     }
