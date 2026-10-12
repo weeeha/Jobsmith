@@ -55,6 +55,8 @@ test("Preferences shows the size range error under the field and returns focus t
 
   await expect(page.getByText("The smallest size must not be above the largest.")).toBeVisible();
   await expect(page.getByLabel("Company size to")).toHaveAttribute("aria-invalid", "true");
+  // Next's route announcer is a second element with role "alert", so the
+  // alert is found by its text.
   await expect(page.getByRole("alert").filter({ hasText: "Check the highlighted fields." })).toHaveText(
     "Check the highlighted fields.",
   );
