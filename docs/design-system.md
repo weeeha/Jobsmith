@@ -38,7 +38,7 @@ Registry components: re-run `shadcn add https://super-ai-components.vercel.app/r
 
 Items installed so far (`<name>` above, one per file in `components/super-ai/`): `account-menu`, `app-sidebar`, `app-topbar`, `calendar-view`, `data-views`, `data-views-shared`, `feed-view`, `kanban-column`, `kanban-view`, `kbd`, `section-header`, `sidebar-nav`, `table-view`, `timeline-view`, `detail-view-shell`, `detail-tabs`, `detail-fields`, `use-container-width`, `empty-state`, `mode-tabs`, `field-row`, `reset-affordance` (installed as `field-row`'s own registry dependency; not wired up anywhere yet - see `FieldRow`'s `reset` prop doc comment).
 
-`base-nova` primitives installed by name via `shadcn add` (earlier primitives predate this list): `dialog`, `select`, `textarea`, `sonner` (added the `sonner` package to `dependencies`), `toggle-group`, `toggle` (transitive dependency of `toggle-group`), `empty`.
+`base-nova` primitives installed by name via `shadcn add` (earlier primitives predate this list): `dialog`, `select`, `textarea`, `sonner` (added the `sonner` package to `dependencies`), `toggle-group`, `toggle` (transitive dependency of `toggle-group`), `empty`, `combobox` (the Settings time zone field), `input-group` (transitive dependency of `combobox`).
 
 Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's drag-and-drop primitive).
 
@@ -68,3 +68,15 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   or similar inline notice pattern to copy from; it reuses the exact
   `rounded-lg border border-border bg-muted p-3 text-sm` shell `job-header.tsx`'s own closed-job
   banner already uses, rather than inventing a second one.
+- `components/chip-field.tsx`: hand-written, not vendored. Neither the registry nor `base-nova` has
+  a free-text multi-value field (the `combobox` multiple mode picks from a fixed list), and the
+  Preferences lists (titles, locations, keywords) take any text. Chips are plain `bg-muted` spans
+  inside an `input`-shaped box with the same border, ring and invalid treatment as `Input`; each
+  chip submits as its own hidden input, so the server reads the list with `FormData.getAll`.
+- `components/settings/settings-section.tsx`: hand-written. The two-column Settings layout
+  (intro left, content right, a hairline between sections) from the M5 Settings drafts. The
+  registry's `section-header` is a single heading row, not a two-column form section.
+- `components/home/home-skeleton.tsx`: hand-written, built from the vendored `components/ui/skeleton.tsx`
+  primitive. It repeats the attention row's card and row rhythm so Home loads without a jump;
+  the pulse stops under `prefers-reduced-motion` through the existing rule at the foot of
+  `app/globals.css`.

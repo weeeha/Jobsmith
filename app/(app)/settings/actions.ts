@@ -7,6 +7,21 @@ import { scopedFor } from "@/lib/db/scoped";
 import { createApiToken, revokeApiToken, tokenNameSchema, type TokenFormState } from "@/lib/auth/api-token";
 import { messageFor } from "@/lib/pipeline/messages";
 import { fail, type Result } from "@/lib/result";
+import { profileFromForm, profileInputSchema, saveProfile } from "@/lib/profile";
+import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
+
+export async function saveProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = profileInputSchema.safeParse(profileFromForm(formData));
+  if (!parsed.success) {
+    return { ok: false, code: "invalid", message: messageFor("invalid"), fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  await saveProfile(scopedFor(user.id), parsed.data);
+  revalidatePath("/settings");
+  // Home's "due today" depends on the time zone.
+  revalidatePath("/");
+  return { ok: true };
+}
 
 export async function createTokenAction(_prev: TokenFormState, formData: FormData): Promise<TokenFormState> {
   const user = await requireUser();
