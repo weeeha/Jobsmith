@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, max } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
@@ -11,6 +11,24 @@ export type EventFields = Omit<
 
 export function eventQueries(db: Db, userId: string) {
   return {
+    async listAll(): Promise<EventRow[]> {
+      return db
+        .select()
+        .from(schema.event)
+        .where(eq(schema.event.userId, userId))
+        .orderBy(asc(schema.event.occurredAt), asc(schema.event.createdAt));
+    },
+    // Newest event time per job, for Home's "follow up?" rule.
+    async lastOccurredByOpportunity(): Promise<Map<string, Date>> {
+      const rows = await db
+        .select({ opportunityId: schema.event.opportunityId, last: max(schema.event.occurredAt) })
+        .from(schema.event)
+        .where(eq(schema.event.userId, userId))
+        .groupBy(schema.event.opportunityId);
+      const out = new Map<string, Date>();
+      for (const r of rows) if (r.last) out.set(r.opportunityId, r.last);
+      return out;
+    },
     async insert(values: EventFields): Promise<EventRow> {
       const fields = stripScopedKeys(values);
       const [row] = await db

@@ -68,6 +68,14 @@ export function opportunityQueries(db: Db, userId: string) {
         .for("update");
       return row ?? null;
     },
+    // Every row this user owns, active and closed, for "Export my data".
+    async listAll(): Promise<OpportunityRow[]> {
+      return db
+        .select()
+        .from(schema.opportunity)
+        .where(eq(schema.opportunity.userId, userId))
+        .orderBy(asc(schema.opportunity.createdAt));
+    },
     async listBoard(): Promise<BoardCard[]> {
       const rows = await db
         .select({

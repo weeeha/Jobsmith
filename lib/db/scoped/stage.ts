@@ -1,9 +1,19 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
+import type { StageKind } from "@/lib/pipeline/kinds";
+import type { StageFormat } from "@/lib/pipeline/values";
 
 export type StageRow = typeof schema.stage.$inferSelect;
+export type ScheduledStage = {
+  id: string;
+  opportunityId: string;
+  kind: StageKind;
+  label: string;
+  scheduledAt: Date;
+  format: StageFormat | null;
+};
 export type StageFields = Omit<
   typeof schema.stage.$inferInsert,
   "id" | "userId" | "createdAt" | "updatedAt"
@@ -11,6 +21,42 @@ export type StageFields = Omit<
 
 export function stageQueries(db: Db, userId: string) {
   return {
+    async listAll(): Promise<StageRow[]> {
+      return db
+        .select()
+        .from(schema.stage)
+        .where(eq(schema.stage.userId, userId))
+        .orderBy(schema.stage.opportunityId, schema.stage.position);
+    },
+    // Home reads every scheduled stage of an active job: one source for both
+    // "interviews in the next 72 hours" and "a scheduled stage whose time has
+    // passed". Closed jobs are left out here, not in the caller, so a closed
+    // job's leftover scheduled stage can never surface on Home.
+    async listScheduledForActive(): Promise<ScheduledStage[]> {
+      const rows = await db
+        .select({
+          id: schema.stage.id,
+          opportunityId: schema.stage.opportunityId,
+          kind: schema.stage.kind,
+          label: schema.stage.label,
+          scheduledAt: schema.stage.scheduledAt,
+          format: schema.stage.format,
+        })
+        .from(schema.stage)
+        .innerJoin(
+          schema.opportunity,
+          and(eq(schema.opportunity.userId, userId), eq(schema.opportunity.id, schema.stage.opportunityId)),
+        )
+        .where(
+          and(
+            eq(schema.stage.userId, userId),
+            eq(schema.stage.status, "scheduled"),
+            eq(schema.opportunity.status, "active"),
+            isNotNull(schema.stage.scheduledAt),
+          ),
+        );
+      return rows.map((r) => ({ ...r, scheduledAt: r.scheduledAt! }));
+    },
     async listForOpportunity(opportunityId: string): Promise<StageRow[]> {
       return db
         .select()
