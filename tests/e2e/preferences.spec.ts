@@ -55,7 +55,7 @@ test("saved preferences come back after a reload", async ({ page }, testInfo) =>
   await page.getByLabel("Target pay").fill("175000");
 
   await page.getByRole("button", { name: "Save preferences" }).click();
-  await expect(page.getByText("Preferences saved.")).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Preferences saved.")).toBeVisible();
 
   await scanForViolations(page, "preferences", testInfo);
   await expect(page.getByRole("button", { name: `Remove ${title}` })).toBeVisible();
@@ -66,5 +66,5 @@ test("saved preferences come back after a reload", async ({ page }, testInfo) =>
   // Leave the list as it was, so the next run starts from the same place.
   await page.getByRole("button", { name: `Remove ${title}` }).click();
   await page.getByRole("button", { name: "Save preferences" }).click();
-  await expect(page.getByText("Preferences saved.")).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Preferences saved.")).toBeVisible();
 });
