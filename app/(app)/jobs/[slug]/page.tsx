@@ -14,6 +14,14 @@ import { TabPeople } from "@/components/job/tab-people";
 import { TabDocuments } from "@/components/job/tab-documents";
 import { TabTimeline } from "@/components/job/tab-timeline";
 import { TabPrep } from "@/components/job/tab-prep";
+import { getAiDriver } from "@/lib/ai";
+import { fitCardModel } from "@/lib/fit/card";
+import { loadFitProfile } from "@/lib/fit/profile";
+
+// Sets the timeout of this page's own server actions (the Next 16 docs on
+// page-level maxDuration). Scoring a job from the fit card awaits one model
+// call of up to 20 seconds, past the framework's default.
+export const maxDuration = 60;
 
 const TAB_IDS: readonly JobTabId[] = ["overview", "research", "people", "documents", "timeline", "prep"];
 
@@ -59,7 +67,17 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
       <div>
         <JobTabs activeTab={tab} basePath={basePath} />
         {tab === "overview" && (
-          <TabOverview opportunity={view.opportunity} company={view.company} opportunityId={view.opportunity.id} />
+          <TabOverview
+            opportunity={view.opportunity}
+            company={view.company}
+            opportunityId={view.opportunity.id}
+            fit={fitCardModel({
+              opportunity: view.opportunity,
+              profile: await loadFitProfile(s),
+              aiOn: getAiDriver() !== null,
+              now: new Date(),
+            })}
+          />
         )}
         {tab === "research" && (
           <TabResearch

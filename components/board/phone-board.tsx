@@ -21,6 +21,8 @@ import { focusCardButton, focusGroupCardOrFallback } from "@/lib/dom/board-focus
 import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import type { BoardCard } from "@/lib/db/scoped";
+import type { CardFit } from "@/lib/fit/board";
+import { CardFitChips, hasCardFitChips } from "@/components/fit/fit-chips";
 import type { MoveTarget } from "@/lib/pipeline/rules";
 import type { ClosedReason } from "@/lib/pipeline/values";
 
@@ -71,10 +73,13 @@ function daysLabel(days: number): string {
  */
 export function PhoneBoard({
   cards,
+  fits,
   nowIso,
   companyNames,
 }: {
   cards: BoardCard[];
+  /** Each card's fit chips, by card id, worked out on the server. */
+  fits: Record<string, CardFit>;
   nowIso: string;
   companyNames: string[];
 }) {
@@ -225,7 +230,8 @@ export function PhoneBoard({
                   {stageCards.map((card) => {
                     const days = daysInStage(card.stage.enteredAt, now);
                     const showStageLabel = card.stage.label !== defaultLabelFor(card.stage.kind);
-                    const hasChips = card.fitScore !== null || showStageLabel || days !== null;
+                    const fit = fits[card.id];
+                    const hasChips = (fit !== undefined && hasCardFitChips(fit)) || showStageLabel || days !== null;
                     return (
                       <li key={card.id} className="rounded-lg border bg-card p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -256,7 +262,7 @@ export function PhoneBoard({
                         </div>
                         {hasChips && (
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {card.fitScore !== null && <Badge variant="secondary">{card.fitScore}</Badge>}
+                            {fit !== undefined && <CardFitChips fit={fit} />}
                             {showStageLabel && <Badge variant="outline">{card.stage.label}</Badge>}
                             {days !== null && <Badge variant="outline">{daysLabel(days)}</Badge>}
                           </div>
