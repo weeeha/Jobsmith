@@ -11,6 +11,9 @@ export type PersonFields = Omit<
 
 export function personQueries(db: Db, userId: string) {
   return {
+    async listAll(): Promise<PersonRow[]> {
+      return db.select().from(schema.person).where(eq(schema.person.userId, userId)).orderBy(schema.person.name);
+    },
     async getById(id: string): Promise<PersonRow | null> {
       const [row] = await db
         .select()

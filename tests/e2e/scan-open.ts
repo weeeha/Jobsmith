@@ -42,6 +42,10 @@ export async function scanOpenOverlay(
   label: string,
   testInfo: TestInfo,
   reopen: () => Promise<void>,
+  // The open popup to scan. Defaults to a dialog or sheet; a menu or a
+  // combobox's suggestion list passes its own role, for the same reason the
+  // dialog default exists: the popup is what this scan is about.
+  scope = '[role="dialog"]',
 ) {
   const slug = slugify(label);
   const unfreeze = await freezeTransitions(page);
@@ -74,7 +78,7 @@ export async function scanOpenOverlay(
         fullPage: true,
       });
 
-      const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+      const results = await new AxeBuilder({ page }).include(scope).analyze();
       for (const violation of results.violations) {
         console.log(`[${label} / ${colorScheme}] ${violation.id} (${violation.impact}): ${violation.help}`);
         for (const node of violation.nodes) {

@@ -20,6 +20,9 @@ export type LinkedPerson = {
 
 export function opportunityPersonQueries(db: Db, userId: string) {
   return {
+    async listAll(): Promise<OpportunityPersonRow[]> {
+      return db.select().from(schema.opportunityPerson).where(eq(schema.opportunityPerson.userId, userId));
+    },
     async listForOpportunity(opportunityId: string): Promise<LinkedPerson[]> {
       const rows = await db
         .select({

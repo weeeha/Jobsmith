@@ -7,6 +7,7 @@ import { createTokenAction, revokeTokenAction } from "@/app/(app)/settings/actio
 import { useAnnounce } from "@/components/live-announcer";
 import { LocalTime } from "@/components/local-time";
 import { CopyButton } from "@/components/copy-button";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { FieldRow } from "@/components/super-ai/field-row";
 import { EmptyState } from "@/components/super-ai/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -22,14 +23,10 @@ export function ApiTokensSection({ tokens }: { tokens: ApiTokenListItem[] }) {
   const [createOpen, setCreateOpen] = React.useState(false);
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-base font-semibold text-foreground">API tokens</h2>
-        <p className="text-sm text-muted-foreground">
-          Tokens let the jobsmith command line read your jobs and push documents to them.
-        </p>
-      </div>
-
+    <SettingsSection
+      title="API tokens"
+      intro="Tokens let the jobsmith command line read your jobs and push documents to them."
+    >
       <div>
         <Button data-token-create="" onClick={() => setCreateOpen(true)}>
           Create token
@@ -47,7 +44,7 @@ export function ApiTokensSection({ tokens }: { tokens: ApiTokenListItem[] }) {
       )}
 
       <CreateTokenDialog open={createOpen} onOpenChange={setCreateOpen} />
-    </section>
+    </SettingsSection>
   );
 }
 

@@ -42,10 +42,7 @@ test("desktop: the sidebar lists six sections, Companies shows a job under its c
 
   await page.goto("/preferences");
   await expect(page.getByRole("heading", { level: 1, name: "Preferences" })).toBeVisible();
-  await expect(page.getByText("Preferences come with fit scoring.")).toBeVisible();
-  await expect(
-    page.getByText("Titles, locations, pay floor and dealbreakers will live here, and new jobs get scored against them."),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Hard filters" })).toBeVisible();
   await scanForViolations(page, "preferences", testInfo);
 });
 
