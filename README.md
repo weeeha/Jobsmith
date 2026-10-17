@@ -5,13 +5,27 @@ prepare for each interview stage, debrief. It is open source under
 AGPL-3.0 and self-hostable with your own database and, later, your own AI
 provider key.
 
+![The Jobsmith board: jobs in seven stages from Saved to Offer](docs/screenshots/board.webp)
+
+## Screenshots
+
+Captured from a local run with the fictional seed data (`pnpm seed`), not from a deployment. To
+reproduce: `docker compose up -d`, `pnpm install`, `pnpm db:migrate`, `pnpm seed`, `pnpm dev`, then
+sign in as the seeded demo user.
+
+![Home: interviews in the next 72 hours and a pipeline count per stage](docs/screenshots/home.webp)
+
+![One job: stage track, next action and the Overview tab](docs/screenshots/job.webp)
+
+![Companies: each company with its jobs and their current stage](docs/screenshots/companies.webp)
+
 ## Stack
 
 Next.js 16 and React 19 with Tailwind CSS 4, Postgres through Drizzle ORM, Better Auth for sign-in, and
 the Vercel AI SDK for the optional AI features (`package.json`).
 
 Pages: `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/settings`, and `/` (Home).
-`/library` and `/preferences` are placeholders for later milestones. Without a session, every page
+`/preferences` holds the filters that new jobs are checked against. `/library` is a placeholder until interview prep lands. Without a session, every page
 redirects to `/login`, except `/setup` and `/login` themselves.
 
 ## Requirements
