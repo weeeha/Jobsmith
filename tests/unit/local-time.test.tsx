@@ -30,6 +30,12 @@ describe("LocalTime", () => {
     expect(screen.getByText(expected)).toBeTruthy();
   });
 
+  it("shows a short day with its weekday, in day mode", () => {
+    render(<LocalTime value={ISO} mode="day" />);
+    const expected = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(new Date(ISO));
+    expect(screen.getByText(expected).tagName).toBe("TIME");
+  });
+
   it("accepts a Date value directly", () => {
     render(<LocalTime value={new Date(ISO)} />);
     const expected = new Intl.DateTimeFormat(undefined, {

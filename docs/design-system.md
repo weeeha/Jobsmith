@@ -80,3 +80,19 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   primitive. It repeats the attention row's card and row rhythm so Home loads without a jump;
   the pulse stops under `prefers-reduced-motion` through the existing rule at the foot of
   `app/globals.css`.
+- `components/fit/fit-chips.tsx`: hand-written, a thin wrapper over the vendored `Badge`. The
+  drafts' Approved, Pending and Action badge variants are `Badge variant="secondary"` with the
+  `status-*-soft` background and the matching `status-*` text token; neutral and outline are the
+  plain `secondary` and `outline` variants. The score band to tone mapping lives here and the band
+  thresholds in `lib/fit/bands.ts`, so chip colors are decided in one place.
+- `components/fit/fit-result.tsx` and `components/fit/fit-card.tsx`: hand-written. The fit card from
+  the M5 Part B drafts in all its states. Its surface reuses the Home side cards' shell
+  (`rounded-xl bg-card ring-1 ring-foreground/10`); the failed-filter box is a `bg-muted` tint
+  inside it, not a second card. The scoring placeholder bars are the vendored `Skeleton`, and the
+  global reduced-motion rule stops their pulse.
+- `components/preferences/preferences-section.tsx`: the two-column Preferences section, moved out
+  of `preferences-form.tsx` unchanged (plus a heading-named region) so the "Test against a
+  posting" box below the form sits in the same columns.
+- `components/preferences/test-posting-box.tsx`: hand-written. The test box's filter rows are a
+  plain list with a hairline between rows; the registry's `table-view` is a sortable data table,
+  more than four fixed rows need.

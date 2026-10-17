@@ -16,7 +16,9 @@ import { renameStageFormSchema, addStageFormSchema, stageDetailFormSchema } from
 import { messageFor } from "@/lib/pipeline/messages";
 import { fieldErrorsFromZod, type FormState } from "@/lib/forms/state";
 import type { StageFormat } from "@/lib/pipeline/values";
-import { fail, type Result } from "@/lib/result";
+import { fail, ok, type Result } from "@/lib/result";
+import { fitDeps } from "@/lib/fit/deps";
+import { queueFitScoring, scoreSafely, type FitRun } from "@/lib/fit/score-opportunity";
 
 // A blank optional field on the Edit details form means "clear this
 // column" - it is sent as `null`, not swallowed into `undefined` ("leave
@@ -359,4 +361,21 @@ export async function markReviewedAction(opportunityId: string): Promise<Result<
   const result = await markOpportunityReviewed(s, opportunityId);
   if (result.ok) await revalidateJob(s, opportunityId);
   return result;
+}
+
+// Awaited, not queued with after(): the button shows the result. The job
+// page that hosts this action sets maxDuration to cover the model's timeout.
+export async function scoreFitAction(opportunityId: string): Promise<Result<FitRun, "not_found" | "not_ready">> {
+  const user = await requireUser();
+  const parsed = opportunityIdSchema.safeParse(opportunityId);
+  if (!parsed.success) return fail("not_found", messageFor("not_found"));
+  const s = scopedFor(user.id);
+  const deps = fitDeps();
+  const readiness = await queueFitScoring(s, parsed.data, deps);
+  if (readiness === "not_found") return fail("not_found", messageFor("not_found"));
+  if (readiness !== "ready") return fail("not_ready", messageFor("not_ready"));
+  const run = await scoreSafely(s, parsed.data, deps);
+  if (run === null) return fail("not_found", messageFor("not_found"));
+  await revalidateJob(s, parsed.data);
+  return ok(run);
 }
