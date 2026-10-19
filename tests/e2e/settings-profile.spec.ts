@@ -55,7 +55,7 @@ test("a saved profile comes back after a reload", async ({ page }, testInfo) => 
   await expect(zone).toHaveValue("America/New_York");
 
   await page.getByRole("button", { name: "Save profile" }).click();
-  await expect(page.getByText("Profile saved.")).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Profile saved.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByLabel("Headline")).toHaveValue(headline);

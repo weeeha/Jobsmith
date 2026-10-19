@@ -2,6 +2,12 @@ import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
 import { getPreferences } from "@/lib/preferences/save";
 import { PreferencesForm } from "@/components/preferences/preferences-form";
+import { TestPostingBox } from "@/components/preferences/test-posting-box";
+
+// Sets the timeout of this page's own server actions (the Next 16 docs on
+// page-level maxDuration). The test box reads a link (up to 8 seconds),
+// extracts its fields (up to 15) and scores it (up to 20).
+export const maxDuration = 60;
 
 export default async function PreferencesPage() {
   const user = await requireUser();
@@ -16,6 +22,7 @@ export default async function PreferencesPage() {
         </p>
       </div>
       <PreferencesForm preferences={preferences} />
+      <TestPostingBox />
     </div>
   );
 }

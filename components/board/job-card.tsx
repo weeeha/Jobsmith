@@ -7,15 +7,19 @@ import { useDraggable } from "@dnd-kit/core";
 import { Badge } from "@/components/ui/badge";
 import { LocalTime } from "@/components/local-time";
 import { MoveMenu } from "@/components/board/move-menu";
+import { CardFitChips, hasCardFitChips } from "@/components/fit/fit-chips";
 import { daysInStage } from "@/lib/board/days";
 import { keyToAction } from "@/lib/board/keys";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { cn } from "@/lib/utils";
 import type { BoardCard } from "@/lib/db/scoped";
+import type { CardFit } from "@/lib/fit/board";
 import type { MoveTarget } from "@/lib/pipeline/rules";
 
 interface JobCardProps {
   card: BoardCard;
+  /** Missing only for a card the server did not see yet; it then shows no fit chips. */
+  fit: CardFit | undefined;
   now: Date;
   onMove: (target: MoveTarget) => void;
   onRequestClose: () => void;
@@ -34,7 +38,7 @@ function daysLabel(days: number): string {
   return `${days} days`;
 }
 
-export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardProps) {
+export function JobCard({ card, fit, now, onMove, onRequestClose, overlay }: JobCardProps) {
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: card.id, disabled: overlay });
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -61,7 +65,7 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
 
   const days = daysInStage(card.stage.enteredAt, now);
   const showStageLabel = card.stage.label !== defaultLabelFor(card.stage.kind);
-  const hasChips = card.fitScore !== null || showStageLabel || days !== null;
+  const hasChips = (fit !== undefined && hasCardFitChips(fit)) || showStageLabel || days !== null;
 
   return (
     <div
@@ -105,7 +109,7 @@ export function JobCard({ card, now, onMove, onRequestClose, overlay }: JobCardP
       </div>
       {hasChips && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {card.fitScore !== null && <Badge variant="secondary">{card.fitScore}</Badge>}
+          {fit !== undefined && <CardFitChips fit={fit} />}
           {showStageLabel && <Badge variant="outline">{card.stage.label}</Badge>}
           {days !== null && <Badge variant="outline">{daysLabel(days)}</Badge>}
         </div>

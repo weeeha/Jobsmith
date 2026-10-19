@@ -71,3 +71,49 @@ Each line: decision, reason, cost if wrong.
 7. Settings profile form and export section, `saveProfileAction`, `GET /settings/export`.
 8. Home page, item actions, snooze menu, side cards, empty state, phone layout.
 9. e2e: Preferences round trip, profile save, export download, Home due item and Mark done, axe scans, phone project; update `nav.spec.ts` for the new Preferences page.
+
+# Part B: fit scoring
+
+**Goal:** every job added with a posting gets a fit score after the response, the job page shows a fit card, board cards carry a score band and a failed hard filter, and Preferences gets a "Test against a posting" box. Work happens on `feat/m5-fit-scoring`, cut from part A's tip.
+
+**Design source:** "Part B: fit scoring" on the M5 drafts page: the fit card in five states (scored, scored with a failed filter, scoring, score failed, no resume), board cards with score bands, a failed filter and "Scoring", and the test box with its filter rows and result.
+
+**Ported, not rewritten:** the scoring core from `feat/m5-fit-home` (2026-10-11, reviewed there): `hardFilters` matching, `scoreFit` with its prompt and `sanitizeScore`, the fake driver's `Fit score:` line, `queueFitScoring` and `scoreSafely` with the pending-only settle, the poll constants. Its UI copy and bands predate the drafts and are replaced by the drafts.
+
+| File | New/changed | One responsibility |
+|---|---|---|
+| `lib/fit/bands.ts` | new | the score bands against the user's threshold, the one file for chip colors |
+| `lib/fit/hard-filters.ts` | new | `hardFilters(posting, preferences)`: one check per filter, pass, fail or not checked |
+| `lib/fit/messages.ts` | new | every fit line on screen, built from checks and bands |
+| `lib/preferences/summary.ts` | new | preferences as prompt lines |
+| `lib/ai/score-fit.ts`, `lib/ai/fake.ts`, `lib/ai/driver.ts` | new, changed | the `score_fit` task, its prompt and the fake driver's deterministic score |
+| `lib/fit/stored.ts`, `readiness.ts`, `log.ts`, `deps.ts`, `profile.ts` | new | the `fit` jsonb shape, readiness, log lines, injected deps, the inputs read for scoring |
+| `lib/fit/score-opportunity.ts` | new | `queueFitScoring`, `scoreOpportunity`, `scoreSafely` |
+| `lib/fit/card.ts`, `lib/fit/board.ts` | new | the fit card's view model; a board card's chips |
+| `lib/fit/test-posting.ts` | new | read a link, check and score it, write nothing |
+| `lib/db/scoped/opportunity.ts` | changed | `listBoard` carries fit status and the filter facts; `settleFitStatusIfPending` |
+| `app/(app)/board/actions.ts`, `jobs/[slug]/actions.ts`, `preferences/actions.ts` | changed | `after()` scoring on add, `scoreFitAction`, `testPostingAction` |
+| `components/fit/*` | new | fit card, result body, chips, filter rows |
+
+## Part B decisions
+
+- **B1. No migration.** `fit_score`, `fit`, `fit_status` exist. Cost: none.
+- **B2. Hard filters are checked in code, at render, never stored.** Title keywords, locations, work modes, pay floor, as part A's D4 lists them. Whole-word phrase match on normalized text (case, accents and punctuation ignored). A filter with no preference is not set; a posting fact that is missing leaves it not checked; a remote job skips locations; pay is checked only with a floor, against the top of the range, and not checked when the currencies differ. A failing job stays on the board, marked. Cost: "Product Design Lead" does not match the keyword "Product Designer".
+- **B3. Bands follow the user's threshold, as the drafts propose.** At or above `scoreThreshold` is good (green, "Good fit"), up to 15 below is mixed (amber, "Mixed"), lower is weak (neutral, "Weak fit"). Constants in `lib/fit/bands.ts`. Tone rides on the chip's fill and the word, never on color alone; board chips carry the band word as screen-reader text. Cost: a user with threshold 0 never sees amber.
+- **B4. When scoring runs.** After `addJobAction` adds a job that is ready, through `after()`, and from the fit card's button (`scoreFitAction`, awaited). Never on import, seed, preferences or resume save. Cost: a score goes stale when the resume changes.
+- **B5. Readiness, in order:** AI off, no posting text, no resume, ready. Not ready leaves `fit_status` at `none`, and the card says what is missing (the drafts draw the no-resume state; AI off and no posting reuse its layout without a button). A ready job with no score yet offers "Score this job" in the same layout. Cost: three short lines not drawn as their own frames.
+- **B6. One run never overwrites a newer one.** Failure and not-ready only settle a job that is still `pending`; `scoreSafely` never throws and never leaves `pending` behind; errors log by name and code only. A `pending` older than two minutes shows as failed with "Score again". While pending, the card refreshes every 3 seconds, at most 40 times. Cost: up to 40 refreshes for one add.
+- **B7. The fit card is the first section of Overview,** above Posting. Cost: the posting moves down.
+- **B8. The test box scores a link against the saved preferences and resume,** through the same fetch guard and extraction as Add job, and writes nothing. A link it cannot read (a login wall, a timeout) asks for the posting text, as Add job does, and the text box stays for later tries. Cost: the user saves before testing; the text box is not drawn.
+- **B9. Logs never carry posting text, resume text, preference values or fit summaries.** One `[fit]` line per run: ids, outcome, reason code, model id, milliseconds, token counts.
+- **B10. Durations.** `maxDuration = 60` on the job page and Preferences, so the awaited score and the test box fit inside one function lifetime.
+- **B11. e2e owns the shared account's resume and preferences in its own projects.** `fit-chromium`, `fit-webkit` and `fit-phone` run `fit.spec.ts` after every other project, one engine at a time, because every other spec reads the same profile. The fake driver holds a score for a `Fit wait: <ms>` line in the posting (at most 30 seconds), so the scoring state can be scanned. Cost: the e2e run takes about three minutes longer.
+
+## Part B copy (binding, from the drafts)
+
+- Card heading "Fit"; chip "{score} · {band word}"; "Scored {date}"; "Pros", "Cons"; footnote "Passes your hard filters."
+- Failed filter: chip "Fails 1 filter" / "Fails {n} filters"; box "Fails a hard filter" / "Fails {n} hard filters", one line per failure "{Filter}: {detail}".
+- Scoring: "Scoring this job". Failed: "The fit score didn't come back. Nothing about the job changed." with "Score again". No resume: "Add your resume in Settings to get a fit score for this job." with "Open Settings".
+- Board: score chip, "Fails {filter}" (one) or "Fails {n} filters", "Scoring".
+- Test box: "Test against a posting", "Runs the hard filters and the fit score on one posting without adding it to the board.", label "Posting", button "Score this posting", caption "Hard filters", rows "Title keywords", "Locations", "Work modes", "Pay floor" with "Passes", "Fails", "Not checked", footnote "Nothing was added to the board."
+- Filter details: "{keyword} matches.", "{location} is not in your locations.", "{Mode} is one of yours.", "The posting states no pay range.", and the same pattern for the other outcomes.

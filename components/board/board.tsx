@@ -33,6 +33,7 @@ import { correctFocusOnceLost } from "@/lib/dom/focus";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { cn } from "@/lib/utils";
 import type { BoardCard } from "@/lib/db/scoped";
+import type { CardFit } from "@/lib/fit/board";
 import type { MoveTarget } from "@/lib/pipeline/rules";
 import type { ClosedReason } from "@/lib/pipeline/values";
 
@@ -88,10 +89,13 @@ export function BoardViewSwitch({ view }: { view: "active" | "closed" }) {
 
 export function Board({
   cards,
+  fits,
   nowIso,
   companyNames,
 }: {
   cards: BoardCard[];
+  /** Each card's fit chips, by card id, worked out on the server. */
+  fits: Record<string, CardFit>;
   nowIso: string;
   companyNames: string[];
 }) {
@@ -302,6 +306,7 @@ export function Board({
                       <JobCard
                         key={card.id}
                         card={card}
+                        fit={fits[card.id]}
                         now={now}
                         onMove={(target) => runMove(card.id, target)}
                         onRequestClose={() => setPendingCloseId(card.id)}
@@ -314,7 +319,14 @@ export function Board({
             {isDragging && <ClosedDropZone />}
             <DragOverlay>
               {activeCard ? (
-                <JobCard card={activeCard} now={now} onMove={() => {}} onRequestClose={() => {}} overlay />
+                <JobCard
+                  card={activeCard}
+                  fit={fits[activeCard.id]}
+                  now={now}
+                  onMove={() => {}}
+                  onRequestClose={() => {}}
+                  overlay
+                />
               ) : null}
             </DragOverlay>
           </DndContext>

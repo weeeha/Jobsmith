@@ -5,11 +5,11 @@ import { toast } from "sonner";
 
 import { savePreferencesAction } from "@/app/(app)/preferences/actions";
 import { ChipField } from "@/components/chip-field";
+import { PreferencesSection } from "@/components/preferences/preferences-section";
 import { useAnnounce } from "@/components/live-announcer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { cn } from "@/lib/utils";
 import { focusWasLost } from "@/lib/dom/focus";
 import { submitViaTransition } from "@/lib/forms/submit";
 import type { FormState } from "@/lib/forms/state";
@@ -80,18 +80,6 @@ function Field({ label, hint, errors, group, children }: FieldProps) {
   );
 }
 
-function Section({ title, intro, first, children }: { title: string; intro: string; first?: boolean; children: React.ReactNode }) {
-  return (
-    <section className={cn("flex flex-col gap-4 md:flex-row md:gap-8", first ? "pb-6" : "border-t border-border py-6")}>
-      <div className="flex flex-col gap-1 md:w-70 md:shrink-0">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{intro}</p>
-      </div>
-      <div className="flex w-full min-w-0 flex-col gap-6 md:max-w-140">{children}</div>
-    </section>
-  );
-}
-
 export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   const [state, formAction, pending] = React.useActionState<FormState, FormData>(saveSafely, undefined);
   const announce = useAnnounce();
@@ -118,7 +106,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
   return (
     // noValidate and submitViaTransition: same reasons as edit-details-dialog.tsx.
     <form onSubmit={(event) => submitViaTransition(event, formAction)} noValidate className="flex flex-col">
-      <Section
+      <PreferencesSection
         first
         title="Hard filters"
         intro="Checked in code. A job that fails one still lands on the board, marked with the filter it failed."
@@ -199,9 +187,9 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
             </div>
           )}
         </Field>
-      </Section>
+      </PreferencesSection>
 
-      <Section
+      <PreferencesSection
         title="Fit score"
         intro="Sent to a small model as data, with your resume. It returns a score from 0 to 100, a one-line summary, and up to three pros and cons."
       >
@@ -312,9 +300,9 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
             </div>
           )}
         </Field>
-      </Section>
+      </PreferencesSection>
 
-      <Section title="Home" intro="When a job shows up in the Home list.">
+      <PreferencesSection title="Home" intro="When a job shows up in the Home list.">
         <Field label="Score threshold" hint="A fit score under this marks the job as a weak fit." errors={[e("scoreThreshold")]}>
           {({ controlId, describedBy }) => (
             <div className="flex items-center gap-2">
@@ -370,7 +358,7 @@ export function PreferencesForm({ preferences }: { preferences: Preferences }) {
             </div>
           )}
         </Field>
-      </Section>
+      </PreferencesSection>
 
       <div className="flex flex-col gap-2 border-t border-border pt-6 sm:flex-row sm:items-center md:pl-78">
         <Button ref={submitRef} type="submit" disabled={pending} className="self-start">

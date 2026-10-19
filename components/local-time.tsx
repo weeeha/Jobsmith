@@ -8,13 +8,16 @@ const DATETIME_OPTIONS: Intl.DateTimeFormatOptions = {
   hour: "numeric",
   minute: "2-digit",
 };
+// A short day with its weekday, as the fit card's "Scored Thu 15 Oct".
+const DAY_OPTIONS: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" };
+const OPTIONS = { date: DATE_OPTIONS, datetime: DATETIME_OPTIONS, day: DAY_OPTIONS } as const;
 
 export function LocalTime({
   value,
   mode = "date",
 }: {
   value: Date | string;
-  mode?: "date" | "datetime";
+  mode?: "date" | "datetime" | "day";
 }) {
   const date = typeof value === "string" ? new Date(value) : value;
   const iso = date.toISOString();
@@ -35,7 +38,7 @@ export function LocalTime({
 
   const fallback = mode === "datetime" ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : iso.slice(0, 10);
   const formatted = mounted
-    ? new Intl.DateTimeFormat(undefined, mode === "datetime" ? DATETIME_OPTIONS : DATE_OPTIONS).format(date)
+    ? new Intl.DateTimeFormat(undefined, OPTIONS[mode]).format(date)
     : fallback;
 
   return <time dateTime={iso}>{formatted}</time>;

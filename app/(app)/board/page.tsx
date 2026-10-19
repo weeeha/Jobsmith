@@ -5,6 +5,9 @@ import { Board, BoardViewSwitch } from "@/components/board/board";
 import { PhoneBoard } from "@/components/board/phone-board";
 import { ClosedList } from "@/components/board/closed-list";
 import { RefreshOnFocus } from "@/components/refresh-on-focus";
+import { ScoringRefresh } from "@/components/fit/use-scoring-refresh";
+import { cardFit, type CardFit } from "@/lib/fit/board";
+import { getPreferences } from "@/lib/preferences/save";
 
 // Sets the timeout of this page's own server actions (the Next 16
 // docs on page-level maxDuration). addJob's worst path - an ATS or page
@@ -20,6 +23,12 @@ export default async function BoardPage(props: PageProps<"/board">) {
   const nowIso = new Date().toISOString();
   const companyNames = (await s.company.list()).map((c) => c.name);
   const activeCards = view === "active" ? sortCards(await s.opportunity.listBoard()) : [];
+  // Bands and hard filters read the preferences as they are now; nothing
+  // about them is stored on the job.
+  const preferences = await getPreferences(s);
+  const fits: Record<string, CardFit> = Object.fromEntries(
+    activeCards.map((card) => [card.id, cardFit(card, preferences, new Date(nowIso))]),
+  );
 
   return (
     <div className="p-6">
@@ -32,8 +41,9 @@ export default async function BoardPage(props: PageProps<"/board">) {
         <ClosedList cards={await s.opportunity.listClosed()} />
       ) : (
         <>
-          <Board cards={activeCards} nowIso={nowIso} companyNames={companyNames} />
-          <PhoneBoard cards={activeCards} nowIso={nowIso} companyNames={companyNames} />
+          <Board cards={activeCards} fits={fits} nowIso={nowIso} companyNames={companyNames} />
+          <PhoneBoard cards={activeCards} fits={fits} nowIso={nowIso} companyNames={companyNames} />
+          <ScoringRefresh active={Object.values(fits).some((fit) => fit.scoring)} />
         </>
       )}
       <RefreshOnFocus />

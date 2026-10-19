@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireUser } from "@/lib/auth/session";
 import { scopedFor, type Scoped } from "@/lib/db/scoped";
 import { moveOpportunity } from "@/lib/pipeline/move";
@@ -18,6 +19,9 @@ import { readAddJobForm, addJobFormSchema, encodeDraft } from "@/lib/intake/form
 import { intakeDeps } from "@/lib/intake/deps";
 import { logIntakeError } from "@/lib/intake/log";
 import type { AddJobState } from "@/lib/intake/state";
+import { fitDeps } from "@/lib/fit/deps";
+import { logFitError } from "@/lib/fit/log";
+import { queueFitScoring, scoreSafely } from "@/lib/fit/score-opportunity";
 import { NEEDS_TEXT_MESSAGES, NEEDS_DETAILS_MESSAGES, DUPLICATE_MESSAGE, POSTING_TEXT_HINT } from "@/lib/intake/messages";
 
 // Every board action concerns exactly one opportunity, which may also be
@@ -147,6 +151,18 @@ export async function addJobAction(_prev: AddJobState, formData: FormData): Prom
   let placement: Result<null, MoveError> | undefined;
   if (typeof whereIsItNow === "string" && isStageKind(whereIsItNow)) {
     placement = await placeOpportunity(s, result.id, whereIsItNow);
+  }
+
+  // The score is queued before the response and run after it. A failure to
+  // queue is logged and never fails the add: the job exists and can be scored
+  // later from its page. Only a job that can be scored gets a callback.
+  const deps = fitDeps();
+  try {
+    if ((await queueFitScoring(s, result.id, deps)) === "ready") {
+      after(() => scoreSafely(scopedFor(user.id), result.id, deps));
+    }
+  } catch (error) {
+    logFitError(result.id, error);
   }
 
   revalidatePath("/board");

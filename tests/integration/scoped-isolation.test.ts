@@ -67,6 +67,16 @@ const cases: Case[] = [
     },
   },
   {
+    name: "opportunity.settleFitStatusIfPending cannot touch A's job from B",
+    run: async (a, b, ids) => {
+      await a.opportunity.update(ids.opportunityId, { fitStatus: "pending" });
+      expect(await b.opportunity.settleFitStatusIfPending(ids.opportunityId, "failed")).toBe(false);
+      expect((await a.opportunity.getById(ids.opportunityId))?.fitStatus).toBe("pending");
+      expect(await a.opportunity.settleFitStatusIfPending(ids.opportunityId, "failed")).toBe(true);
+      expect((await a.opportunity.getById(ids.opportunityId))?.fitStatus).toBe("failed");
+    },
+  },
+  {
     name: "opportunity.listBoard and listClosed exclude A's rows for B",
     run: async (a, b) => {
       expect(await b.opportunity.listBoard()).toEqual([]);

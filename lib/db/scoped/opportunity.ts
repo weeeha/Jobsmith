@@ -17,6 +17,13 @@ export type BoardCard = {
   roleTitle: string;
   companyName: string;
   fitScore: number | null;
+  fitStatus: OpportunityRow["fitStatus"];
+  // The facts the hard filters read, so the board can mark a failing job.
+  location: string | null;
+  workMode: OpportunityRow["workMode"];
+  compMin: number | null;
+  compMax: number | null;
+  compCurrency: string | null;
   nextAction: string | null;
   nextActionAt: Date | null;
   updatedAt: Date;
@@ -84,6 +91,12 @@ export function opportunityQueries(db: Db, userId: string) {
           roleTitle: schema.opportunity.roleTitle,
           companyName: schema.company.name,
           fitScore: schema.opportunity.fitScore,
+          fitStatus: schema.opportunity.fitStatus,
+          location: schema.opportunity.location,
+          workMode: schema.opportunity.workMode,
+          compMin: schema.opportunity.compMin,
+          compMax: schema.opportunity.compMax,
+          compCurrency: schema.opportunity.compCurrency,
           nextAction: schema.opportunity.nextAction,
           nextActionAt: schema.opportunity.nextActionAt,
           updatedAt: schema.opportunity.updatedAt,
@@ -109,6 +122,12 @@ export function opportunityQueries(db: Db, userId: string) {
         roleTitle: r.roleTitle,
         companyName: r.companyName,
         fitScore: r.fitScore,
+        fitStatus: r.fitStatus,
+        location: r.location,
+        workMode: r.workMode,
+        compMin: r.compMin,
+        compMax: r.compMax,
+        compCurrency: r.compCurrency,
         nextAction: r.nextAction,
         nextActionAt: r.nextActionAt,
         updatedAt: r.updatedAt,
@@ -255,6 +274,23 @@ export function opportunityQueries(db: Db, userId: string) {
         .values({ ...fields, userId })
         .returning();
       return row;
+    },
+    // Moves a job to `failed` or `none` only while it is still `pending`. Two
+    // scoring runs can overlap, and a run that ends badly must not overwrite
+    // the `done` a newer run already stored. Returns false when nothing changed.
+    async settleFitStatusIfPending(id: string, status: "failed" | "none"): Promise<boolean> {
+      const rows = await db
+        .update(schema.opportunity)
+        .set({ fitStatus: status, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.opportunity.id, id),
+            eq(schema.opportunity.userId, userId),
+            eq(schema.opportunity.fitStatus, "pending"),
+          ),
+        )
+        .returning({ id: schema.opportunity.id });
+      return rows.length > 0;
     },
     async update(id: string, values: Partial<OpportunityFields>): Promise<OpportunityRow | null> {
       const fields = stripScopedKeys(values);

@@ -42,6 +42,30 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    // The fit specs set the shared account's resume and preferences, which
+    // every other spec reads, so they run once all of those have finished,
+    // and one engine at a time.
+    {
+      name: "fit-chromium",
+      testMatch: /fit\.spec\.ts$/,
+      dependencies: ["chromium", "webkit", "phone"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "fit-webkit",
+      testMatch: /fit\.spec\.ts$/,
+      dependencies: ["fit-chromium"],
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "fit-phone",
+      testMatch: /fit\.spec\.ts$/,
+      dependencies: ["fit-webkit"],
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
   webServer: {
     // All browsers log in from the same address, so the suite raises the

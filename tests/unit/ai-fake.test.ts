@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createFakeDriver, fakeExtractFields, FAKE_MODEL_ID } from "@/lib/ai/fake";
-import type { AiRequest } from "@/lib/ai/driver";
+import {
+  createFakeDriver,
+  fakeExtractFields,
+  fakeScoreFit,
+  fakeScoreWaitMs,
+  FAKE_DEFAULTS,
+  FAKE_MODEL_ID,
+  FAKE_SCORE_DEFAULT,
+  FAKE_SCORE_WAIT_MAX_MS,
+} from "@/lib/ai/fake";
+import { AI_TASKS, type AiRequest } from "@/lib/ai/driver";
+import { scoreSchema, scorePrompt, type ScoreFitInput } from "@/lib/ai/score-fit";
+import { DEFAULT_PREFERENCES } from "@/lib/preferences/schema";
 
 const postingSchema = z.object({
   companyName: z.string().nullable(),
@@ -98,5 +109,126 @@ describe("createFakeDriver", () => {
     const strictSchema = z.object({ workMode: z.enum(["remote", "hybrid", "onsite"]) });
     const result = await driver.generate(baseRequest({ schema: strictSchema }));
     expect(result).toEqual({ ok: false, code: "ai_bad_output", message: "ai_bad_output" });
+  });
+});
+
+const SCORE_INPUT: ScoreFitInput = {
+  posting: {
+    roleTitle: "Product Designer",
+    companyName: "Northwind Traders",
+    location: null,
+    workMode: null,
+    compMin: null,
+    compMax: null,
+    compCurrency: null,
+    bodyMd: "About the job",
+  },
+  headline: null,
+  resumeMd: "Product designer.",
+  preferences: DEFAULT_PREFERENCES,
+};
+
+function scoreRequest(prompt: string): AiRequest<unknown> {
+  return {
+    task: "score_fit",
+    schema: scoreSchema,
+    instructions: "i",
+    prompt,
+    maxOutputTokens: 600,
+    timeoutMs: 20_000,
+    userId: "u1",
+  } as AiRequest<unknown>;
+}
+
+describe("fakeScoreFit", () => {
+  const withPosting = (posting: string) => scorePrompt({ ...SCORE_INPUT, posting: { ...SCORE_INPUT.posting, bodyMd: posting } });
+
+  it("scores 64 when the posting has no Fit score line", () => {
+    expect(fakeScoreFit(withPosting("About the job"))).toEqual({
+      score: 64,
+      summary: "A test score from the fake driver.",
+      pros: ["The role matches your titles."],
+      cons: ["The posting does not state pay."],
+    });
+    expect(FAKE_SCORE_DEFAULT).toBe(64);
+  });
+
+  it("reads a Fit score line in the posting, capped at 100", () => {
+    expect(fakeScoreFit(withPosting("Fit score: 81\nAbout the job"))).toMatchObject({ score: 81 });
+    expect(fakeScoreFit(withPosting("About\nfit SCORE:   7  \nmore"))).toMatchObject({ score: 7 });
+    expect(fakeScoreFit(withPosting("Fit score: 250"))).toMatchObject({ score: 100 });
+  });
+
+  it("fails with ai_error on Fit score: fail", () => {
+    expect(fakeScoreFit(withPosting("Fit score: fail\nAbout"))).toEqual({ error: "ai_error" });
+    expect(fakeScoreFit(withPosting("Fit score: FAIL"))).toEqual({ error: "ai_error" });
+  });
+
+  it("falls back to 64 for a value that is not a number or fail", () => {
+    expect(fakeScoreFit(withPosting("Fit score: high"))).toMatchObject({ score: 64 });
+  });
+
+  it("ignores a Fit score line anywhere but the posting", () => {
+    const prompt = scorePrompt({ ...SCORE_INPUT, resumeMd: "Fit score: 5", headline: "Fit score: 6" });
+    expect(fakeScoreFit(prompt)).toMatchObject({ score: 64 });
+  });
+});
+
+describe("the fake driver and score_fit", () => {
+  it("has a default handler for every task", () => {
+    expect(Object.keys(FAKE_DEFAULTS).sort()).toEqual([...AI_TASKS].sort());
+  });
+
+  it("scores with no handler given, instead of failing with ai_bad_output", async () => {
+    const result = await createFakeDriver().generate(scoreRequest(scorePrompt(SCORE_INPUT)));
+    expect(result).toMatchObject({ ok: true, data: { object: { score: 64 }, modelId: FAKE_MODEL_ID } });
+  });
+
+  it("follows a Fit score line through the driver", async () => {
+    const driver = createFakeDriver();
+    const prompt = scorePrompt({ ...SCORE_INPUT, posting: { ...SCORE_INPUT.posting, bodyMd: "Fit score: 81\nAbout the job" } });
+    expect(await driver.generate(scoreRequest(prompt))).toMatchObject({ ok: true, data: { object: { score: 81 } } });
+    const failing = scorePrompt({ ...SCORE_INPUT, posting: { ...SCORE_INPUT.posting, bodyMd: "Fit score: fail" } });
+    expect(await driver.generate(scoreRequest(failing))).toEqual({ ok: false, code: "ai_error", message: "ai_error" });
+  });
+
+  it("still extracts by default for extract_posting", async () => {
+    const result = await createFakeDriver().generate(baseRequest({ prompt: "<posting>\nRole: Product Designer\n</posting>" }));
+    expect(result).toMatchObject({ ok: true, data: { object: { roleTitle: "Product Designer" } } });
+  });
+
+  it("lets a custom score_fit handler replace the default", async () => {
+    const driver = createFakeDriver({ score_fit: () => ({ score: 10, summary: "x", pros: [], cons: [] }) });
+    expect(await driver.generate(scoreRequest("<posting>\nFit score: 99\n</posting>"))).toMatchObject({ ok: true, data: { object: { score: 10 } } });
+  });
+});
+
+describe("the fake driver's Fit wait line", () => {
+  const promptWith = (posting: string) => scorePrompt({ ...SCORE_INPUT, posting: { ...SCORE_INPUT.posting, bodyMd: posting } });
+
+  it("reads the wait from the posting and caps it at thirty seconds", () => {
+    expect(fakeScoreWaitMs(promptWith("Fit wait: 2500\nAbout"))).toBe(2500);
+    expect(fakeScoreWaitMs(promptWith("Fit wait: 90000"))).toBe(FAKE_SCORE_WAIT_MAX_MS);
+    expect(FAKE_SCORE_WAIT_MAX_MS).toBe(30_000);
+    expect(fakeScoreWaitMs(promptWith("About the job"))).toBe(0);
+    expect(fakeScoreWaitMs(scorePrompt({ ...SCORE_INPUT, resumeMd: "Fit wait: 5000" }))).toBe(0);
+  });
+
+  it("holds a score_fit answer for that long before answering", async () => {
+    vi.useFakeTimers();
+    try {
+      const driver = createFakeDriver();
+      let settled = false;
+      const pending = driver.generate(scoreRequest(promptWith("Fit wait: 3000\nFit score: 81"))).then((result) => {
+        settled = true;
+        return result;
+      });
+      await vi.advanceTimersByTimeAsync(2_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await pending).toMatchObject({ ok: true, data: { object: { score: 81 } } });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

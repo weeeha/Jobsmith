@@ -101,8 +101,11 @@ it plain and moving the card afterward.
 
 ### AI (optional)
 
-Jobsmith works with no AI configured; intake then asks for the company and role by hand. Four
-environment variables turn it on, read in `.env.example`:
+Jobsmith works with no AI configured; intake then asks for the company and role by hand, and jobs
+get no fit score (the hard filters from Preferences still run, in code). With AI on, each job added
+with a posting is scored after it is saved: the posting, your resume and headline from Settings,
+and your Preferences go to the model, cut to fixed lengths, and none of that text is ever logged.
+Four environment variables turn it on, read in `.env.example`:
 
 - `AI_PROVIDER`: `gateway` (Vercel AI Gateway), `anthropic` (the Anthropic API directly), or `fake`
   (the test suite's own stand-in, which never sends text anywhere). Unset means AI stays off.
