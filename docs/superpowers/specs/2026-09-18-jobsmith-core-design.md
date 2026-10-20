@@ -7,7 +7,7 @@
 
 ## TL;DR
 
-- Jobsmith is one app for a whole job search: find, qualify, apply, research, prepare for each interview stage, debrief.
+- Jobsmith is one app for a whole job search: find, qualify and research, apply, research deeper and prepare for each interview stage, debrief. Research happens twice: a fit brief before applying, so the CV and cover letter can use it, and company and people research once an interview is booked.
 - It is open source (AGPL-3.0) and self-hostable. A paid hosted version arrives in cycle 3. Core serves one signed-in user, and every table is tenant-safe from the first migration.
 - Core delivers: login, a Kanban board of opportunities with stages that can be edited per job, a job page with tabs, a token-protected bridge (API plus CLI) that accepts markdown from outside generators, job intake from a URL or pasted text, a fit score, a preferences page, and a Home list of what needs attention today.
 - AI is an enrichment and never a gate. The app works with no AI key configured.
@@ -308,7 +308,7 @@ The page explains which fields are hard filters and which feed the scoring promp
 
 Route `/`. `lib/attention` is one pure function over opportunities, stages and the current time. It returns items in this order:
 
-1. Interviews in the next 72 hours, with a link to that stage's prep.
+1. Interviews in the next 72 hours, with a link to that stage's prep. When neither the job nor its company has a `research` or `people_notes` document, the item adds "No research yet" and links to Research instead, since prep is built on it. A fit brief alone does not count.
 2. Next actions that are overdue or due today.
 3. Applied, no event for `followUpDays`, no next action set: "Follow up?"
 4. Saved for `savedDays` or more: "Apply or drop."

@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
+import type { ArtifactKind } from "@/lib/artifacts/kinds";
 import { stripScopedKeys } from "./strip";
 
 export type ArtifactRow = typeof schema.artifact.$inferSelect;
@@ -110,6 +111,26 @@ export function artifactQueries(db: Db, userId: string) {
         .from(schema.artifact)
         .where(eq(schema.artifact.userId, userId))
         .orderBy(asc(schema.artifact.createdAt));
+    },
+    // The jobs with at least one document of these kinds, their own or shared
+    // by their company, for Home to tell which interviews still need research.
+    async opportunityIdsWithKinds(kinds: readonly ArtifactKind[]): Promise<Set<string>> {
+      const rows = await db
+        .selectDistinct({ id: schema.opportunity.id })
+        .from(schema.opportunity)
+        .innerJoin(
+          schema.artifact,
+          and(
+            eq(schema.artifact.userId, userId),
+            inArray(schema.artifact.kind, [...kinds]),
+            or(
+              eq(schema.artifact.opportunityId, schema.opportunity.id),
+              eq(schema.artifact.companyId, schema.opportunity.companyId),
+            ),
+          ),
+        )
+        .where(eq(schema.opportunity.userId, userId));
+      return new Set(rows.map((r) => r.id));
     },
     // The newest versions that arrived through the bridge, newest first, with
     // what Home needs to say where each one landed. A company-wide document

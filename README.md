@@ -1,9 +1,9 @@
 # Jobsmith
 
-Jobsmith is one app for a whole job search: find, qualify, apply, research,
-prepare for each interview stage, debrief. It is open source under
-AGPL-3.0 and self-hostable with your own database and, later, your own AI
-provider key.
+Jobsmith is one app for a whole job search: find, qualify and research, apply,
+research deeper and prepare for each interview stage, debrief. It is open
+source under AGPL-3.0 and self-hostable with your own database and, later,
+your own AI provider key.
 
 ![The Jobsmith board: jobs in seven stages from Saved to Offer](docs/screenshots/board.webp)
 

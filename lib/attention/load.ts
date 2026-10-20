@@ -3,7 +3,7 @@ import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
 import { parsePreferences } from "@/lib/preferences/schema";
 import { DEFAULT_TIME_ZONE } from "@/lib/profile";
 import { isTimeZone } from "@/lib/time/zone";
-import { attentionItems, type AttentionItem } from "./items";
+import { attentionItems, INTERVIEW_RESEARCH_KINDS, type AttentionItem } from "./items";
 
 export const RECENT_PUSHES = 5;
 
@@ -11,12 +11,13 @@ export type ColumnCount = { kind: StageKind; title: string; count: number };
 export type HomeData = { items: AttentionItem[]; columns: ColumnCount[]; pushes: RecentPush[]; timeZone: string };
 
 export async function loadHome(s: Scoped, now: Date): Promise<HomeData> {
-  const [profile, board, scheduled, lastEvents, pushes] = await Promise.all([
+  const [profile, board, scheduled, lastEvents, pushes, researched] = await Promise.all([
     s.profile.get(),
     s.opportunity.listBoard(),
     s.stage.listScheduledForActive(),
     s.event.lastOccurredByOpportunity(),
     s.artifact.listRecentPushed(RECENT_PUSHES),
+    s.artifact.opportunityIdsWithKinds(INTERVIEW_RESEARCH_KINDS),
   ]);
   const preferences = parsePreferences(profile?.preferences);
   const timeZone = profile?.timezone && isTimeZone(profile.timezone) ? profile.timezone : DEFAULT_TIME_ZONE;
@@ -35,6 +36,7 @@ export async function loadHome(s: Scoped, now: Date): Promise<HomeData> {
       nextActionAt: card.nextActionAt,
       stage: { kind: card.stage.kind, label: card.stage.label, enteredAt: card.stage.enteredAt },
       lastEventAt: lastEvents.get(card.id) ?? null,
+      researched: researched.has(card.id),
     })),
     scheduled,
   });

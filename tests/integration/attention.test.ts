@@ -7,6 +7,7 @@ import { setNextAction } from "@/lib/pipeline/next-action";
 import { scheduleStage } from "@/lib/pipeline/schedule";
 import { closeOpportunity } from "@/lib/pipeline/close";
 import { loadHome } from "@/lib/attention/load";
+import { INTERVIEW_RESEARCH_KINDS } from "@/lib/attention/items";
 import { snoozeItem } from "@/lib/attention/snooze";
 import { expectOk, expectFail } from "../helpers/result";
 
@@ -58,6 +59,49 @@ describe("loadHome", () => {
       expect(research.key).toBe("research");
       const card = home.pushes.find((p) => p.title === "Call card")!;
       expect(card.job).toEqual({ slug: screening.slug, roleTitle: "Design Lead" });
+      // Lumen Health's company-wide research covers the screening job.
+      const interview = home.items.find((i) => i.kind === "interview");
+      expect(interview?.kind === "interview" && interview.researched).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("counts research and people notes, the job's own or its company's, and not a fit brief", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "research-owner@example.com");
+      const s = scoped(db, user.id);
+      const doc = (scope: { opportunityId: string } | { companyId: string }, kind: "research" | "people_notes" | "fit_brief") =>
+        s.artifact.insert({
+          opportunityId: null,
+          companyId: null,
+          ...scope,
+          stageId: null,
+          key: kind,
+          version: 1,
+          kind,
+          title: kind,
+          bodyMd: "# D",
+          contentHash: kind,
+          sourceHash: kind,
+          origin: "pasted",
+        });
+
+      const ownNotes = await seedOpportunity(s, { companyName: "Northwind Labs" }, ago(5));
+      const viaCompany = await seedOpportunity(s, { companyName: "Lumen Health", roleTitle: "Design Lead" }, ago(5));
+      const sameCompany = await seedOpportunity(s, { companyName: "Lumen Health", roleTitle: "Staff Designer" }, ago(5));
+      const fitOnly = await seedOpportunity(s, { companyName: "Acme Robotics" }, ago(5));
+      const nothing = await seedOpportunity(s, { companyName: "Globex" }, ago(5));
+
+      await doc({ opportunityId: ownNotes.id }, "people_notes");
+      const lumen = (await s.company.list()).find((c) => c.name === "Lumen Health")!;
+      await doc({ companyId: lumen.id }, "research");
+      await doc({ opportunityId: fitOnly.id }, "fit_brief");
+
+      const ids = await s.artifact.opportunityIdsWithKinds(INTERVIEW_RESEARCH_KINDS);
+      expect(ids).toEqual(new Set([ownNotes.id, viaCompany.id, sameCompany.id]));
+      expect(ids.has(fitOnly.id) || ids.has(nothing.id)).toBe(false);
     } finally {
       await close();
     }

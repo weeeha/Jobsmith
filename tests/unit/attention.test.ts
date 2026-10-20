@@ -16,6 +16,7 @@ function job(id: string, overrides: Partial<AttentionJob> = {}): AttentionJob {
     nextActionAt: null,
     stage: { kind: "applied", label: "Applied", enteredAt: ago(1) },
     lastEventAt: ago(1),
+    researched: true,
     ...overrides,
   };
 }
@@ -37,6 +38,22 @@ describe("attentionItems", () => {
       }),
     );
     expect(items.filter((i) => i.kind === "interview").map((i) => i.job.id)).toEqual(["a", "b"]);
+  });
+
+  it("carries whether each interviewing job has research", () => {
+    const items = attentionItems(
+      input({
+        jobs: [job("a", { researched: false }), job("b")],
+        scheduled: [
+          { id: "s1", opportunityId: "a", kind: "recruiter_screen", label: "Recruiter screen", scheduledAt: ahead(2), format: "phone" },
+          { id: "s2", opportunityId: "b", kind: "hiring_manager", label: "Hiring manager", scheduledAt: ahead(24), format: "video" },
+        ],
+      }),
+    );
+    expect(items.map((i) => (i.kind === "interview" ? [i.job.id, i.researched] : null))).toEqual([
+      ["a", false],
+      ["b", true],
+    ]);
   });
 
   it("counts a next action as due until the end of today in the profile zone, oldest first", () => {

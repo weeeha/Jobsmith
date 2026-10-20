@@ -53,10 +53,11 @@ export function itemCopy(item: AttentionItem): ItemCopy {
   switch (item.kind) {
     case "interview": {
       const format = formatLabel(item.stage.format);
+      const suffix = [format, item.researched ? "" : "No research yet"].filter(Boolean).map((part) => ` · ${part}`).join("");
       return {
         reason: item.stage.label,
         jobLine,
-        meta: { prefix: "", time: { at: item.stage.scheduledAt, mode: "datetime" }, suffix: format ? ` · ${format}` : "" },
+        meta: { prefix: "", time: { at: item.stage.scheduledAt, mode: "datetime" }, suffix },
       };
     }
     case "due":
@@ -98,7 +99,10 @@ export function primaryAction(item: AttentionItem): PrimaryAction {
   const job = `/jobs/${item.job.slug}`;
   switch (item.kind) {
     case "interview":
-      return { type: "link", label: "Open prep", href: `${job}?tab=prep` };
+      // Prep is built on the research, so an unresearched interview starts there.
+      return item.researched
+        ? { type: "link", label: "Open prep", href: `${job}?tab=prep` }
+        : { type: "link", label: "Open research", href: `${job}?tab=research` };
     case "due":
       return { type: "mark_done", label: "Mark done" };
     case "follow_up":

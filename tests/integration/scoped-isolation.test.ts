@@ -305,6 +305,26 @@ const cases: Case[] = [
     },
   },
   {
+    name: "artifact.opportunityIdsWithKinds never reports A's jobs to B",
+    run: async (a, b, ids) => {
+      await a.artifact.insert({
+        opportunityId: null,
+        companyId: ids.companyId,
+        stageId: null,
+        key: "recon",
+        version: 1,
+        kind: "research",
+        title: "Recon",
+        bodyMd: "# Recon",
+        contentHash: "h",
+        sourceHash: "h",
+        origin: "pushed",
+      });
+      expect(await b.artifact.opportunityIdsWithKinds(["research", "cv"])).toEqual(new Set());
+      expect(await a.artifact.opportunityIdsWithKinds(["research"])).toEqual(new Set([ids.opportunityId]));
+    },
+  },
+  {
     name: "artifact.getVersion and getLatest hide A's row from B",
     run: async (a, b, ids) => {
       expect(await b.artifact.getVersion({ opportunityId: ids.opportunityId }, "cv", 1)).toBeNull();

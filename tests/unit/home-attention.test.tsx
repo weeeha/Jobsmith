@@ -16,7 +16,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 const at = new Date("2026-10-16T10:30:00Z");
 const j = (n: number, role: string) => ({ id: `job-${n}`, slug: `job-${n}`, roleTitle: role, companyName: "Acme", nextAction: null });
 const items: AttentionItem[] = [
-  { kind: "interview", job: j(1, "Role 1"), stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "video" } },
+  { kind: "interview", job: j(1, "Role 1"), stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "video" }, researched: true },
   { kind: "due", job: j(2, "Role 2"), nextAction: "Send link", at, overdue: true },
   { kind: "follow_up", job: j(3, "Role 3"), quietDays: 9, appliedAt: at },
   { kind: "saved", job: j(4, "Role 4"), days: 4, savedAt: at },
