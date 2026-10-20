@@ -15,7 +15,7 @@ describe("homeSubline", () => {
 
 describe("itemCopy and primaryAction", () => {
   it("interview", () => {
-    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" } };
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true };
     const c = itemCopy(item);
     expect(c.reason).toBe("Recruiter screen");
     expect(c.jobLine).toBe("Design Lead at Northwind Labs");
@@ -24,8 +24,16 @@ describe("itemCopy and primaryAction", () => {
   });
 
   it("interview without a format leaves the format out", () => {
-    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Panel", scheduledAt: at, format: null } };
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Panel", scheduledAt: at, format: null }, researched: true };
     expect(itemCopy(item).meta.suffix).toBe("");
+  });
+
+  it("interview with no research says so and opens Research instead of Prep", () => {
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: false };
+    expect(itemCopy(item).meta.suffix).toBe(" · Phone · No research yet");
+    expect(primaryAction(item)).toEqual({ type: "link", label: "Open research", href: "/jobs/lead-at-northwind?tab=research" });
+    const noFormat: AttentionItem = { ...item, stage: { ...item.stage, format: null } };
+    expect(itemCopy(noFormat).meta.suffix).toBe(" · No research yet");
   });
 
   it("due, overdue and today", () => {
