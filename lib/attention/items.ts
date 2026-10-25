@@ -1,3 +1,4 @@
+import type { ArtifactKind } from "@/lib/artifacts/kinds";
 import type { StageKind } from "@/lib/pipeline/kinds";
 import type { StageFormat } from "@/lib/pipeline/values";
 import { addZonedDays } from "@/lib/time/zone";
@@ -10,6 +11,9 @@ export const ATTENTION_KINDS = ["interview", "due", "follow_up", "saved", "passe
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
 export const INTERVIEW_WINDOW_HOURS = 72;
+// The research an interview needs, as opposed to the fit brief written before
+// applying. A job counts as researched when it or its company has one of these.
+export const INTERVIEW_RESEARCH_KINDS = ["research", "people_notes"] as const satisfies readonly ArtifactKind[];
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
@@ -22,6 +26,7 @@ export type AttentionJob = {
   nextActionAt: Date | null;
   stage: { kind: StageKind; label: string; enteredAt: Date | null };
   lastEventAt: Date | null;
+  researched: boolean;
 };
 
 export type AttentionStage = {
@@ -46,7 +51,7 @@ export type AttentionJobRef = Pick<AttentionJob, "id" | "slug" | "roleTitle" | "
 type StageRef = { id: string; label: string; scheduledAt: Date; format: StageFormat | null };
 
 export type AttentionItem =
-  | { kind: "interview"; job: AttentionJobRef; stage: StageRef }
+  | { kind: "interview"; job: AttentionJobRef; stage: StageRef; researched: boolean }
   | { kind: "due"; job: AttentionJobRef; nextAction: string; at: Date; overdue: boolean }
   | { kind: "follow_up"; job: AttentionJobRef; quietDays: number; appliedAt: Date | null }
   | { kind: "saved"; job: AttentionJobRef; days: number; savedAt: Date }
@@ -80,7 +85,10 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
 
   const interview: AttentionItem[] = scheduled
     .filter((st) => st.scheduledAt.getTime() >= now.getTime() && st.scheduledAt.getTime() <= windowEnd)
-    .map((st) => ({ kind: "interview", job: ref(byId.get(st.opportunityId)!), stage: stageRef(st) }));
+    .map((st) => {
+      const job = byId.get(st.opportunityId)!;
+      return { kind: "interview", job: ref(job), stage: stageRef(st), researched: job.researched };
+    });
 
   const due: AttentionItem[] = jobs
     .filter((j) => j.nextAction !== null && j.nextActionAt !== null && j.nextActionAt.getTime() < startOfTomorrow)
