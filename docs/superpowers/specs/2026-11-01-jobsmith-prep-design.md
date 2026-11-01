@@ -191,7 +191,7 @@ The TTS driver interface: `synthesize({ text, voice, style, format }) → Result
 
 Voices: Settings lists the provider's voices and the user picks Interviewer and Me. Defaults when the provider lists them: `Vivian` and `Ryan` on the Qwen3-TTS server, otherwise the first two voices. Changing a voice does not delete old clips; it starts a new plan, and "Delete audio" on the hub removes segments no current question of any job refers to.
 
-Storage: a segment's object key is `tts/<random 32 hex>.mp3` (or `.wav` when encoding failed). `Storage` has `put(key, bytes, contentType)`, `get(key) → bytes | null`, `delete(key)`. Clips are small, under 2 MB, so the interface moves whole objects and `GET /api/assets/[id]` serves `Range` requests (206) by slicing in memory, which Safari requires for seeking. Responses carry `Cache-Control: private, max-age=31536000, immutable`, since an asset id never changes its bytes. The route checks the session and loads the asset through the scoped helper, so another user's id is a 404.
+Storage: every object key starts with a per-user prefix, `u/<first 16 hex of sha256(user_id)>/`, so the Hosted cycle's account deletion can list and remove one user's objects without a database join; a segment's key is `u/<prefix>/tts/<random 32 hex>.mp3` (or `.wav` when encoding failed). `Storage` has `put(key, bytes, contentType)`, `get(key) → bytes | null`, `delete(key)`. Clips are small, under 2 MB, so the interface moves whole objects and `GET /api/assets/[id]` serves `Range` requests (206) by slicing in memory, which Safari requires for seeking. Responses carry `Cache-Control: private, max-age=31536000, immutable`, since an asset id never changes its bytes. The route checks the session and loads the asset through the scoped helper, so another user's id is a 404.
 
 Sizes, for the encoding decision: PCM at 24 kHz, 16-bit, mono is 48 KB per second; MP3 at 64 kbps is 8 KB per second. A 40-question bank with about 2,400 seconds of speech is 115 MB as WAV and 19 MB as MP3. The phone budget needs MP3.
 
@@ -316,7 +316,7 @@ The cycle table in Core section 12 stands. Prep moves these out:
 | Item | Where it goes |
 |---|---|
 | A live AI interviewer that listens, follows up and writes a report (the interview-room exploration) | its own project, or cycle 7 as a bridge consumer of `prep_question.blocks` |
-| Reviewing a kept recording against the Say clip with a model | cycle 6, Debrief |
+| Reviewing a kept recording against the Say clip with a model | after cycle 6; the Debrief spec lists it as a follow-up milestone |
 | Voice cloning inside the app | not planned; a local server can expose a cloned voice as a named voice |
 | Editing question banks as rows, or generating missing answers in the app | cycle 3, in-app generation |
 | Notifications before an interview ("drill tonight") | cycle 4, alerts |
