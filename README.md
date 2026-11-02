@@ -1,5 +1,13 @@
 # Jobsmith
 
+**Problem.** A job search runs through find, qualify, apply, research, interview prep and debrief, and each job needs its own documents and next action along the way.
+
+**Idea.** One self-hostable app tracks every job through seven stages from Saved to Offer. AI is an optional layer that reads postings and scores fit against the user's preferences.
+
+**Built.** A Next.js 16 and React 19 app on Postgres with Drizzle and Better Auth: a board, companies, job pages with research, document and prep tabs, and a `jobsmith` command line to pull and push markdown documents. Live at https://jobsmith-lemon.vercel.app. 186 commits on 17 days, Sep 18 to Oct 25, 2026.
+
+**Decision.** AI stays off unless `AI_PROVIDER` is set on purpose, instead of switching on whenever an `ANTHROPIC_API_KEY` is found in the shell. A key left over from another project then never sends a posting anywhere by accident.
+
 Jobsmith is one app for a whole job search: find, qualify and research, apply,
 research deeper and prepare for each interview stage, debrief. It is open
 source under AGPL-3.0 and self-hostable with your own database and, later,
