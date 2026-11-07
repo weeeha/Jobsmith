@@ -273,6 +273,27 @@ unpooled connection string in `DATABASE_URL_UNPOOLED` for migrations,
 which need a session-scoped advisory lock a pooled connection cannot hold
 (see `scripts/migrate.ts`).
 
+## Public demo
+
+`DEMO_MODE=true` puts a "Try the demo" button on the login page, for an
+instance that exists to show Jobsmith to visitors. Each click creates a
+throwaway account under the reserved `demo.invalid` domain, fills it with
+the same six fictional jobs as `pnpm seed`, and signs the visitor in. The
+visitor never sees a password, and nobody sees anyone else's copy.
+
+Copies are deleted 24 hours after they were made: every demo click first
+deletes the expired ones, so there is no scheduled job. At most 10 copies
+are made per minute and 200 can exist at once (`lib/demo/policy.ts`).
+
+The demo path opens sign-up only for its own in-process call (a random key
+that never leaves the server process), so `ALLOW_SIGNUP` stays off and a
+direct call to the sign-up endpoint is still refused. In demo mode the login
+page no longer redirects to first-run setup.
+
+Never turn it on for an instance that holds a real job search: anyone who
+opens the login page can create an account on it. Leave `AI_PROVIDER` unset
+on a demo instance unless you are willing to pay for visitors' AI calls.
+
 ## Running behind a reverse proxy
 
 The login rate limit counts attempts per client address, read from the

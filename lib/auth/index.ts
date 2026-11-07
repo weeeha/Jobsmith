@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { countUsers } from "./users";
 import { signUpAllowed } from "./signup-gate";
 import { checkSetupToken } from "./setup-token";
+import { DEMO_SIGNUP_HEADER, isDemoSignupKey } from "@/lib/demo/signup-key";
 import { sessionPolicy, MIN_PASSWORD_LENGTH, signInRateLimitRule } from "./policy";
 
 // Shared by the auth config and the sign-in rule below, so the rule asks the
@@ -55,6 +56,10 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/sign-up/email") return;
+      // A demo copy (lib/demo/create.ts) passes the closed gate and the setup
+      // token check: its key exists only inside this server process, and only
+      // while DEMO_MODE is on.
+      if (env().DEMO_MODE && isDemoSignupKey(ctx.headers?.get(DEMO_SIGNUP_HEADER))) return;
       const userCount = await countUsers(getDb());
       if (!signUpAllowed(userCount, env().ALLOW_SIGNUP)) {
         throw new APIError("FORBIDDEN", { message: "Sign-up is closed." });

@@ -2,13 +2,19 @@ import { redirect } from "next/navigation";
 import { isFirstRun } from "@/lib/auth/first-run";
 import { getUser } from "@/lib/auth/session";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { env } from "@/lib/env";
 import { LoginForm } from "./login-form";
+import { DemoButton } from "./demo-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const searchParams = await props.searchParams;
-  if (await isFirstRun()) {
+  const demo = env().DEMO_MODE;
+  // A demo instance may have no owner account at all; its visitors only ever
+  // use demo copies, so first-run setup is not where they should land.
+  if (!demo && (await isFirstRun())) {
     redirect("/setup");
   }
 
@@ -28,7 +34,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
               CardTitle's own styling so the look is unchanged. */}
           <h1 className="font-heading text-base leading-snug font-medium">Log in</h1>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
+          {demo && (
+            <>
+              <DemoButton />
+              <Separator />
+            </>
+          )}
           <LoginForm from={from} />
         </CardContent>
       </Card>

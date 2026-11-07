@@ -21,6 +21,12 @@ describe("parseEnv", () => {
     expect(env.ALLOW_SIGNUP).toBe(false);
   });
 
+  it("leaves DEMO_MODE off unless it is exactly true", () => {
+    expect(parseEnv(validSource).DEMO_MODE).toBe(false);
+    expect(parseEnv({ ...validSource, DEMO_MODE: "1" }).DEMO_MODE).toBe(false);
+    expect(parseEnv({ ...validSource, DEMO_MODE: "true" }).DEMO_MODE).toBe(true);
+  });
+
   it("parses ALLOW_SIGNUP=true", () => {
     const env = parseEnv({ ...validSource, ALLOW_SIGNUP: "true" });
     expect(env.ALLOW_SIGNUP).toBe(true);
