@@ -5,9 +5,28 @@ import type { Scoped } from "@/lib/db/scoped";
 import { fail, ok, type Result } from "@/lib/result";
 import { TTS_STYLE_ID } from "@/lib/tts/driver";
 import { toPlanSource, type AudioContext } from "./audio-status";
-import { buildPlaybackPlan, pitchChapters, spokenSteps, type PlanSource, type PlaybackPlan } from "./plan";
+import { buildPlaybackPlan, pitchChapters, spokenSteps, type PlanSource, type PlaybackPlan, type Speaker, type StepSpec } from "./plan";
 import { getPrepSettings, type PrepSettings } from "./settings";
 import { PARSED_KINDS, type MarkLevel } from "./values";
+
+export type ClipResolver = (speaker: Speaker, text: string) => { hash: string; clip: { assetId: string; suspect: boolean } | null };
+
+// Looks up the saved clips for every step once, then answers per step. Shared
+// by the Listen and Drill pages so a step's hash is computed in one place.
+export async function makeClipResolver(
+  s: Scoped,
+  audio: Pick<AudioContext, "identity" | "voices">,
+  steps: Pick<StepSpec, "speaker" | "text">[],
+): Promise<ClipResolver> {
+  const { identity, voices } = audio;
+  const hashOf = (speaker: Speaker, text: string) =>
+    segmentHash({ ...identity, voice: voices[speaker], style: TTS_STYLE_ID, spokenText: text });
+  const clips = await lookupSegments(s, [...new Set(steps.map((st) => hashOf(st.speaker, st.text)))]);
+  return (speaker, text) => {
+    const hash = hashOf(speaker, text);
+    return { hash, clip: clips.get(hash) ?? null };
+  };
+}
 
 export type PlayerData = { plan: PlaybackPlan; settings: PrepSettings; subtitle: string; kind: "bank" | "pitch" };
 
@@ -38,10 +57,7 @@ export async function loadPlayerData(
   }
   if (sources.length === 0) return fail("not_found", "That document has nothing to play.");
 
-  const { identity, voices } = input.audio;
-  const hashOf = (speaker: "interviewer" | "candidate", text: string) =>
-    segmentHash({ ...identity, voice: voices[speaker], style: TTS_STYLE_ID, spokenText: text });
-  const clips = await lookupSegments(s, [...new Set(spokenSteps(sources).map((st) => hashOf(st.speaker, st.text)))]);
+  const resolveClip = await makeClipResolver(s, input.audio, spokenSteps(sources));
 
   const company = await s.company.getById(opportunity.companyId);
   const subtitle = company ? `${opportunity.roleTitle} at ${company.name}` : opportunity.roleTitle;
@@ -50,10 +66,7 @@ export async function loadPlayerData(
     subtitle,
     sources,
     levels,
-    resolveClip: (speaker, text) => {
-      const hash = hashOf(speaker, text);
-      return { hash, clip: clips.get(hash) ?? null };
-    },
+    resolveClip,
   });
   return ok({ plan, settings: await getPrepSettings(s), subtitle, kind });
 }
