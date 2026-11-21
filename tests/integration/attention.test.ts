@@ -148,4 +148,47 @@ describe("snoozeItem", () => {
       await close();
     }
   });
+
+  it("loadHome counts only the job's own rows and marks, not another job's with the same question key", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const user = await createTestUser(db, "prep-line-owner@example.com");
+      const s = scoped(db, user.id);
+      const mine = await seedOpportunity(s, { companyName: "Lumen Health", roleTitle: "Design Lead" }, ago(3));
+      const other = await seedOpportunity(s, { companyName: "Acme Robotics", roleTitle: "Designer" }, ago(3));
+      const KEYS = ["a".repeat(16), "b".repeat(16), "c".repeat(16)];
+
+      async function bank(opportunityId: string, keys: string[]) {
+        const artifact = await s.artifact.insert({ opportunityId, companyId: null, stageId: null, key: "bank", version: 1, kind: "question_bank", title: "Bank", bodyMd: "# B", contentHash: "h", sourceHash: "h", origin: "pushed" });
+        await s.prepQuestion.replaceForArtifactKey(
+          opportunityId,
+          "bank",
+          keys.map((k, i) => ({ opportunityId, artifactId: artifact.id, artifactVersion: 1, artifactKey: "bank", number: i + 1, position: i, question: `Q${i}`, questionKey: k })),
+        );
+      }
+      await bank(mine.id, KEYS);
+      await bank(other.id, [KEYS[0]]);
+      const mark = (opportunityId: string, questionKey: string, level: "solid" | "okay") =>
+        s.prepMark.applyMark({ scope: "job", opportunityId, questionKey, level, markedAt: ago(1), drilled: false });
+      await mark(mine.id, KEYS[0], "solid");
+      await mark(mine.id, KEYS[1], "okay");
+      await mark(other.id, KEYS[0], "solid");
+      await mark(other.id, KEYS[1], "solid"); // a mark with no row in that job
+
+      const screenStage = (await stageIdsByKind(s, mine.id)).recruiter_screen;
+      expectOk(await moveOpportunity(s, mine.id, { kind: "recruiter_screen" }, ago(2)));
+      expectOk(await scheduleStage(s, mine.id, screenStage, { scheduledAt: new Date(NOW.getTime() + 20 * 3_600_000), format: "phone" }, ago(2)));
+
+      const home = await loadHome(s, NOW);
+      const interview = home.items.find((i) => i.kind === "interview");
+      expect(interview?.kind === "interview" && interview.prep).toEqual({ questions: 3, solid: 1 });
+
+      // Another user's rows never show up in this user's map, or the reverse.
+      const stranger = scoped(db, (await createTestUser(db, "prep-line-stranger@example.com")).id);
+      expect((await stranger.prepQuestion.keysByOpportunity()).size).toBe(0);
+      expect((await s.prepQuestion.keysByOpportunity()).get(mine.id)).toHaveLength(3);
+    } finally {
+      await close();
+    }
+  });
 });

@@ -16,7 +16,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 const at = new Date("2026-10-16T10:30:00Z");
 const j = (n: number, role: string) => ({ id: `job-${n}`, slug: `job-${n}`, roleTitle: role, companyName: "Acme", nextAction: null });
 const items: AttentionItem[] = [
-  { kind: "interview", job: j(1, "Role 1"), stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "video" }, researched: true },
+  { kind: "interview", job: j(1, "Role 1"), stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "video" }, researched: true, prep: { questions: 30, solid: 12 } },
   { kind: "due", job: j(2, "Role 2"), nextAction: "Send link", at, overdue: true },
   { kind: "follow_up", job: j(3, "Role 3"), quietDays: 9, appliedAt: at },
   { kind: "saved", job: j(4, "Role 4"), days: 4, savedAt: at },
@@ -30,6 +30,20 @@ function renderList(list = items) {
     </LiveAnnouncerProvider>,
   );
 }
+
+describe("AttentionList prep line", () => {
+  it("shows the confidence line under the meta line of an interview", () => {
+    renderList();
+    expect(screen.getByText("12 of 30 solid")).toBeTruthy();
+  });
+
+  it("links 'No prep yet' to the hub", () => {
+    const empty: AttentionItem[] = [{ ...(items[0] as Extract<AttentionItem, { kind: "interview" }>), prep: { questions: 0, solid: 0 } }];
+    renderList(empty);
+    const link = screen.getByRole("link", { name: "No prep yet" });
+    expect(link.getAttribute("href")).toBe("/jobs/job-1?tab=prep");
+  });
+});
 
 describe("AttentionList", () => {
   beforeEach(() => {

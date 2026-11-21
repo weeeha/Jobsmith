@@ -1,5 +1,7 @@
 import type { StageFormat } from "@/lib/pipeline/values";
 import { STAGE_FORMAT_LABELS } from "@/lib/pipeline/labels";
+import { homeLine } from "@/lib/prep/summary";
+import { PREP_COPY } from "@/lib/prep/copy";
 import type { AttentionItem, AttentionKind } from "./items";
 
 // Home's binding copy (plan, Copy section), kept pure and client-safe so the
@@ -42,10 +44,20 @@ export type ItemCopy = {
   reason: string;
   jobLine: string;
   meta: MetaLine;
+  // Interview items only: the confidence line under the meta line.
+  prepLine: { text: string; href: string | null } | null;
 };
 
 function formatLabel(format: StageFormat | null): string {
   return format ? STAGE_FORMAT_LABELS[format] : "";
+}
+
+// "No research yet" keeps priority: no prep line until research exists.
+function prepLine(item: Extract<AttentionItem, { kind: "interview" }>): ItemCopy["prepLine"] {
+  if (!item.researched) return null;
+  if (item.prep.questions === 0) return { text: PREP_COPY.homeNoPrep, href: `/jobs/${item.job.slug}?tab=prep` };
+  const { questions, solid } = item.prep;
+  return { text: homeLine({ solid, okay: 0, shaky: 0, unmarked: questions - solid, total: questions }), href: null };
 }
 
 export function itemCopy(item: AttentionItem): ItemCopy {
@@ -58,6 +70,7 @@ export function itemCopy(item: AttentionItem): ItemCopy {
         reason: item.stage.label,
         jobLine,
         meta: { prefix: "", time: { at: item.stage.scheduledAt, mode: "datetime" }, suffix },
+        prepLine: prepLine(item),
       };
     }
     case "due":
@@ -65,6 +78,7 @@ export function itemCopy(item: AttentionItem): ItemCopy {
         reason: item.nextAction,
         jobLine,
         meta: { prefix: item.overdue ? "Overdue · " : "Due today · ", time: { at: item.at, mode: "datetime" }, suffix: "" },
+        prepLine: null,
       };
     case "follow_up":
       return {
@@ -73,18 +87,21 @@ export function itemCopy(item: AttentionItem): ItemCopy {
         meta: item.appliedAt
           ? { prefix: "In Applied since ", time: { at: item.appliedAt, mode: "date" }, suffix: ". No next action set." }
           : { prefix: "In Applied. No next action set.", time: null, suffix: "" },
+        prepLine: null,
       };
     case "saved":
       return {
         reason: `In Saved for ${item.days} ${item.days === 1 ? "day" : "days"}`,
         jobLine,
         meta: { prefix: "Saved ", time: { at: item.savedAt, mode: "date" }, suffix: "." },
+        prepLine: null,
       };
     case "passed":
       return {
         reason: item.stage.label,
         jobLine,
         meta: { prefix: "Was ", time: { at: item.stage.scheduledAt, mode: "datetime" }, suffix: ". Still marked as scheduled." },
+        prepLine: null,
       };
   }
 }

@@ -83,6 +83,20 @@ export function AttentionItemRow({
           {meta.time ? <LocalTime value={meta.time.at} mode={meta.time.mode} /> : null}
           {meta.suffix}
         </p>
+        {copy.prepLine ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {copy.prepLine.href ? (
+              <Link
+                href={copy.prepLine.href}
+                className="rounded-sm text-foreground underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {copy.prepLine.text}
+              </Link>
+            ) : (
+              copy.prepLine.text
+            )}
+          </p>
+        ) : null}
       </div>
       <div role="group" aria-label={`Actions for ${copy.jobLine}`} className="flex shrink-0 items-center gap-2">
         {action.type === "link" ? (

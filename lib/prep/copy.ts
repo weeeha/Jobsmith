@@ -27,6 +27,8 @@ export const PREP_COPY = {
     okay: "Okay",
     solid: "Solid",
   },
+  // Proposed. Home's interview item when research exists and no questions do.
+  homeNoPrep: "No prep yet",
   // Proposed. The hub's own labels; the plan fixes none of these.
   hub: {
     pasteLabel: "Paste a question bank",

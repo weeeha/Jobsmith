@@ -1,5 +1,7 @@
 import type { RecentPush, Scoped } from "@/lib/db/scoped";
 import { STAGE_KINDS, type StageKind } from "@/lib/pipeline/kinds";
+import { summarize } from "@/lib/prep/summary";
+import type { MarkLevel } from "@/lib/prep/values";
 import { parsePreferences } from "@/lib/preferences/schema";
 import { DEFAULT_TIME_ZONE } from "@/lib/profile";
 import { isTimeZone } from "@/lib/time/zone";
@@ -10,14 +12,23 @@ export const RECENT_PUSHES = 5;
 export type ColumnCount = { kind: StageKind; title: string; count: number };
 export type HomeData = { items: AttentionItem[]; columns: ColumnCount[]; pushes: RecentPush[]; timeZone: string };
 
+// Solid over total, by the job's own rows: a mark on a question the job no
+// longer holds, or another job's mark on the same key, counts for nothing.
+function prepCounts(keys: string[], levels: Map<string, MarkLevel> | undefined) {
+  const summary = summarize(keys, levels ?? new Map());
+  return { questions: summary.total, solid: summary.solid };
+}
+
 export async function loadHome(s: Scoped, now: Date): Promise<HomeData> {
-  const [profile, board, scheduled, lastEvents, pushes, researched] = await Promise.all([
+  const [profile, board, scheduled, lastEvents, pushes, researched, questionKeys, markLevels] = await Promise.all([
     s.profile.get(),
     s.opportunity.listBoard(),
     s.stage.listScheduledForActive(),
     s.event.lastOccurredByOpportunity(),
     s.artifact.listRecentPushed(RECENT_PUSHES),
     s.artifact.opportunityIdsWithKinds(INTERVIEW_RESEARCH_KINDS),
+    s.prepQuestion.keysByOpportunity(),
+    s.prepMark.levelsByOpportunity(),
   ]);
   const preferences = parsePreferences(profile?.preferences);
   const timeZone = profile?.timezone && isTimeZone(profile.timezone) ? profile.timezone : DEFAULT_TIME_ZONE;
@@ -37,6 +48,7 @@ export async function loadHome(s: Scoped, now: Date): Promise<HomeData> {
       stage: { kind: card.stage.kind, label: card.stage.label, enteredAt: card.stage.enteredAt },
       lastEventAt: lastEvents.get(card.id) ?? null,
       researched: researched.has(card.id),
+      prep: prepCounts(questionKeys.get(card.id) ?? [], markLevels.get(card.id)),
     })),
     scheduled,
   });

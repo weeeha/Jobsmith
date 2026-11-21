@@ -61,6 +61,20 @@ export function prepQuestionQueries(db: Db, userId: string) {
         .groupBy(table.opportunityId);
       return new Map(rows.map((r) => [r.opportunityId, Number(r.n)]));
     },
+    // Question keys per job, one entry per row, for Home's confidence line.
+    async keysByOpportunity(): Promise<Map<string, string[]>> {
+      const rows = await db
+        .select({ opportunityId: table.opportunityId, questionKey: table.questionKey })
+        .from(table)
+        .where(eq(table.userId, userId));
+      const out = new Map<string, string[]>();
+      for (const r of rows) {
+        const keys = out.get(r.opportunityId);
+        if (keys) keys.push(r.questionKey);
+        else out.set(r.opportunityId, [r.questionKey]);
+      }
+      return out;
+    },
     async listAll(): Promise<PrepQuestionRow[]> {
       return db
         .select()
