@@ -4,6 +4,7 @@ import type { DocRef } from "./tabs";
 import { normalizeBody, hashBody, utf8Bytes } from "./normalize";
 import { planUpsert } from "./plan";
 import { MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
+import { rebuildForArtifact } from "@/lib/prep/rebuild";
 
 export async function saveArtifactEdit(
   s: Scoped,
@@ -48,11 +49,12 @@ export async function saveArtifactEdit(
     );
 
     if (plan.status === "edited") {
-      await tx.artifact.update(plan.id, plan.patch);
+      const edited = await tx.artifact.update(plan.id, plan.patch);
+      if (edited) await rebuildForArtifact(tx, edited);
       return ok({ status: "edited", version: latest.version, title: latest.title });
     }
     if (plan.status === "versioned") {
-      await tx.artifact.insert({
+      const inserted = await tx.artifact.insert({
         opportunityId: ref.scope === "opportunity" ? opportunity.id : null,
         companyId: ref.scope === "company" ? opportunity.companyId : null,
         stageId: plan.insert.stageId,
@@ -66,6 +68,7 @@ export async function saveArtifactEdit(
         origin: plan.insert.origin,
         editedAt: plan.insert.editedAt,
       });
+      await rebuildForArtifact(tx, inserted);
       return ok({ status: "versioned", version: plan.insert.version, title: plan.insert.title });
     }
     // "unchanged": manual origin never reaches "created" (versions is
