@@ -74,4 +74,10 @@ describe("eventText", () => {
       "Done: Follow up with recruiter.",
     );
   });
+
+  it("prep_drilled: shows the stored body", () => {
+    expect(
+      eventText(makeEvent({ kind: "prep_drilled", body: "Drilled 10 questions, 4 marked solid" })),
+    ).toBe("Drilled 10 questions, 4 marked solid");
+  });
 });
