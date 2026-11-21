@@ -8,6 +8,7 @@ export type BridgeErrorCode =
   | "duplicate_key"
   | "payload_too_large"
   | "too_many_artifacts"
+  | "too_many_segments"
   | "artifact_too_large"
   | "server_error";
 
@@ -57,6 +58,10 @@ export const BRIDGE_ERRORS: Record<
   too_many_artifacts: {
     status: 413,
     message: () => "A push holds at most 50 documents.",
+  },
+  too_many_segments: {
+    status: 413,
+    message: () => "An audio upload holds at most 50 clips.",
   },
   artifact_too_large: {
     status: 413,

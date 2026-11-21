@@ -39,6 +39,11 @@ function distinctNeeds(sources: PlanSource[], identity: TtsIdentity, voices: Voi
   return needs;
 }
 
+// Every hash the given questions need, done or not: what an upload may carry.
+export function plannedHashes(sources: PlanSource[], identity: TtsIdentity, voices: Voices): Set<string> {
+  return new Set(distinctNeeds(sources, identity, voices).keys());
+}
+
 export async function planSegments(
   s: Scoped,
   input: { sources: PlanSource[]; identity: TtsIdentity; voices: Voices; includeFailed?: boolean },

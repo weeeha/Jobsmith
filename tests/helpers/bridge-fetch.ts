@@ -1,5 +1,6 @@
 import type { BridgeDeps } from "@/lib/bridge/handlers";
 import { handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
+import { handleAudioPlan, handleAudioUpload } from "@/lib/bridge/audio-handlers";
 
 export function bridgeFetch(deps: BridgeDeps): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -20,6 +21,14 @@ export function bridgeFetch(deps: BridgeDeps): typeof fetch {
     const artifactsMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/artifacts$/.exec(url.pathname);
     if (request.method === "PUT" && artifactsMatch) {
       return handlePushArtifacts(deps, request, decodeURIComponent(artifactsMatch[1]!));
+    }
+    const planMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/audio\/plan$/.exec(url.pathname);
+    if (request.method === "GET" && planMatch) {
+      return handleAudioPlan(deps, request, decodeURIComponent(planMatch[1]!));
+    }
+    const audioMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/audio$/.exec(url.pathname);
+    if (request.method === "PUT" && audioMatch) {
+      return handleAudioUpload(deps, request, decodeURIComponent(audioMatch[1]!));
     }
     return new Response("Not Found", { status: 404 });
   }) as typeof fetch;
