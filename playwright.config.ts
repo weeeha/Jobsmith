@@ -66,6 +66,29 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    // The prep specs push documents and write marks on the shared account, so
+    // they run after the fit specs, one engine at a time.
+    {
+      name: "prep-chromium",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["fit-phone"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "prep-webkit",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["prep-chromium"],
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "prep-phone",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["prep-webkit"],
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
   webServer: {
     // All browsers log in from the same address, so the suite raises the

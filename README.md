@@ -195,6 +195,26 @@ Credentials live in a different file from the suffix map on purpose: one is per 
 (`~/.config/jobsmith/config.json`), the other is per content folder (`jobsmith.config.json`, next to
 the markdown files themselves, so a folder synced between machines carries its own mapping with it).
 
+## Prep
+
+The Prep tab of a job is a hub for its interview questions. Push an answers-full file (a markdown
+file whose questions are lines like `### 1. "Tell me about yourself"`) and the hub shows one card per
+question bank with the question count and a confidence line (`0 solid · 0 okay · 0 shaky · 7 unmarked`),
+the questions grouped by section, a chip on the ones still unfilled, and Shaky, Okay and Solid marks
+you set per question. A mark stays when the file is pushed again with changed text. Quick-fire runs a
+round of up to ten questions: five seconds to recall the shape of the answer, then the Spine, then a
+mark. It uses no audio. A finished round leaves a line on the job's timeline.
+
+Questions are read from the pushed documents into their own table. If a row is ever missing, the
+card shows a Rebuild questions button. To fill the table for documents pushed before it existed, run
+this once against each database, after the migration has been applied:
+
+```bash
+pnpm prep:backfill
+```
+
+It is safe to run twice: it rebuilds the rows from the stored documents and never touches marks.
+
 ## API
 
 Every route below needs `Authorization: Bearer <token>`, a token created in Settings. The bridge
@@ -333,6 +353,7 @@ tighter per-client limit below.
 | `pnpm db:generate` | Generate a SQL migration from the schema |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm seed` | Create a fictional demo user and profile (only while no account exists) |
+| `pnpm prep:backfill` | Read the questions of every pushed prep document into the question table (run once per database, safe to repeat) |
 | `pnpm reset-db` | Drop and re-migrate a local database (refuses non-local hosts) |
 
 Two more variables are read only by these scripts, never by the app itself:

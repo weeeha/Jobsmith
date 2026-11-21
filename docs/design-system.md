@@ -108,6 +108,13 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   question-list or confidence-mark pattern. After a write the client calls `router.refresh()`;
   the prep actions never `revalidatePath`, because the job page reads the database on every
   request (it calls `requireUser()`, which reads cookies) and has no server cache to invalidate.
+- `components/player/` (Quick-fire screen): hand-written, built from `Button`, `buttonVariants`,
+  `EmptyState` and the same card shell as the hub (`rounded-xl bg-card ring-1 ring-foreground/10`).
+  `quick-fire-card.tsx` is the question, the digit countdown, the revealed Spine, the shared
+  `MarkButtons` and the round summary; `quick-fire-round.tsx` starts the session and orders the round;
+  `use-countdown.ts` is the one-second timer. The registry has no flash-card or timed-recall pattern,
+  and the countdown is plain digits (hidden from assistive tech, with one polite announcement per
+  question) so nothing animates.
 - `components/player/` (Quick-fire, and the shared home of the later Listen and Drill players):
   hand-written, built from `Button`, `EmptyState`, `MarkButtons` and `MarkChip`. `quick-fire-round.tsx`
   is the client shell that starts the session on mount and seeds the order from its id;
