@@ -4,7 +4,6 @@ import type { Scoped } from "@/lib/db/scoped";
 import type { PrepQuestionRow } from "@/lib/db/scoped/prep-question";
 import type { AudioDeps } from "@/lib/audio/deps";
 import { ttsIdentity, type TtsConfig, type TtsIdentity } from "@/lib/tts/config";
-import type { Voice } from "@/lib/tts/driver";
 import { PREP_COPY } from "./copy";
 import type { PlanSource } from "./plan";
 import { getPrepSettings, resolveVoices, type VoicePair } from "./settings";
@@ -40,20 +39,12 @@ export function audioStatusFor(plan: { total: number; done: number }, ttsOn: boo
 
 export type AudioContext = { identity: TtsIdentity; voices: VoicePair<string>; ttsOn: boolean };
 
-// Saved voices win without asking the provider; otherwise the provider's own
-// list decides (a failed lookup falls back to the local defaults).
+// Saved voices win, otherwise the code defaults. This never asks the provider
+// for its voice list: rendering a page must not make a network call. Only the
+// Settings Voice section fetches that list, on demand.
 export async function audioContext(s: Scoped, deps: Pick<AudioDeps, "tts">, config: TtsConfig | null): Promise<AudioContext> {
   const settings = await getPrepSettings(s);
-  let available: Voice[] = [];
-  const saved = settings.voices.interviewer !== null && settings.voices.candidate !== null;
-  if (!saved && deps.tts) {
-    try {
-      available = await deps.tts.voices();
-    } catch {
-      available = [];
-    }
-  }
-  return { identity: ttsIdentity(config), voices: resolveVoices(settings, available), ttsOn: config !== null && deps.tts !== null };
+  return { identity: ttsIdentity(config), voices: resolveVoices(settings, []), ttsOn: config !== null && deps.tts !== null };
 }
 
 export function toPlanSource(row: PrepQuestionRow): PlanSource {
