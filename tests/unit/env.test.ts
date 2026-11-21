@@ -193,3 +193,19 @@ describe("parseEnv: AI", () => {
     }
   });
 });
+
+describe("parseEnv: STORAGE", () => {
+  it("carries STORAGE, local by default", () => {
+    const env = parseEnv(validSource);
+    expect(env.STORAGE).toEqual({ provider: "local", dir: ".data/storage" });
+  });
+
+  it("adds an invalid storage setting to the same EnvError list", () => {
+    expect(() => parseEnv({ ...validSource, STORAGE_PROVIDER: "gcs" })).toThrow(
+      "Invalid environment variables: STORAGE_PROVIDER",
+    );
+    expect(() => parseEnv({ ...validSource, VERCEL: "1" })).toThrow(
+      "Invalid environment variables: STORAGE_PROVIDER",
+    );
+  });
+});
