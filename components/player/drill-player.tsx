@@ -6,6 +6,7 @@ import Link from "next/link";
 import { startSessionAction } from "@/app/(app)/jobs/[slug]/prep-actions";
 import { DrillSummary } from "@/components/player/drill-summary";
 import { DrillTimer } from "@/components/player/drill-timer";
+import { RecordControl, RecordedPanel, useAnswerRecorder, type MediaEnv, type UploadInput, type UploadResult } from "@/components/player/record-answer";
 import { useSpeaker, type BrowserVoices } from "@/components/player/speaker";
 import { useMark } from "@/components/prep/mark-buttons";
 import { EmptyState } from "@/components/super-ai/empty-state";
@@ -43,7 +44,7 @@ function useWindowKeys(handler: (event: KeyboardEvent) => void) {
   }, []);
 }
 
-function Gap(props: { remaining: number; onDone(): void; onMoreTime(): void }): React.ReactElement {
+function Gap(props: { remaining: number; onDone(): void; onMoreTime(): void; record: React.ReactNode }): React.ReactElement {
   const copy = PREP_COPY.drill;
   useWindowKeys((event) => {
     // On a focused button, Space is that button's own click.
@@ -63,6 +64,7 @@ function Gap(props: { remaining: number; onDone(): void; onMoreTime(): void }): 
           {copy.moreTime}
         </Button>
       </div>
+      {props.record}
       <p className="text-center text-xs text-muted-foreground">{copy.keysHint}</p>
     </div>
   );
@@ -74,6 +76,7 @@ function Reveal(props: {
   onMark(level: MarkLevel): void;
   onSkip(): void;
   onReplay(): void;
+  record: React.ReactNode;
 }): React.ReactElement {
   const { question } = props;
   const copy = PREP_COPY.drill;
@@ -130,6 +133,8 @@ function Reveal(props: {
         {browserVoice ? <p className="text-xs text-muted-foreground">{PREP_COPY.listen.browserVoice}</p> : null}
       </section>
 
+      {props.record}
+
       {question.lastLine ? (
         <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">{copy.lastLine}</span>
@@ -171,6 +176,50 @@ function Reveal(props: {
   );
 }
 
+/** One question's gap and reveal. Keyed by the question, so a recording never outlives it. */
+function QuestionStage(props: {
+  question: DrillQuestion;
+  phase: "gap" | "reveal";
+  remaining: number;
+  opportunityId: string;
+  sessionId: string | null;
+  refused: boolean;
+  onRefused(): void;
+  media?: MediaEnv;
+  upload?: (input: UploadInput) => Promise<UploadResult>;
+  dispatch(event: Parameters<typeof drillReducer>[1]): void;
+  onReplay(): void;
+}): React.ReactElement {
+  const { question, phase, dispatch } = props;
+  const recorder = useAnswerRecorder({
+    phase,
+    opportunityId: props.opportunityId,
+    sessionId: props.sessionId,
+    questionKey: question.questionKey,
+    refused: props.refused,
+    onRefused: props.onRefused,
+    env: props.media,
+    upload: props.upload,
+  });
+  return phase === "gap" ? (
+    <Gap
+      remaining={props.remaining}
+      onDone={() => dispatch({ type: "done" })}
+      onMoreTime={() => dispatch({ type: "more_time" })}
+      record={<RecordControl recorder={recorder} />}
+    />
+  ) : (
+    <Reveal
+      question={question}
+      opportunityId={props.opportunityId}
+      onMark={(level) => dispatch({ type: "mark", level })}
+      onSkip={() => dispatch({ type: "skip" })}
+      onReplay={props.onReplay}
+      record={<RecordedPanel recorder={recorder} />}
+    />
+  );
+}
+
 /**
  * The Drill screen's client shell. Pure state lives in drillReducer; this
  * speaks the steps, runs the one-second gap and starts the session. Nothing
@@ -185,6 +234,9 @@ export function DrillPlayer(props: {
   docRef: string | null;
   speed: number;
   browserVoices: BrowserVoices;
+  // Test seams for the microphone; the browser's own APIs by default.
+  media?: MediaEnv;
+  upload?: (input: UploadInput) => Promise<UploadResult>;
 }): React.ReactElement {
   const { questions, speed } = props;
   const copy = PREP_COPY.drill;
@@ -196,6 +248,9 @@ export function DrillPlayer(props: {
   const [started, setStarted] = React.useState(false);
   const [replays, setReplays] = React.useState(0);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
+  // A refused microphone hides Record my answer for the rest of the session.
+  const [micRefused, setMicRefused] = React.useState(false);
+  const onRefused = React.useCallback(() => setMicRefused(true), []);
   const speaker = useSpeaker({ browserVoices: props.browserVoices });
   const { speak, cancel } = speaker;
   const sessionStarted = React.useRef(false);
@@ -292,20 +347,19 @@ export function DrillPlayer(props: {
           <p className="break-words text-xl font-semibold text-foreground">{question.question}</p>
         )}
 
-        {started && phase === "gap" ? (
-          <Gap
-            remaining={state.remaining}
-            onDone={() => dispatch({ type: "done" })}
-            onMoreTime={() => dispatch({ type: "more_time" })}
-          />
-        ) : null}
-        {started && phase === "reveal" ? (
-          <Reveal
+        {started && (phase === "gap" || phase === "reveal") ? (
+          <QuestionStage
             key={question.questionKey}
             question={question}
+            phase={phase}
+            remaining={state.remaining}
             opportunityId={props.opportunityId}
-            onMark={(level) => dispatch({ type: "mark", level })}
-            onSkip={() => dispatch({ type: "skip" })}
+            sessionId={sessionId}
+            refused={micRefused}
+            onRefused={onRefused}
+            media={props.media}
+            upload={props.upload}
+            dispatch={dispatch}
             onReplay={() => setReplays((n) => n + 1)}
           />
         ) : null}

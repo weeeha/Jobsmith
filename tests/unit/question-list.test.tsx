@@ -30,6 +30,7 @@ function q(n: number, section: string | null, over: Partial<HubQuestion> = {}): 
     unfilled: false,
     hasAnswer: true,
     level: null,
+    recordings: [],
     ...over,
   };
 }

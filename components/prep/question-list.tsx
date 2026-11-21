@@ -7,6 +7,7 @@ import { Play } from "lucide-react";
 
 import { MarkButtons } from "@/components/prep/mark-buttons";
 import { MarkChip } from "@/components/prep/mark-chip";
+import { QuestionRecordings } from "@/components/prep/question-recordings";
 import { ToneChip } from "@/components/fit/fit-chips";
 import { formatDocRef } from "@/lib/artifacts/tabs";
 import { PREP_COPY } from "@/lib/prep/copy";
@@ -80,6 +81,7 @@ export function QuestionList(props: { opportunityId: string; basePath: string; q
                       <MarkChip level={level} />
                     </div>
                   </div>
+                  <QuestionRecordings recordings={q.recordings} />
                   <details>
                     <summary
                       aria-label={`${PREP_COPY.hub.markDisclosure} question ${q.number}`}

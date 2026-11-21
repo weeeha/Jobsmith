@@ -1,6 +1,9 @@
 "use server";
 
 import { z } from "zod";
+
+import { deleteRecording } from "@/lib/audio/recordings";
+import { getStorage } from "@/lib/storage";
 import { requireUser } from "@/lib/auth/session";
 import { scopedFor } from "@/lib/db/scoped";
 import { markInputSchema, markQuestion } from "@/lib/prep/marks";
@@ -89,4 +92,12 @@ export async function endSessionAction(input: {
   }
   const result = await endSession(scopedFor(user.id), parsed.data);
   return result.ok ? ok({ eventWritten: result.data.eventWritten }) : result;
+}
+
+export async function deleteRecordingAction(assetId: string): Promise<Result<null, string>> {
+  const user = await requireUser();
+  const parsed = z.uuid().safeParse(assetId);
+  if (!parsed.success) return fail("not_found", "This recording no longer exists.");
+  const result = await deleteRecording(scopedFor(user.id), { storage: getStorage() }, parsed.data);
+  return result.ok ? ok(null) : result;
 }

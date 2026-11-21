@@ -5,6 +5,7 @@ import { summarize, type ConfidenceSummary } from "./summary";
 import { PARSED_KINDS, type MarkLevel } from "./values";
 
 import { planSegments } from "@/lib/audio/segments";
+import { recordingsForJob } from "@/lib/audio/recordings";
 import { audioStatusFor, toPlanSource, type AudioContext, type AudioStatus } from "./audio-status";
 
 export type { AudioStatus } from "./audio-status";
@@ -35,6 +36,8 @@ export type HubQuestion = {
   unfilled: boolean;
   hasAnswer: boolean;
   level: MarkLevel | null;
+  // The user's kept recordings of an answer to this question, newest first.
+  recordings: { assetId: string; createdAt: string }[];
 };
 
 export type PitchCard = { key: string; title: string };
@@ -122,6 +125,7 @@ export async function loadPrepHub(
     if (staged.length > 0) groups.push({ stageId: stage.id, heading: stage.label, banks: staged });
   }
 
+  const recordings = await recordingsForJob(s, opportunityId);
   const questions: HubQuestion[] = rows.map((r) => ({
     id: r.id,
     artifactKey: r.artifactKey,
@@ -133,6 +137,7 @@ export async function loadPrepHub(
     unfilled: r.unfilled,
     hasAnswer: r.hasAnswer,
     level: levels.get(r.questionKey) ?? null,
+    recordings: (recordings.get(r.questionKey) ?? []).map((rec) => ({ assetId: rec.assetId, createdAt: rec.createdAt.toISOString() })),
   }));
 
   // A bank that only carries the "no questions" notice does not make the job

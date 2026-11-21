@@ -710,13 +710,22 @@ describe("segment writers", () => {
     return out;
   }
 
-  it("only lib/audio/segments.ts writes tts_segment rows and their assets", () => {
+  // recordings.ts is the one other asset writer: the user's kept recordings.
+  const EXEMPT = [path.join("lib", "audio", "segments.ts"), path.join("lib", "audio", "recordings.ts")];
+
+  it("only lib/audio/segments.ts writes tts_segment rows and their assets, and lib/audio/recordings.ts the recording assets", () => {
     const root = path.resolve(__dirname, "../..");
     const writers = /\b(ttsSegment\.(insert|update|deleteByIds)|asset\.(insert|delete))\b/;
     const offenders = [...walk(path.join(root, "lib")), ...walk(path.join(root, "app"))]
-      .filter((file) => !file.endsWith(path.join("lib", "audio", "segments.ts")))
+      .filter((file) => !EXEMPT.some((exempt) => file.endsWith(exempt)))
       .filter((file) => writers.test(readFileSync(file, "utf8")))
       .map((file) => path.relative(root, file));
     expect(offenders).toEqual([]);
   });
+
+  it("lib/audio/recordings.ts writes no tts_segment rows", () => {
+    const source = readFileSync(path.resolve(__dirname, "../../lib/audio/recordings.ts"), "utf8");
+    expect(source).not.toMatch(/ttsSegment\.(insert|update|deleteByIds)/);
+  });
 });
+

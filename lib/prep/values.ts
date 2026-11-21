@@ -43,3 +43,6 @@ export const AUDIO_PUT_MAX_SEGMENTS = 50;
 
 // Drill (spec 5.4): how many questions a run takes unless a count or a section is given.
 export const DRILL_DEFAULT_COUNT = 10;
+
+// One kept recording of the user's own answer (spec 5.4): the largest body the upload route accepts.
+export const RECORDING_MAX_BYTES = 8_388_608;
