@@ -1,7 +1,7 @@
 import type { ArtifactRow, Scoped } from "@/lib/db/scoped";
 import type { PrepQuestionFields } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
-import { makeIncludeResolver } from "./includes";
+import { loadIncludeDocs, makeIncludeResolver } from "./includes";
 import { parseQuestionBank } from "./parse";
 import { PARSED_KINDS } from "./values";
 
@@ -27,27 +27,9 @@ export async function rebuildForArtifact(
   const started = Date.now();
 
   // Other documents are only read when this body asks for one.
-  const docs: { key: string; bodyMd: string }[] = [];
-  if (artifact.bodyMd.includes("{{include")) {
-    const opportunity = await tx.opportunity.getById(opportunityId);
-    const metas = [
-      ...(await tx.artifact.listLatestForOpportunity(opportunityId)).map((m) => ({
-        ref: { opportunityId } as const,
-        meta: m,
-      })),
-      ...(opportunity
-        ? (await tx.artifact.listLatestForCompany(opportunity.companyId)).map((m) => ({
-            ref: { companyId: opportunity.companyId } as const,
-            meta: m,
-          }))
-        : []),
-    ];
-    for (const { ref, meta } of metas) {
-      if (meta.key === artifact.key || !isParsedKind(meta.kind)) continue;
-      const row = await tx.artifact.getLatest(ref, meta.key);
-      if (row) docs.push({ key: row.key, bodyMd: row.bodyMd });
-    }
-  }
+  const docs = artifact.bodyMd.includes("{{include")
+    ? await loadIncludeDocs(tx, opportunityId, artifact.key)
+    : [];
 
   const parsed = parseQuestionBank(artifact.bodyMd, { resolveInclude: makeIncludeResolver(docs) });
   const fields: PrepQuestionFields[] = parsed.questions.map((q) => ({

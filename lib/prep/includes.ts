@@ -1,3 +1,5 @@
+import type { Scoped } from "@/lib/db/scoped";
+import { PARSED_KINDS } from "./values";
 import { parseQuestionBank, type IncludeResolver, type ParsedBlock } from "./parse";
 
 function stripMd(fileName: string): string {
@@ -35,4 +37,34 @@ export function makeIncludeResolver(docs: { key: string; bodyMd: string }[]): In
     if (!question) return null;
     return question.blocks.filter((b) => b.spoken);
   };
+}
+
+// The question documents an include may name: the job's own and its company's,
+// latest version of each, without the document being read.
+export async function loadIncludeDocs(
+  s: Scoped,
+  opportunityId: string,
+  excludeKey: string,
+): Promise<{ key: string; bodyMd: string }[]> {
+  const parsedKinds: readonly string[] = PARSED_KINDS;
+  const opportunity = await s.opportunity.getById(opportunityId);
+  const metas = [
+    ...(await s.artifact.listLatestForOpportunity(opportunityId)).map((meta) => ({
+      ref: { opportunityId } as const,
+      meta,
+    })),
+    ...(opportunity
+      ? (await s.artifact.listLatestForCompany(opportunity.companyId)).map((meta) => ({
+          ref: { companyId: opportunity.companyId } as const,
+          meta,
+        }))
+      : []),
+  ];
+  const docs: { key: string; bodyMd: string }[] = [];
+  for (const { ref, meta } of metas) {
+    if (meta.key === excludeKey || !parsedKinds.includes(meta.kind)) continue;
+    const row = await s.artifact.getLatest(ref, meta.key);
+    if (row) docs.push({ key: row.key, bodyMd: row.bodyMd });
+  }
+  return docs;
 }
