@@ -224,4 +224,22 @@ describe("loadPrepHub", () => {
       await close();
     }
   });
+
+  it("each bank carries its audio status from the segment plan when an audio context is given", async () => {
+    const { s, close, opportunityId } = await setup("hub-audio@example.com");
+    try {
+      await push(s, opportunityId, [doc("bank", "question_bank", SMALL_BANK)]);
+      const docs = await s.artifact.listLatestForOpportunity(opportunityId);
+      const stages = await s.stage.listForOpportunity(opportunityId);
+      const audio = { identity: { provider: "fake", model: "fake-tts" }, voices: { interviewer: "Vivian", candidate: "Ryan" }, ttsOn: true };
+      const withTts = await loadPrepHub(s, { opportunityId, docs, stages, audio });
+      expect(withTts.banks[0].audio).toEqual({ state: "partial", done: 0, total: 4 });
+      const off = await loadPrepHub(s, { opportunityId, docs, stages, audio: { ...audio, ttsOn: false } });
+      expect(off.banks[0].audio).toEqual({ state: "browser" });
+      const none = await loadPrepHub(s, { opportunityId, docs, stages });
+      expect(none.banks[0].audio).toEqual({ state: "browser" });
+    } finally {
+      await close();
+    }
+  });
 });

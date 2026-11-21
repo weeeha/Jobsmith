@@ -1,11 +1,12 @@
 import Link from "next/link";
 
+import { AudioPanel } from "@/components/prep/audio-panel";
 import { BankWarnings } from "@/components/prep/bank-warnings";
 import { RebuildButton } from "@/components/prep/rebuild-button";
 import { buttonVariants } from "@/components/ui/button";
 import { ToneChip } from "@/components/fit/fit-chips";
 import { formatDocRef } from "@/lib/artifacts/tabs";
-import { PREP_COPY, questionCountLabel, VOICE_LINE } from "@/lib/prep/copy";
+import { PREP_COPY, questionCountLabel } from "@/lib/prep/copy";
 import type { BankCard as BankCardModel } from "@/lib/prep/hub";
 import { summaryLine } from "@/lib/prep/summary";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ export function BankCard(props: {
   opportunityId: string;
   basePath: string;
   selected: boolean;
+  ttsOn: boolean;
 }): React.ReactElement {
   const { card } = props;
   const href = `${props.basePath}?tab=prep&doc=${formatDocRef({ scope: "opportunity", key: card.key })}`;
@@ -44,19 +46,7 @@ export function BankCard(props: {
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{PREP_COPY.audio.browser}</span>
-        {card.audio.state === "browser" ? (
-          <>
-            {" · "}
-            {VOICE_LINE.before}
-            <Link href="/settings" className="text-foreground underline underline-offset-4">
-              {VOICE_LINE.link}
-            </Link>
-            {VOICE_LINE.after}
-          </>
-        ) : null}
-      </p>
+      <AudioPanel opportunityId={props.opportunityId} docKey={card.key} status={card.audio} ttsOn={props.ttsOn} />
 
       <div className="flex flex-wrap items-center gap-2">
         {hasQuestions ? (

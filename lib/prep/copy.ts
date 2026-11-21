@@ -15,6 +15,21 @@ export const PREP_COPY = {
     'This document has no questions Jobsmith can read. A question is a line like `### 1. "Tell me about yourself"`.',
   audio: {
     browser: "Browser voice",
+    // Proposed. The hub's audio line and panel.
+    ready: "Audio ready",
+    preparing: "Preparing audio",
+    paused: "Paused, trying again in a minute",
+    readyAnnouncement: "Audio ready.",
+    prepare: "Prepare audio",
+    delete: "Delete audio",
+    deleteTitle: "Delete audio clips?",
+    deleteBody:
+      "This removes clips that no current question, library item or pitch needs, in every job. Clips still in use stay, and you can prepare any of them again.",
+    deleteConfirm: "Delete clips",
+    deleteCancel: "Keep clips",
+    deletedAnnouncement: (count: number) => (count === 1 ? "Deleted 1 clip." : `Deleted ${count} clips.`),
+    prepareFailed: "Could not prepare the audio.",
+    deleteFailed: "Could not delete the audio.",
   },
   buttons: {
     quickFire: "Quick-fire",

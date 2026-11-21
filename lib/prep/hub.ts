@@ -4,8 +4,10 @@ import { parseQuestionBank, type ParseWarning } from "./parse";
 import { summarize, type ConfidenceSummary } from "./summary";
 import { PARSED_KINDS, type MarkLevel } from "./values";
 
-// Task 25 widens this union with the audio states.
-export type AudioStatus = { state: "browser" };
+import { planSegments } from "@/lib/audio/segments";
+import { audioStatusFor, toPlanSource, type AudioContext, type AudioStatus } from "./audio-status";
+
+export type { AudioStatus } from "./audio-status";
 
 export type BankCard = {
   key: string;
@@ -46,9 +48,16 @@ function isParsedKind(kind: string): kind is "question_bank" | "call_card" {
   return (PARSED_KINDS as readonly string[]).includes(kind);
 }
 
+async function bankAudio(s: Scoped, keyRows: Parameters<typeof toPlanSource>[0][], audio: AudioContext | undefined): Promise<AudioStatus> {
+  if (!audio || keyRows.length === 0) return { state: "browser" };
+  const plan = await planSegments(s, { sources: keyRows.map(toPlanSource), identity: audio.identity, voices: audio.voices });
+  return audioStatusFor(plan, audio.ttsOn);
+}
+
 export async function loadPrepHub(
   s: Scoped,
-  input: { opportunityId: string; docs: ArtifactMeta[]; stages: StageRow[] },
+  // Without an audio context (TTS and voices unknown) every bank reads as the browser voice.
+  input: { opportunityId: string; docs: ArtifactMeta[]; stages: StageRow[]; audio?: AudioContext },
 ): Promise<PrepHubView> {
   const { opportunityId } = input;
   const rows = await s.prepQuestion.listForJob(opportunityId);
@@ -92,7 +101,7 @@ export async function loadPrepHub(
       warnings: parsed.warnings,
       notice: parsed.questions.length === 0 ? "no_questions" : null,
       needsRebuild,
-      audio: { state: "browser" },
+      audio: await bankAudio(s, keyRows, input.audio),
     });
   }
 

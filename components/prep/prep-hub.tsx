@@ -6,6 +6,9 @@ import { DEFAULT_KIND_FOR_TAB } from "@/lib/artifacts/kinds";
 import type { DocRef } from "@/lib/artifacts/tabs";
 import type { ArtifactMeta, Scoped, StageRow } from "@/lib/db/scoped";
 import { PREP_COPY } from "@/lib/prep/copy";
+import { audioDeps } from "@/lib/audio/deps";
+import { env } from "@/lib/env";
+import { audioContext } from "@/lib/prep/audio-status";
 import { loadPrepHub } from "@/lib/prep/hub";
 
 export async function PrepHub(props: {
@@ -17,10 +20,12 @@ export async function PrepHub(props: {
   docRef: DocRef | null;
   basePath: string;
 }): Promise<React.ReactElement> {
+  const audio = await audioContext(props.s, audioDeps(), env().TTS);
   const view = await loadPrepHub(props.s, {
     opportunityId: props.opportunityId,
     docs: props.docs,
     stages: props.stages,
+    audio,
   });
 
   // A question bank with no readable question still shows its card, with the
@@ -72,6 +77,7 @@ export async function PrepHub(props: {
                 opportunityId={props.opportunityId}
                 basePath={props.basePath}
                 selected={selected?.key === card.key}
+                ttsOn={audio.ttsOn}
               />
             ))}
           </ul>

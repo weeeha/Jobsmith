@@ -123,3 +123,9 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   timed-recall card. The card has no motion of its own (digits only), so `prefers-reduced-motion`
   needs nothing beyond the global rule; it is keyboard complete (space or Enter for next, keys 1 to
   3 mark) with a visible Next button for everyone else.
+- `components/prep/audio-panel.tsx` (Prep hub audio line): hand-written, built from `Button`, `Dialog`
+  and the hub card's text sizes. It is the bank card's audio line ("Audio ready", "Audio: 61 of 96
+  clips", "Browser voice") with a Prepare audio button that calls the batch action on the fit card's
+  rhythm (`FIT_POLL_MS`, `FIT_POLL_MAX`, one minute after a rate limit) and a Delete audio button
+  behind a confirm dialog. Progress is text, not a bar, so nothing animates; "Audio ready." is announced
+  once through the live announcer. The registry has no batch-progress pattern.
