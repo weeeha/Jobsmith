@@ -34,6 +34,17 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 5 | In `applyUpserts` the rebuild runs once after all writes of the call, inside the same transaction | An include then finds a document pushed in the same call |
 | 5 | Known limit: changing document B does not rebuild document A that includes B | The plan does not ask for it; the hub re-parse in Task 9 shows the difference |
 | 1, 2 | No red phase was run for Tasks 1 and 2 (schema, helpers and tests were written together) | Reported by the executor; the tests pass and were rerun by the reviewer |
+| 6 | `backfillPrep` counts only jobs that rebuilt; a failing job is skipped and logged by id; a dry run does the real rebuild in a rolled-back transaction | Counts of a dry run then match a real run |
+| 7 | A library mark with an `opportunityId`, or a job mark without one, returns `invalid` | The plan left the mixed cases open |
+| 8 | Known gap: two simultaneous `endSession` calls on one session could both write a timeline event | The scoped update has no "ended_at is null" guard; not fixed in milestone 6 |
+| 9 | `needsRebuild` is true when the stored row count differs from the parse or a row carries an older artifact version | The plan said only "rows missing" |
+| 9, 10 | No action calls `revalidatePath`; the hub calls `router.refresh()` after a mark or a rebuild | The job page reads the database on every request and has no cache to invalidate |
+| 10 | The selected bank reuses the existing `?doc=job:<key>` parameter | Card selection and the document list stay in sync |
+| 11 | The Quick-fire page creates nothing; the client starts the session once on mount and seeds the pick from the session id | The seed must come from the session |
+| 11 | Quick-fire keys: Space or Enter for next, 1 to 3 for Shaky, Okay, Solid, after the reveal only | Not fixed by the spec; a visible "Next question" button does the same |
+| 12 | Home's "N of M solid" counts marks only for questions the job's banks still hold (`keysByOpportunity`) | Counting all marks could show more solid than questions |
+| 10 to 12 | Extra copy marked "Proposed" in `lib/prep/copy.ts` (`hub.*`, `quickFire.*`, `homeNoPrep`, `VOICE_LINE`) | No Figma drafts; one file to replace |
+| 14 | The Postgres for the end-to-end suite is the project's compose container, started through colima, with a database of its own (`jobsmith_m6_e2e`) on port 5432; the app runs on port 3460 | Port 3000 belongs to another project on this machine |
 
 ## Skipped live checks
 
@@ -44,3 +55,5 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | Milestone | Tasks | Commits | Checked by the reviewer |
 |---|---|---|---|
 | 6 | 1 to 5 | `7a0612f` to `e5ae55e` | 163 tests rerun (Prep, isolation, migrations, artifact upsert); the diff of `lib/artifacts/upsert.ts` and `edit.ts` read |
+| 6 | 6 to 9 | `8b1e17b` to `f8cefc4` | 73 tests rerun; `requireUser` in all five actions; no database client import under `app/` |
+| 6 | 10 to 13 | `e33ea9d` to `d7479fe` | 49 tests rerun; nothing seen in a browser at this point |
