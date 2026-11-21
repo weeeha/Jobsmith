@@ -148,3 +148,7 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   the device voices come from `speechSynthesis.getVoices()` and refill on `voiceschanged`, and "Delete
   all audio" sits behind a confirm dialog with the same shape as the job page's. The registry has no
   settings form with a device-dependent list.
+- Milestone 7 end to end (`tests/e2e/prep-voice.spec.ts`): no new UI. The Listen screen, the hub's audio
+  panel and the Settings Voice section are scanned with axe in light and dark through the existing
+  `scanForViolations`, so the voice specs add no component or token of their own. `stub-speech.ts` and
+  `fake-speech-server.ts` are test-only helpers under `tests/e2e/`.

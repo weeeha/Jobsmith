@@ -80,19 +80,22 @@ test("the CLI pushes a real packet, a second push changes nothing, the app reads
     await scanForViolations(page, "documents tab with documents", testInfo);
 
     await page.goto(`/jobs/${slug}?tab=prep`);
-    await expect(page.getByRole("heading", { name: "Recruiter screen" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Hiring manager" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: full answers" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: recruiter screen questions" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: hiring manager call card" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Portfolio walkthrough pitch" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: round two debrief" })).toBeVisible();
-    await page.getByRole("link", { name: "Northwind Labs: hiring manager call card" }).click();
+    const docs = page.getByRole("navigation", { name: "Prep documents" });
+    await expect(docs.getByRole("heading", { name: "Recruiter screen" })).toBeVisible();
+    await expect(docs.getByRole("heading", { name: "Hiring manager" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: full answers" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: recruiter screen questions" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: hiring manager call card" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Portfolio walkthrough pitch" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: round two debrief" })).toBeVisible();
+    await docs.getByRole("link", { name: "Northwind Labs: hiring manager call card" }).click();
     await expect(page.getByText("Open with the onboarding redesign story.")).toBeVisible();
+    // The hub above the list has its own cards and a Listen link per pitch, so
+    // the document list is scoped by its navigation name.
     // The pitch carries its own title and stage in frontmatter rather than
     // the usual derived-from-filename kind, so opening it proves that path
     // too, alongside the body itself landing under Prep.
-    await page.getByRole("link", { name: "Portfolio walkthrough pitch" }).click();
+    await docs.getByRole("link", { name: "Portfolio walkthrough pitch" }).click();
     await expect(page.getByText("One sentence framing of the case study.")).toBeVisible();
     await scanForViolations(page, "prep tab with documents", testInfo);
   });

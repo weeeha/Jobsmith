@@ -191,6 +191,9 @@ each file:
 `--dry-run` asks the server what would happen and prints it without saving anything. Pushing the
 same folder twice is always safe: unchanged content reports `unchanged` and changes nothing.
 
+`jobsmith audio <slug>` makes the audio clips for a job's question banks and pitches on your computer
+and uploads them; see Voice below.
+
 Credentials live in a different file from the suffix map on purpose: one is per machine
 (`~/.config/jobsmith/config.json`), the other is per content folder (`jobsmith.config.json`, next to
 the markdown files themselves, so a folder synced between machines carries its own mapping with it).
@@ -203,7 +206,7 @@ question bank with the question count and a confidence line (`0 solid · 0 okay 
 the questions grouped by section, a chip on the ones still unfilled, and Shaky, Okay and Solid marks
 you set per question. A mark stays when the file is pushed again with changed text. Quick-fire runs a
 round of up to ten questions: five seconds to recall the shape of the answer, then the Spine, then a
-mark. It uses no audio. A finished round leaves a line on the job's timeline.
+mark. It uses no audio (Listen does; see Voice). A finished round leaves a line on the job's timeline.
 
 Questions are read from the pushed documents into their own table. If a row is ever missing, the
 card shows a Rebuild questions button. To fill the table for documents pushed before it existed, run
@@ -337,6 +340,33 @@ cannot lock every visitor out. Clients with a trusted address keep the
 tighter per-client limit below.
 
 `AUTH_SIGNIN_MAX_PER_MINUTE` is optional and defaults to 5.
+
+## Voice
+
+The Listen screen reads a question bank or a pitch aloud: the interviewer's question in one voice, your
+answer in another, with a transcript that follows along, speed from 0.8 to 1.5, and Shaky, Okay and Solid
+marks that never stop playback. With no voice provider it speaks through your browser's own voices, and
+Settings, Voice picks which ones. With a provider, a bank card's Prepare audio button makes the clips once and
+stores them; changing a voice later keeps the old clips.
+
+Two groups of environment variables, all optional, all listed with no values in `.env.example`:
+
+- **Speech provider**, off unless `TTS_PROVIDER` is set: `openai_compatible` (any server with
+  `/v1/audio/speech`, such as a local Qwen3-TTS; needs `TTS_BASE_URL`, optional `TTS_API_KEY`), `gemini`
+  (`GEMINI_API_KEY`), `elevenlabs` (`ELEVENLABS_API_KEY` and `TTS_MODEL`) or `fake` (silent clips for the test
+  suite, nothing leaves the machine). `TTS_MODEL` overrides the provider's default model. Unset means the
+  server never sends text to a speech provider, whatever other keys are in the environment.
+- **Clip storage**: `STORAGE_PROVIDER` is `local` (the default; files under `STORAGE_LOCAL_DIR`, default
+  `.data/storage`; refused on Vercel), `memory` (tests only, refused in production), `s3` (`S3_BUCKET`,
+  `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_ENDPOINT` plus `S3_FORCE_PATH_STYLE=true` for
+  MinIO or R2) or `vercel_blob` (`BLOB_READ_WRITE_TOKEN`; the store must be private). No clip is public: every
+  one is served through `/api/assets/<id>` to the signed-in owner only, with Range support.
+
+`jobsmith audio <slug> [--tts-url <base>] [--voice-interviewer <v>] [--voice-candidate <v>]` makes the missing
+clips on your own computer and uploads them, so a deployed app needs no speech provider of its own. The
+default speech URL is `http://127.0.0.1:8890/v1`, where a local Qwen3-TTS server listens; `--tts-url` names
+another OpenAI-compatible server. Text goes only to that address. If the server wants a key, set
+`JOBSMITH_TTS_API_KEY` in the environment of the command. Run it again to retry any clip that failed.
 
 ## Scripts
 

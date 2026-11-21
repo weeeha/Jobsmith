@@ -122,7 +122,8 @@ export function ListenPlayer(props: {
         />
       </header>
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
+      {/* The app shell already provides the page's one main landmark. */}
+      <div className="flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
         {backgroundStopped && !noticeDismissed ? (
           <p role="status" className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground">
             {copy.backgroundStopped}
@@ -141,7 +142,7 @@ export function ListenPlayer(props: {
           onRegenerate={regenerate}
           regenerating={regenerating}
         />
-      </main>
+      </div>
 
       {!chapters && question ? (
         <footer className="sticky bottom-0 z-10 border-t border-border bg-background px-4 py-3 sm:px-6">
