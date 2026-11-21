@@ -11,20 +11,20 @@ import { markedAnnouncement, PREP_COPY } from "@/lib/prep/copy";
 import { MARK_LEVELS, type MarkLevel, type MarkScope } from "@/lib/prep/values";
 import { messageFor } from "@/lib/pipeline/messages";
 
-/**
- * The three mark buttons, shared by the hub and the players. The caller owns
- * what happens after a mark (a refresh, the next card); this only writes the
- * mark, announces it and reports the level the server kept.
- */
-export function MarkButtons(props: {
+type MarkTarget = {
   questionKey: string;
   opportunityId: string | null;
   scope: MarkScope;
-  current: MarkLevel | null;
   onMarked: (level: MarkLevel) => void;
   drilled?: boolean;
-  className?: string;
-}): React.ReactElement {
+};
+
+/**
+ * Writes one mark, announces it and reports the level the server kept. The
+ * caller owns what happens after (a refresh, the next card). Shared by the
+ * buttons and by keyboard shortcuts on the players.
+ */
+export function useMark(target: MarkTarget): { mark: (level: MarkLevel) => void; pending: boolean } {
   const announce = useAnnounce();
   const [pending, startTransition] = React.useTransition();
 
@@ -32,25 +32,32 @@ export function MarkButtons(props: {
     startTransition(async () => {
       try {
         const result = await markQuestionAction({
-          opportunityId: props.opportunityId,
-          scope: props.scope,
-          questionKey: props.questionKey,
+          opportunityId: target.opportunityId,
+          scope: target.scope,
+          questionKey: target.questionKey,
           level,
           markedAt: new Date().toISOString(),
-          drilled: props.drilled ?? false,
+          drilled: target.drilled ?? false,
         });
         if (!result.ok) {
           toast.error(result.message);
           return;
         }
         announce(markedAnnouncement(result.data.level));
-        props.onMarked(result.data.level);
+        target.onMarked(result.data.level);
       } catch (error) {
         console.error("mark failed", error);
         toast.error(`${PREP_COPY.hub.markFailed} ${messageFor("unexpected")}`);
       }
     });
   }
+
+  return { mark, pending };
+}
+
+/** The three mark buttons, shared by the hub and the players. */
+export function MarkButtons(props: MarkTarget & { current: MarkLevel | null; className?: string }): React.ReactElement {
+  const { mark, pending } = useMark(props);
 
   return (
     <div role="group" aria-label={PREP_COPY.hub.markGroup} className={props.className ?? "flex flex-wrap gap-2"}>

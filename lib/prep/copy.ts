@@ -42,6 +42,20 @@ export const PREP_COPY = {
     rebuildFailed: "Could not rebuild the questions.",
     markFailed: "Could not save the mark.",
   },
+  // Proposed. The Quick-fire screen's own labels.
+  quickFire: {
+    next: "Next question",
+    countdownAnnounce: "Five seconds. Recall the shape of your answer.",
+    spineLabel: "Spine",
+    summaryHeading: "This round",
+    noMark: "No mark",
+    back: "Back to Prep",
+    startFailed: "Could not start the round.",
+    retry: "Try again",
+    starting: "Starting the round.",
+    keysHint: "Space or Enter for the next question. 1, 2 and 3 mark Shaky, Okay and Solid.",
+    sessionEndFailed: "Could not save the round.",
+  },
   // Proposed.
   quickFireEmpty: "Nothing to practice yet. Quick-fire needs questions that have a Spine.",
   toTheBrowserVoiceLine: `${VOICE_LINE.before}${VOICE_LINE.link}${VOICE_LINE.after}`,
@@ -57,4 +71,8 @@ export function markedAnnouncement(level: "shaky" | "okay" | "solid"): string {
 
 export function rebuiltAnnouncement(rows: number): string {
   return rows === 1 ? "Rebuilt 1 question." : `Rebuilt ${rows} questions.`;
+}
+
+export function quickFireProgress(position: number, total: number): string {
+  return `Question ${position} of ${total}`;
 }

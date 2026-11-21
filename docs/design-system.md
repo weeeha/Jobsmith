@@ -108,3 +108,11 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   question-list or confidence-mark pattern. After a write the client calls `router.refresh()`;
   the prep actions never `revalidatePath`, because the job page reads the database on every
   request (it calls `requireUser()`, which reads cookies) and has no server cache to invalidate.
+- `components/player/` (Quick-fire, and the shared home of the later Listen and Drill players):
+  hand-written, built from `Button`, `EmptyState`, `MarkButtons` and `MarkChip`. `quick-fire-round.tsx`
+  is the client shell that starts the session on mount and seeds the order from its id;
+  `quick-fire-card.tsx` is the question, countdown, Spine reveal and round summary on the Home side
+  cards' shell. `use-countdown.ts` is a one-second countdown hook. The registry has no
+  timed-recall card. The card has no motion of its own (digits only), so `prefers-reduced-motion`
+  needs nothing beyond the global rule; it is keyboard complete (space or Enter for next, keys 1 to
+  3 mark) with a visible Next button for everyone else.

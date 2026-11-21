@@ -1,4 +1,4 @@
-import { QUICK_FIRE_COUNT } from "./values";
+import { QUICK_FIRE_COUNT, type MarkLevel } from "./values";
 
 export { QUICK_FIRE_COUNT, QUICK_FIRE_SECONDS } from "./values";
 
@@ -32,4 +32,42 @@ export function pickQuickFire<T>(items: readonly T[], seed: number, count: numbe
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy.slice(0, Math.max(0, count));
+}
+
+export type QuickFireSource = {
+  questionKey: string;
+  artifactKey: string;
+  number: number;
+  question: string;
+  spine: string | null;
+};
+
+export type QuickFirePoolItem = {
+  questionKey: string;
+  number: number;
+  question: string;
+  spine: string;
+  level: MarkLevel | null;
+};
+
+// Quick-fire trains the Spine, so a row without one is not in the pool.
+// `artifactKey` narrows the pool to one bank; null takes every bank.
+export function quickFirePool(
+  rows: readonly QuickFireSource[],
+  levels: ReadonlyMap<string, MarkLevel>,
+  artifactKey: string | null,
+): QuickFirePoolItem[] {
+  const out: QuickFirePoolItem[] = [];
+  for (const r of rows) {
+    if (artifactKey !== null && r.artifactKey !== artifactKey) continue;
+    if (r.spine === null || r.spine.trim() === "") continue;
+    out.push({
+      questionKey: r.questionKey,
+      number: r.number,
+      question: r.question,
+      spine: r.spine,
+      level: levels.get(r.questionKey) ?? null,
+    });
+  }
+  return out;
 }
