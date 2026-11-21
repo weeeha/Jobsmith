@@ -2,6 +2,8 @@ import { env } from "@/lib/env";
 import type { Storage } from "./driver";
 import { createLocalStorage } from "./local";
 import { createMemoryStorage } from "./memory";
+import { createS3Storage } from "./s3";
+import { createVercelBlobStorage } from "./vercel-blob";
 
 export type { Storage } from "./driver";
 export { StorageError } from "./driver";
@@ -24,9 +26,12 @@ export function getStorage(): Storage {
       cached = createMemoryStorage(map);
       break;
     }
-    default:
-      // The s3 and vercel_blob cases arrive with Task 16.
-      throw new Error(`storage provider ${config.provider} is not available yet`);
+    case "s3":
+      cached = createS3Storage(config);
+      break;
+    case "vercel_blob":
+      cached = createVercelBlobStorage(config.token);
+      break;
   }
   return cached;
 }
