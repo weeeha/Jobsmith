@@ -7,6 +7,12 @@ describe("toSpokenText", () => {
     expect(toSpokenText("__Say__ _this_ and ***both***")).toBe("Say this and both");
   });
 
+  it("keeps underscores inside words and still unwraps word-boundary emphasis", () => {
+    expect(toSpokenText("Use snake_case_word here")).toBe("Use snake_case_word here");
+    expect(toSpokenText("Say _emphasis_ and __strong__ now")).toBe("Say emphasis and strong now");
+    expect(toSpokenText("Fake error: tts_rate_limited")).toBe("Fake error: tts_rate_limited");
+  });
+
   it("keeps a link's text and drops its address", () => {
     expect(toSpokenText("See [the docs](https://example.com/a?b=1) now")).toBe("See the docs now");
   });
