@@ -16,8 +16,14 @@ async function listTsFiles(dir: string): Promise<string[]> {
   return files;
 }
 
+// The CLI shares the wire constants, and for `jobsmith audio` the clip
+// preparation and the default speech address. Those modules import only each
+// other, the Result type and the MP3 encoder (cli-bundle.test.ts proves the
+// bundle holds nothing else).
+const SHARED_MODULES = new Set(["@/lib/bridge/wire", "@/lib/audio/normalize", "@/lib/tts/config"]);
+
 describe("cli/src import rule", () => {
-  it("imports only node: builtins, relative files, or @/lib/bridge/wire", async () => {
+  it("imports only node: builtins, relative files, or the shared leaf modules", async () => {
     const root = path.resolve(import.meta.dirname, "../../cli/src");
     const files = await listTsFiles(root);
     // A folder that exists but is somehow empty would make every assertion
@@ -31,7 +37,7 @@ describe("cli/src import rule", () => {
       const text = await readFile(file, "utf8");
       for (const match of text.matchAll(importLine)) {
         const spec = match[1]!;
-        const allowed = spec.startsWith("node:") || spec.startsWith(".") || spec === "@/lib/bridge/wire";
+        const allowed = spec.startsWith("node:") || spec.startsWith(".") || SHARED_MODULES.has(spec);
         if (!allowed) {
           offenders.push(`${path.relative(root, file)}: "${spec}"`);
         }
