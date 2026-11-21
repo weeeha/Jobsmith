@@ -26,6 +26,11 @@ function sections(questions: HubQuestion[]): Section[] {
   return out;
 }
 
+function drillSectionHref(basePath: string, artifactKey: string, section: string): string {
+  const query = new URLSearchParams({ doc: formatDocRef({ scope: "opportunity", key: artifactKey }), section });
+  return `${basePath}/drill?${query.toString()}`;
+}
+
 export function QuestionList(props: { opportunityId: string; basePath: string; questions: HubQuestion[] }): React.ReactElement {
   const router = useRouter();
   // A mark shows at once; the refresh brings the card summaries in line.
@@ -41,7 +46,16 @@ export function QuestionList(props: { opportunityId: string; basePath: string; q
       {sections(props.questions).map((section, si) => (
         <div key={`${section.heading ?? "none"}-${si}`} className="flex flex-col gap-1">
           {section.heading ? (
-            <h4 className="text-sm font-medium text-muted-foreground">{section.heading}</h4>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <h4 className="min-w-0 break-words text-sm font-medium text-muted-foreground">{section.heading}</h4>
+              <Link
+                href={drillSectionHref(props.basePath, section.items[0].artifactKey, section.heading)}
+                aria-label={PREP_COPY.drill.sectionLabel(section.heading)}
+                className="inline-flex min-h-8 items-center rounded-md px-1 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {PREP_COPY.drill.section}
+              </Link>
+            </div>
           ) : null}
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {section.items.map((q) => {

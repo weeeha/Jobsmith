@@ -148,6 +148,18 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   the device voices come from `speechSynthesis.getVoices()` and refill on `voiceschanged`, and "Delete
   all audio" sits behind a confirm dialog with the same shape as the job page's. The registry has no
   settings form with a device-dependent list.
+- `components/player/` (Drill screen): hand-written, built from `Button`, `buttonVariants`, `EmptyState`,
+  `MarkChip` and the hub's card shell. `drill-player.tsx` is the client shell (a Start card, the hidden
+  question, the gap, the reveal with the Spine first, the three large mark buttons and Skip);
+  `drill-timer.tsx` is the countdown as a `role="timer"` with one polite status that speaks only at 30 and
+  10 seconds left; `drill-summary.tsx` is the marks given, what is still shaky and "Drill the shaky ones
+  again". The pure loop lives in `lib/prep/drill-state.ts`, the order in `lib/prep/order.ts`. The mark
+  buttons are not `MarkButtons`: that component shows a pressed state for a standing mark and sits in a
+  row, while the drill wants three equal 56 px targets and no pressed state, so they share `useMark`
+  (one write path, one announcement) and differ only in markup. Nothing makes a sound before Start is
+  pressed, nothing animates (so `prefers-reduced-motion` needs nothing beyond the global rule), and keys
+  1 to 3, Space and the right arrow work with no pointer. The registry has no timed-recall or
+  self-grading pattern.
 - Milestone 7 end to end (`tests/e2e/prep-voice.spec.ts`): no new UI. The Listen screen, the hub's audio
   panel and the Settings Voice section are scanned with axe in light and dark through the existing
   `scanForViolations`, so the voice specs add no component or token of their own. `stub-speech.ts` and
