@@ -44,11 +44,16 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 11 | Quick-fire keys: Space or Enter for next, 1 to 3 for Shaky, Okay, Solid, after the reveal only | Not fixed by the spec; a visible "Next question" button does the same |
 | 12 | Home's "N of M solid" counts marks only for questions the job's banks still hold (`keysByOpportunity`) | Counting all marks could show more solid than questions |
 | 10 to 12 | Extra copy marked "Proposed" in `lib/prep/copy.ts` (`hub.*`, `quickFire.*`, `homeNoPrep`, `VOICE_LINE`) | No Figma drafts; one file to replace |
+| 14 | A question bank with no readable question shows its card with the notice even when it is the job's only bank; the empty state is for a job with no bank card (`components/prep/prep-hub.tsx`, fixed by the reviewer after Task 14) | Spec 5.1 rule 8; the first build showed the empty state and hid the notice |
 | 14 | The Postgres for the end-to-end suite is the project's compose container, started through colima, with a database of its own (`jobsmith_m6_e2e`) on port 5432; the app runs on port 3460 | Port 3000 belongs to another project on this machine |
 
 ## Skipped live checks
 
-(added per task)
+| Task | Skipped | Why |
+|---|---|---|
+| 14 | WebKit and the phone Playwright projects (new Prep specs and the existing ones) | Playwright wants browser build `webkit-2359`; only 2336, 2370 and 2388 are installed, and nothing was downloaded. Fix: `pnpm exec playwright install webkit` |
+| 14 | Rerun of the packet end-to-end spec after the reviewer's notice fix | The Playwright chain needs WebKit; the behavior was checked by hand in the Browser pane on a job holding both banks, not on a job with the lone no-questions bank |
+| 14 | Preview deployment, the pass in Chrome and Safari on a preview, `pnpm prep:backfill` on a real database | No push, no deploy; Safari was not checked at all |
 
 ## Progress
 
@@ -57,3 +62,4 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 6 | 1 to 5 | `7a0612f` to `e5ae55e` | 163 tests rerun (Prep, isolation, migrations, artifact upsert); the diff of `lib/artifacts/upsert.ts` and `edit.ts` read |
 | 6 | 6 to 9 | `8b1e17b` to `f8cefc4` | 73 tests rerun; `requireUser` in all five actions; no database client import under `app/` |
 | 6 | 10 to 13 | `e33ea9d` to `d7479fe` | 49 tests rerun; nothing seen in a browser at this point |
+| 6 | 14 | `567b1b1` plus the reviewer's fix | Executor: 36 Chromium end-to-end tests passed, axe clean in light and dark, Chromium only. Reviewer, in the Browser pane at 390 px on `localhost:3460`: hub cards, the no-questions notice, the question list, a Solid mark updating the summary to "1 solid", Quick-fire showing question, spine and marks, no sideways scroll, no console errors |

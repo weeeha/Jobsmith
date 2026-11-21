@@ -119,20 +119,21 @@ test("the packet files show the no-questions notice and nothing for the call car
   const { slug, push } = await setup(page, testInfo);
   await push("tests/fixtures/packet", "nwl");
 
-  // On its own the packet holds no readable question, and the hub treats a job
-  // whose banks all have none as not prepared: the empty state, no cards.
-  await page.goto(`/jobs/${slug}?tab=prep`);
-  await expect(page.getByText("No prep yet. Push a question bank or paste one.")).toBeVisible();
-  await expect(page.locator("[data-bank-key]")).toHaveCount(0);
+  const notice =
+    'This document has no questions Jobsmith can read. A question is a line like `### 1. "Tell me about yourself"`.';
 
-  // Next to a bank that has questions, the cards that do not are listed with
-  // the notice, and the call card (no questions) still gets no card. The prep
+  // On its own the packet holds no readable question: each question bank still
+  // gets its card with the notice, and the call card gets none.
+  await page.goto(`/jobs/${slug}?tab=prep`);
+  await expect(page.locator('[data-bank-key="answers-full"]').getByText(notice)).toBeVisible();
+  await expect(page.locator('[data-bank-key="hr-bank"]').getByText(notice)).toBeVisible();
+  await expect(page.locator('[data-bank-key="call-card"]')).toHaveCount(0);
+
+  // Next to a bank that has questions the notice stays on the others. The prep
   // fixture shares the key answers-full with the packet's file, so it replaces
   // that one with a version that has questions; the packet's hr-bank has none.
   await push("tests/fixtures/prep", "nwt");
   await page.goto(`/jobs/${slug}?tab=prep`);
-  const notice =
-    'This document has no questions Jobsmith can read. A question is a line like `### 1. "Tell me about yourself"`.';
   const noQuestions = page.locator('[data-bank-key="hr-bank"]');
   await expect(noQuestions).toBeVisible();
   await expect(noQuestions.getByText(notice)).toBeVisible();

@@ -23,7 +23,10 @@ export async function PrepHub(props: {
     stages: props.stages,
   });
 
-  if (view.empty) {
+  // A question bank with no readable question still shows its card, with the
+  // notice that says why (spec 5.1 rule 8). The empty state is for a job with
+  // no bank card at all.
+  if (view.banks.length === 0) {
     return (
       <EmptyState
         size="panel"
