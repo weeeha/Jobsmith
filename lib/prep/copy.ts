@@ -1,6 +1,14 @@
 // Binding copy for the Prep hub. Strings the spec fixes are exact; the ones
 // marked proposed are the plan's wording, kept here so the Figma drafts can
 // replace them in one place.
+// The browser-voice line with its Settings link split out, so the link can be
+// a real anchor and the sentence still reads the same.
+export const VOICE_LINE = {
+  before: "Audio uses your browser's voices. ",
+  link: "Settings",
+  after: " has the voice options.",
+} as const;
+
 export const PREP_COPY = {
   empty: "No prep yet. Push a question bank or paste one.",
   noQuestions:
@@ -19,7 +27,34 @@ export const PREP_COPY = {
     okay: "Okay",
     solid: "Solid",
   },
+  // Proposed. The hub's own labels; the plan fixes none of these.
+  hub: {
+    pasteLabel: "Paste a question bank",
+    pushLead: "Or run",
+    bankSelected: "Showing",
+    markDisclosure: "Mark",
+    questionsHeading: "Questions",
+    bankLabel: "Question banks",
+    selectedBank: "Showing questions",
+    selectBank: "Show questions",
+    checkBankNone: "Nothing to check.",
+    markGroup: "Mark this answer",
+    rebuildFailed: "Could not rebuild the questions.",
+    markFailed: "Could not save the mark.",
+  },
   // Proposed.
   quickFireEmpty: "Nothing to practice yet. Quick-fire needs questions that have a Spine.",
-  toTheBrowserVoiceLine: "Audio uses your browser's voices. Settings has the voice options.",
+  toTheBrowserVoiceLine: `${VOICE_LINE.before}${VOICE_LINE.link}${VOICE_LINE.after}`,
 } as const;
+
+export function questionCountLabel(count: number): string {
+  return count === 1 ? "1 question" : `${count} questions`;
+}
+
+export function markedAnnouncement(level: "shaky" | "okay" | "solid"): string {
+  return `Marked ${level}.`;
+}
+
+export function rebuiltAnnouncement(rows: number): string {
+  return rows === 1 ? "Rebuilt 1 question." : `Rebuilt ${rows} questions.`;
+}

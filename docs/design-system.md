@@ -96,3 +96,15 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
 - `components/preferences/test-posting-box.tsx`: hand-written. The test box's filter rows are a
   plain list with a hairline between rows; the registry's `table-view` is a sortable data table,
   more than four fixed rows need.
+- `components/prep/` (Prep hub): hand-written, built from `Badge` (through `ToneChip` in
+  `components/fit/fit-chips.tsx`), `Button`, `EmptyState` and the Home side cards' shell
+  (`rounded-xl bg-card ring-1 ring-foreground/10`). `mark-chip.tsx` is the Shaky, Okay and Solid word
+  with its `status-*-soft` tone (a word first, tone second). `mark-buttons.tsx` is the three
+  `aria-pressed` buttons, shared with the Quick-fire screen and the later players. `bank-card.tsx`
+  is one card per question bank or call card; `question-list.tsx` is the section-grouped question
+  list with a native `details` disclosure per row, so the list stays scannable at phone width and
+  the control is keyboard reachable with no script. `rebuild-button.tsx` and `bank-warnings.tsx`
+  are the safety-net button and the collapsible "Check the bank" list. The registry has no
+  question-list or confidence-mark pattern. After a write the client calls `router.refresh()`;
+  the prep actions never `revalidatePath`, because the job page reads the database on every
+  request (it calls `requireUser()`, which reads cookies) and has no server cache to invalidate.
