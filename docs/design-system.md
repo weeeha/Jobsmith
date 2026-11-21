@@ -142,3 +142,9 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   Base UI's `Select` is the primary choice, but the speed list and the device-voice list (often over a
   hundred entries) are better in the phone's own picker, and a native element keeps keyboard and
   screen-reader behaviour with no script.
+- `components/settings/voice-section.tsx` (Settings, Voice): hand-written, built from `SettingsSection`,
+  `Input`, `Label`, `Button`, `Dialog` and `NativeSelect`. The provider's voice list loads on demand
+  through `loadVoicesAction` (a clear failed state with a retry, and text fields when the list is empty),
+  the device voices come from `speechSynthesis.getVoices()` and refill on `voiceschanged`, and "Delete
+  all audio" sits behind a confirm dialog with the same shape as the job page's. The registry has no
+  settings form with a device-dependent list.
