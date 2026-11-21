@@ -22,3 +22,6 @@ export type ParsedKind = (typeof PARSED_KINDS)[number];
 
 // U+26A0 U+FE0F: the owner's marker for an answer that is not written yet.
 export const WARNING_MARKER = "⚠️";
+
+export const QUICK_FIRE_COUNT = 10;
+export const QUICK_FIRE_SECONDS = 5;
