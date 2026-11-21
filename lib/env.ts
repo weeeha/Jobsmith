@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseAiConfig, type AiConfig } from "@/lib/ai/config";
+import { parseTtsConfig, type TtsConfig } from "@/lib/tts/config";
 import { parseStorageConfig, type StorageConfig } from "@/lib/storage/config";
 
 const rawEnvSchema = z.object({
@@ -32,6 +33,7 @@ export type Env = {
   TRUSTED_ORIGINS: string[];
   AI: AiConfig | null;
   STORAGE: StorageConfig;
+  TTS: TtsConfig | null;
 };
 
 export class EnvError extends Error {
@@ -72,8 +74,9 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 
   const aiResult = parseAiConfig(source);
   const storageResult = parseStorageConfig(source);
+  const ttsResult = parseTtsConfig(source);
 
-  if (!result.success || !urlResult?.success || !aiResult.ok || !storageResult.ok) {
+  if (!result.success || !urlResult?.success || !aiResult.ok || !storageResult.ok || !ttsResult.ok) {
     const names = new Set<string>();
     if (!result.success) {
       for (const issue of result.error.issues) names.add(issue.path.join("."));
@@ -84,6 +87,9 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     }
     if (!storageResult.ok) {
       for (const name of storageResult.invalid) names.add(name);
+    }
+    if (!ttsResult.ok) {
+      for (const name of ttsResult.invalid) names.add(name);
     }
     throw new EnvError(`Invalid environment variables: ${[...names].join(", ")}`);
   }
@@ -98,6 +104,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     TRUSTED_ORIGINS: resolveTrustedOrigins(source, urlResult.data),
     AI: aiResult.config,
     STORAGE: storageResult.config,
+    TTS: ttsResult.config,
   };
 }
 

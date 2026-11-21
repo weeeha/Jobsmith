@@ -209,3 +209,24 @@ describe("parseEnv: STORAGE", () => {
     );
   });
 });
+
+describe("parseEnv: TTS", () => {
+  it("is null when TTS_PROVIDER is unset", () => {
+    expect(parseEnv(validSource).TTS).toBeNull();
+  });
+
+  it("parses TTS_PROVIDER=fake into the fake config", () => {
+    expect(parseEnv({ ...validSource, TTS_PROVIDER: "fake" }).TTS).toEqual({
+      provider: "fake",
+      model: "fake-tts",
+      baseUrl: null,
+      apiKey: null,
+    });
+  });
+
+  it("adds an invalid TTS variable name to the same EnvError list", () => {
+    expect(() => parseEnv({ ...validSource, TTS_PROVIDER: "gemini" })).toThrow(
+      "Invalid environment variables: GEMINI_API_KEY",
+    );
+  });
+});
