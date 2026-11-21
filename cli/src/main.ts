@@ -5,6 +5,7 @@ import { runLogin } from "./commands/login";
 import { runList } from "./commands/list";
 import { runPull } from "./commands/pull";
 import { runPush } from "./commands/push";
+import { runAudio } from "./commands/audio";
 import type { CliIo } from "./io";
 
 export async function run(argv: string[], io: CliIo): Promise<number> {
@@ -47,6 +48,14 @@ export async function run(argv: string[], io: CliIo): Promise<number> {
         return 1;
       }
       return runPush(io, creds, command);
+    }
+    case "audio": {
+      const creds = await readCredentials(io);
+      if (!creds) {
+        io.stderr("Not logged in. Run jobsmith login first.\n");
+        return 1;
+      }
+      return runAudio(io, creds, command);
     }
   }
 }

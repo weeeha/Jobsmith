@@ -6,6 +6,7 @@ export type Command =
   | { name: "list" }
   | { name: "pull"; slug: string; out: string | null }
   | { name: "push"; slug: string; dir: string | null; prefix: string | null; dryRun: boolean }
+  | { name: "audio"; slug: string; ttsUrl: string | null; voiceInterviewer: string | null; voiceCandidate: string | null }
   | { name: "help" }
   | { name: "version" };
 
@@ -16,6 +17,8 @@ export const USAGE = `Usage: jobsmith <command> [options]
   pull <slug> [--out <dir>]       Write <slug>-context.md
   push <slug> [--dir <dir>] [--prefix <file-prefix>] [--dry-run]
                                   Push <prefix>-*.md files as documents
+  audio <slug> [--tts-url <base>] [--voice-interviewer <v>] [--voice-candidate <v>]
+                                  Make the missing audio clips on this computer and upload them
 `;
 
 export function parseCommand(argv: string[]): { ok: true; command: Command } | { ok: false; message: string } {
@@ -38,6 +41,9 @@ export function parseCommand(argv: string[]): { ok: true; command: Command } | {
         dir: { type: "string" },
         prefix: { type: "string" },
         "dry-run": { type: "boolean" },
+        "tts-url": { type: "string" },
+        "voice-interviewer": { type: "string" },
+        "voice-candidate": { type: "string" },
         help: { type: "boolean" },
         version: { type: "boolean" },
       },
@@ -97,6 +103,26 @@ export function parseCommand(argv: string[]): { ok: true; command: Command } | {
             dir: values.dir ?? null,
             prefix: values.prefix ?? null,
             dryRun: values["dry-run"] ?? false,
+          },
+        };
+      }
+      case "audio": {
+        const slug = rest[0];
+        if (!slug || !SLUG_PATTERN.test(slug)) {
+          return { ok: false, message: USAGE };
+        }
+        const ttsUrl = values["tts-url"];
+        if (ttsUrl !== undefined && !/^https?:\/\//.test(ttsUrl)) {
+          return { ok: false, message: "Enter a URL that starts with http:// or https://." };
+        }
+        return {
+          ok: true,
+          command: {
+            name: "audio",
+            slug,
+            ttsUrl: ttsUrl ? ttsUrl.replace(/\/$/, "") : null,
+            voiceInterviewer: values["voice-interviewer"] || null,
+            voiceCandidate: values["voice-candidate"] || null,
           },
         };
       }
