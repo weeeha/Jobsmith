@@ -25,3 +25,18 @@ export const WARNING_MARKER = "⚠️";
 
 export const QUICK_FIRE_COUNT = 10;
 export const QUICK_FIRE_SECONDS = 5;
+
+// Pauses of the Listen player (spec 5.3), in milliseconds.
+export const GAP_STEP_MS = 600;
+export const GAP_QUESTION_MS = 1400;
+
+// The spec's assumption 2: the voices of the owner's local Qwen3-TTS server.
+export const DEFAULT_LOCAL_VOICES = { interviewer: "Vivian", candidate: "Ryan" } as const;
+
+// Audio generation limits (README constants).
+export const SEGMENT_BATCH_LIMIT = 20;
+export const BATCH_BUDGET_MS = 45_000;
+// One clip stays under 2 MB (spec 5.5); the request cap is AUDIO_PUT_MAX_BYTES.
+export const SEGMENT_MAX_BYTES = 2_097_152;
+export const AUDIO_PUT_MAX_BYTES = 4_194_304;
+export const AUDIO_PUT_MAX_SEGMENTS = 50;
