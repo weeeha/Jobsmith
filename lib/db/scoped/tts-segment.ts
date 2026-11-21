@@ -20,6 +20,13 @@ export function ttsSegmentQueries(db: Db, userId: string) {
         .from(table)
         .where(and(eq(table.userId, userId), inArray(table.hash, hashes)));
     },
+    async getByAssetId(assetId: string): Promise<TtsSegmentRow | null> {
+      const [row] = await db
+        .select()
+        .from(table)
+        .where(and(eq(table.userId, userId), eq(table.assetId, assetId)));
+      return row ?? null;
+    },
     // Null when a segment with this hash already exists, so two writers racing
     // on one hash never fail and the loser reads the winner's row.
     async insert(values: TtsSegmentFields): Promise<TtsSegmentRow | null> {
