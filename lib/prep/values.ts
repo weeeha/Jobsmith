@@ -40,3 +40,6 @@ export const BATCH_BUDGET_MS = 45_000;
 export const SEGMENT_MAX_BYTES = 2_097_152;
 export const AUDIO_PUT_MAX_BYTES = 4_194_304;
 export const AUDIO_PUT_MAX_SEGMENTS = 50;
+
+// Drill (spec 5.4): how many questions a run takes unless a count or a section is given.
+export const DRILL_DEFAULT_COUNT = 10;
