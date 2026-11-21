@@ -1,15 +1,21 @@
 import { env } from "@/lib/env";
 import type { TtsConfig } from "./config";
 import type { TtsDriver } from "./driver";
+import { createElevenLabsDriver } from "./elevenlabs";
 import { createFakeTtsDriver } from "./fake";
+import { createGeminiDriver } from "./gemini";
+import { createOpenAiCompatibleDriver } from "./openai-compatible";
 
 export function ttsDriverFromConfig(config: TtsConfig, deps: { fetch?: typeof fetch } = {}): TtsDriver {
-  void deps;
   switch (config.provider) {
     case "fake":
       return createFakeTtsDriver();
-    default:
-      throw new Error(`TTS provider ${config.provider} is not wired yet`);
+    case "openai_compatible":
+      return createOpenAiCompatibleDriver(config, deps.fetch);
+    case "gemini":
+      return createGeminiDriver(config, deps.fetch);
+    case "elevenlabs":
+      return createElevenLabsDriver(config, deps.fetch);
   }
 }
 
