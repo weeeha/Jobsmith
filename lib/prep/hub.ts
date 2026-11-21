@@ -37,8 +37,12 @@ export type HubQuestion = {
   level: MarkLevel | null;
 };
 
+export type PitchCard = { key: string; title: string };
+
 export type PrepHubView = {
   banks: BankCard[];
+  // The job's pitch documents: Listen only, never parsed into rows.
+  pitches: PitchCard[];
   groups: { stageId: string | null; heading: string; banks: BankCard[] }[];
   questions: HubQuestion[];
   empty: boolean;
@@ -105,6 +109,11 @@ export async function loadPrepHub(
     });
   }
 
+  const pitches: PitchCard[] = input.docs
+    .filter((d) => d.kind === "pitch" && d.companyId === null)
+    .sort((a, b) => a.title.localeCompare(b.title) || a.key.localeCompare(b.key))
+    .map((d) => ({ key: d.key, title: d.title }));
+
   const groups: PrepHubView["groups"] = [];
   const general = banks.filter((b) => b.stageId === null);
   if (general.length > 0) groups.push({ stageId: null, heading: "General", banks: general });
@@ -129,5 +138,5 @@ export async function loadPrepHub(
   // A bank that only carries the "no questions" notice does not make the job
   // a prepared one.
   const empty = !banks.some((b) => b.questionCount > 0 || b.needsRebuild);
-  return { banks, groups, questions, empty };
+  return { banks, pitches, groups, questions, empty };
 }

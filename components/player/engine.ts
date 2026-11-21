@@ -24,10 +24,12 @@ export function usePlaybackEngine(
     // Multiplies the plan's gaps (Settings, "pause factor"). Wall-clock, never divided by speed.
     gapFactor?: number;
     env?: SpeakerEnv;
+    // Where the player starts (the Listen link names a question). Defaults to 0.
+    initialStepIndex?: number;
   },
 ): { state: EngineState; currentStep: PlaybackStep | null; currentQuestionIndex: number; dispatch(event: EngineEvent): void } {
   const reducer = React.useCallback((state: EngineState, event: EngineEvent) => engineReducer(state, event, plan), [plan]);
-  const [state, rawDispatch] = React.useReducer(reducer, { stepIndex: 0, status: "idle", speed: options.speed } satisfies EngineState);
+  const [state, rawDispatch] = React.useReducer(reducer, { stepIndex: Math.max(0, options.initialStepIndex ?? 0), status: "idle", speed: options.speed } satisfies EngineState);
   const [restarts, setRestarts] = React.useState(0);
   const speaker = useSpeaker({ browserVoices: options.browserVoices, env: options.env });
   const onClipFailed = React.useRef(options.onClipFailed);

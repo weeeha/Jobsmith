@@ -123,6 +123,16 @@ describe("usePlaybackEngine", () => {
     expect(result.current.state.speed).toBe(1.2);
   });
 
+  it("starts at initialStepIndex, still idle, and plays from there", () => {
+    const { env, spoken } = makeEnv();
+    const { result } = renderHook(() => usePlaybackEngine(PLAN, { speed: 1, browserVoices: VOICES, env, initialStepIndex: 2 }));
+    expect(result.current.state).toMatchObject({ stepIndex: 2, status: "idle" });
+    expect(result.current.currentQuestionIndex).toBe(1);
+    expect(spoken).toHaveLength(0);
+    act(() => result.current.dispatch({ type: "play" }));
+    expect(spoken.map((u) => u.text)).toEqual(["q1 s0"]);
+  });
+
   it("onClipFailed is called once per failed step", async () => {
     const audio: AudioLike = {
       src: "",

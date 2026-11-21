@@ -21,6 +21,7 @@ export function BankCard(props: {
   const { card } = props;
   const href = `${props.basePath}?tab=prep&doc=${formatDocRef({ scope: "opportunity", key: card.key })}`;
   const quickFireHref = `${props.basePath}/quick-fire?doc=${formatDocRef({ scope: "opportunity", key: card.key })}`;
+  const listenHref = `${props.basePath}/listen?doc=${formatDocRef({ scope: "opportunity", key: card.key })}`;
   const hasQuestions = card.questionCount > 0;
 
   return (
@@ -57,6 +58,11 @@ export function BankCard(props: {
             className="inline-flex min-h-8 items-center rounded-md px-1 text-sm text-foreground underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {props.selected ? PREP_COPY.hub.bankSelected : PREP_COPY.hub.selectBank}
+          </Link>
+        ) : null}
+        {hasQuestions ? (
+          <Link href={listenHref} className={buttonVariants({ size: "sm" })}>
+            {PREP_COPY.listen.button}
           </Link>
         ) : null}
         {hasQuestions ? (

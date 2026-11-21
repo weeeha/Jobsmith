@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Play } from "lucide-react";
 
 import { MarkButtons } from "@/components/prep/mark-buttons";
 import { MarkChip } from "@/components/prep/mark-chip";
 import { ToneChip } from "@/components/fit/fit-chips";
+import { formatDocRef } from "@/lib/artifacts/tabs";
 import { PREP_COPY } from "@/lib/prep/copy";
 import type { HubQuestion } from "@/lib/prep/hub";
 import type { MarkLevel } from "@/lib/prep/values";
@@ -23,7 +26,7 @@ function sections(questions: HubQuestion[]): Section[] {
   return out;
 }
 
-export function QuestionList(props: { opportunityId: string; questions: HubQuestion[] }): React.ReactElement {
+export function QuestionList(props: { opportunityId: string; basePath: string; questions: HubQuestion[] }): React.ReactElement {
   const router = useRouter();
   // A mark shows at once; the refresh brings the card summaries in line.
   const [local, setLocal] = React.useState<Record<string, MarkLevel>>({});
@@ -51,6 +54,14 @@ export function QuestionList(props: { opportunityId: string; questions: HubQuest
                       {q.question}
                     </p>
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                      <Link
+                        href={`${props.basePath}/listen?doc=${formatDocRef({ scope: "opportunity", key: q.artifactKey })}&q=${q.number}`}
+                        aria-label={PREP_COPY.listen.listenFrom(q.number)}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Play aria-hidden="true" className="size-3.5" />
+                        {PREP_COPY.listen.button}
+                      </Link>
                       {q.unfilled ? <ToneChip tone="outline">{PREP_COPY.buttons.unfilledChip}</ToneChip> : null}
                       <MarkChip level={level} />
                     </div>

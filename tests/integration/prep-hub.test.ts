@@ -215,6 +215,21 @@ describe("loadPrepHub", () => {
     }
   });
 
+  it("lists the job's pitches as { key, title } for the Listen button", async () => {
+    const { s, close, opportunityId } = await setup("hub-pitch@example.com");
+    try {
+      await push(s, opportunityId, [
+        doc("pitch", "pitch", "# Pitch\n\n## Short\n\nHi.", { title: "Portfolio pitch" }),
+        doc("bank", "question_bank", SMALL_BANK),
+      ]);
+      const view = await hub(s, opportunityId);
+      expect(view.pitches).toEqual([{ key: "pitch", title: "Portfolio pitch" }]);
+      expect(view.banks.map((b) => b.key)).toEqual(["bank"]);
+    } finally {
+      await close();
+    }
+  });
+
   it("audio status is { state: 'browser' } in this milestone", async () => {
     const { s, close, opportunityId } = await setup("hub11@example.com");
     try {

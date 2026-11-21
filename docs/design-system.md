@@ -129,3 +129,16 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   rhythm (`FIT_POLL_MS`, `FIT_POLL_MAX`, one minute after a rate limit) and a Delete audio button
   behind a confirm dialog. Progress is text, not a bar, so nothing animates; "Audio ready." is announced
   once through the live announcer. The registry has no batch-progress pattern.
+- `components/player/` (Listen screen): hand-written, built from `Button`, `buttonVariants`, `MarkButtons`
+  and the hub's card shell. `listen-player.tsx` is the client shell (sticky header with "Question 7 of
+  32" and the section, controls, transcript, sticky mark bar); `player-controls.tsx` is play and pause,
+  previous, next, repeat and the speed select; `transcript.tsx` shows the current question's blocks, with
+  the playing block marked `aria-current`, note blocks dimmed, "Browser voice" and "Check this clip" notes.
+  `engine.ts`, `speaker.ts` and `media-session.ts` hold no markup: they are the playback hooks over
+  `lib/prep/engine-state.ts`. The registry has no audio-player or transcript pattern. Playback never
+  starts without a press of Play, nothing animates (so `prefers-reduced-motion` needs nothing beyond the
+  global rule), and every control is a native button with an accessible name and the shared focus ring.
+- `components/native-select.tsx`: hand-written. A styled native `select` with the field look of `Input`.
+  Base UI's `Select` is the primary choice, but the speed list and the device-voice list (often over a
+  hundred entries) are better in the phone's own picker, and a native element keeps keyboard and
+  screen-reader behaviour with no script.

@@ -38,12 +38,18 @@ function renderList(questions: HubQuestion[]) {
   return render(
     <LiveAnnouncerProvider>
       <Toaster />
-      <QuestionList opportunityId={JOB} questions={questions} />
+      <QuestionList opportunityId={JOB} basePath="/jobs/northwind" questions={questions} />
     </LiveAnnouncerProvider>,
   );
 }
 
 describe("QuestionList", () => {
+  it("each question has a Listen link that opens the player at that question", () => {
+    renderList([q(1, null), q(7, null, { artifactKey: "answers-full" })]);
+    const link = screen.getByRole("link", { name: "Listen from question 7" });
+    expect(link.getAttribute("href")).toBe("/jobs/northwind/listen?doc=job:answers-full&q=7");
+  });
+
   beforeEach(() => {
     cleanup();
     refresh.mockReset();
