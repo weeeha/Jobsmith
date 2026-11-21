@@ -46,6 +46,17 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 10 to 12 | Extra copy marked "Proposed" in `lib/prep/copy.ts` (`hub.*`, `quickFire.*`, `homeNoPrep`, `VOICE_LINE`) | No Figma drafts; one file to replace |
 | 14 | A question bank with no readable question shows its card with the notice even when it is the job's only bank; the empty state is for a job with no bank card (`components/prep/prep-hub.tsx`, fixed by the reviewer after Task 14) | Spec 5.1 rule 8; the first build showed the empty state and hid the notice |
 | 14 | The Postgres for the end-to-end suite is the project's compose container, started through colima, with a database of its own (`jobsmith_m6_e2e`) on port 5432; the app runs on port 3460 | Port 3000 belongs to another project on this machine |
+| 16 | Packages pinned: `@aws-sdk/client-s3` 3.1174.0 (Apache-2.0), `@vercel/blob` 2.9.0 (Apache-2.0) | The plan gives no versions |
+| 18 | MP3 encoder: `@breezystack/lamejs` 1.2.7 (LGPL-3.0), a pure JavaScript lamejs fork with ESM and types | The plan left the fork open |
+| 18 | Raw `audio/L16` and `audio/pcm` from a provider is read as 16-bit little-endian; a WAV the encoder cannot encode is stored as WAV | Matches the local server and Gemini behavior; nothing is dropped |
+| 15 | `local` storage is refused whenever `VERCEL` is set, also when `STORAGE_PROVIDER` is unset | A Vercel function has no disk that outlives a request |
+| 20 | The Gemini driver is built because the spec lists it, and stays unconfigured and uncalled | The owner does not use paid Google AI |
+| 23 | Cleanup keeps clips referenced by library items and by each job's latest pitch, not only by questions | Otherwise "Delete audio" would remove pitch audio |
+| 17 | Fixed after review: underscores inside words survive spoken-text cleaning (`3bc20dd`) | snake_case words in answers were mangled |
+| 25 | Fixed after review: rendering the hub never calls the speech provider; saved voices or code defaults are used | A page render must not depend on a provider call |
+| 26 | The bridge upload accepts any hash the job's questions need, including clips already done, and reports them as skipped | A second `jobsmith audio` run is then a no-op |
+| 27 | The CLI reads the speech key only from `JOBSMITH_TTS_API_KEY`; a refused clip is skipped and counted, exit 0; an unreachable speech server exits 1 after uploading what exists | The plan was silent |
+| 27 | Existing test changed: `tests/unit/cli-imports.test.ts` now allows `@/lib/audio/normalize` and `@/lib/tts/config` in the CLI by name | The audio command shares those leaf modules; the bundle test still limits `node_modules` inputs to the encoder |
 
 ## Skipped live checks
 
@@ -55,6 +66,26 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 14 | Rerun of the packet end-to-end spec after the reviewer's notice fix | The Playwright chain needs WebKit; the behavior was checked by hand in the Browser pane on a job holding both banks, not on a job with the lone no-questions bank |
 | 14 | Preview deployment, the pass in Chrome and Safari on a preview, `pnpm prep:backfill` on a real database | No push, no deploy; Safari was not checked at all |
 
+## Postponed
+
+The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder decsiosn or jsut pospone fixes or extranl accounts just bascailly create version". Each line is something left for later and what it needs.
+
+| Item | Needs |
+|---|---|
+| WebKit and phone end-to-end projects | `pnpm exec playwright install webkit` (a download), then `pnpm test:e2e` |
+| Safari check of every Prep screen | A person or a WebKit run |
+| Live Vercel Blob storage run | The owner's private Blob store and `BLOB_READ_WRITE_TOKEN`, then `JOBSMITH_LIVE_STORAGE=1` |
+| Live S3 run | `docker compose --profile storage up -d minio`, then `JOBSMITH_LIVE_STORAGE=1` |
+| Live `jobsmith audio` run | The owner's local Qwen3-TTS server on `http://127.0.0.1:8890/v1` |
+| Gemini and ElevenLabs request and response shapes | A read of the provider docs named in the `UNVERIFIED` comments in `lib/tts/gemini.ts` and `lib/tts/elevenlabs.ts`; keys only if a live check is wanted |
+| Voice-list endpoints of the OpenAI-compatible driver | A look at what the local server really answers |
+| `pnpm prep:backfill` on a real database, and a preview deployment | A push and a deploy, both off limits here |
+| Two simultaneous `endSession` calls can both write a timeline event | A guard `where ended_at is null` in the scoped update |
+| A change to an included document does not rebuild the document that includes it | A rebuild of dependents in `lib/prep/rebuild.ts` |
+| Whether the owner's real question banks use `### N.` headings (status question 3) | The owner, or a read of his files |
+| Copy marked "Proposed" in `lib/prep/copy.ts` | Figma drafts or a hand edit |
+| The Hosted spec assumes Gemini as the hosted TTS provider | A different provider choice before the Hosted cycle, since paid Google AI is not used |
+
 ## Progress
 
 | Milestone | Tasks | Commits | Checked by the reviewer |
@@ -63,3 +94,6 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 6 | 6 to 9 | `8b1e17b` to `f8cefc4` | 73 tests rerun; `requireUser` in all five actions; no database client import under `app/` |
 | 6 | 10 to 13 | `e33ea9d` to `d7479fe` | 49 tests rerun; nothing seen in a browser at this point |
 | 6 | 14 | `567b1b1` plus the reviewer's fix | Executor: 36 Chromium end-to-end tests passed, axe clean in light and dark, Chromium only. Reviewer, in the Browser pane at 390 px on `localhost:3460`: hub cards, the no-questions notice, the question list, a Solid mark updating the summary to "1 solid", Quick-fire showing question, spine and marks, no sideways scroll, no console errors |
+| 7 | 15 to 18 | `400af6e` to `7d994fc` | 99 tests rerun |
+| 7 | 19 to 23 | `339081e` to `804f9d1` | 124 tests rerun |
+| 7 | 24 to 27 | `3bc20dd` to `0cd30e6` | 68 tests rerun; `requireUser` in the asset route |
