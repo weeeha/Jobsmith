@@ -7,6 +7,7 @@ import { DocumentList } from "@/components/job/document-list";
 import { DocumentView } from "@/components/job/document-view";
 import { DocumentEditor } from "@/components/job/document-editor";
 import { MarkSentDialogTrigger } from "@/components/job/mark-sent-dialog";
+import { CompareVersionsLink } from "@/components/compare/compare-links";
 import { VersionList } from "@/components/job/version-list";
 import { PasteDialogTrigger } from "@/components/job/paste-dialog";
 import { Markdown } from "@/components/markdown";
@@ -121,6 +122,13 @@ export async function TabDocuments(props: {
                   ariaLabel={`Paste a new version of ${doc.current.title}`}
                   variant="outline"
                 />
+                <CompareVersionsLink
+                  key={`compare:${formatDocRef(selectedRef)}`}
+                  basePath={`${props.basePath}/compare`}
+                  docRef={selectedRef}
+                  versions={doc.versions.length}
+                  title={doc.current.title}
+                />
                 {sendable && !doc.current.sentAt ? (
                   <MarkSentDialogTrigger
                     key={`sent:${formatDocRef(selectedRef)}`}
@@ -157,6 +165,8 @@ export async function TabDocuments(props: {
             title={doc.current.title}
             documentKey={selected.key}
             basePath={props.basePath}
+            docRef={selectedRef}
+            compareBasePath={`${props.basePath}/compare`}
             versions={doc.versions}
           />
         </div>

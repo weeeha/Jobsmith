@@ -466,7 +466,7 @@ git commit -m "feat(compare): compare routes for job and company documents"
 
 **Interfaces:**
 - Consumes: `formatCompareHref` (Task 18), `getDocument(...).versions`, `editedBaseOf` (Task 18).
-- Produces: `VersionList` props gain `docRef: DocRef` and `compareBasePath: string`; `CompareVersionsLink(props: { basePath: string; docRef: DocRef; versions: number })` in `components/compare/compare-links.tsx`.
+- Produces: `VersionList` props gain `docRef: DocRef` and `compareBasePath: string`; `CompareVersionsLink(props: { basePath: string; docRef: DocRef; versions: number; title: string })` in `components/compare/compare-links.tsx`.
 
 - [ ] **Step 1: Write the failing tests**
 

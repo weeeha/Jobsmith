@@ -2,6 +2,7 @@ import { getDocument } from "@/lib/artifacts/read";
 import { formatDocRef, researchGroups, scopeOf, selectDoc, type DocRef } from "@/lib/artifacts/tabs";
 import { DEFAULT_KIND_FOR_TAB } from "@/lib/artifacts/kinds";
 import { DocumentList } from "@/components/job/document-list";
+import { CompareVersionsLink } from "@/components/compare/compare-links";
 import { DocumentView } from "@/components/job/document-view";
 import { PasteDialogTrigger } from "@/components/job/paste-dialog";
 import { EmptyState } from "@/components/super-ai/empty-state";
@@ -81,6 +82,7 @@ export async function TabResearch(props: {
               // back on this tree at the same position must not hand this
               // dialog's open state, or its uncontrolled fields, to a
               // different document.
+              <>
               <PasteDialogTrigger
                 key={formatDocRef(selectedRef)}
                 opportunityId={props.opportunityId}
@@ -92,6 +94,14 @@ export async function TabResearch(props: {
                 ariaLabel={`Paste a new version of ${doc.current.title}`}
                 variant="outline"
               />
+              <CompareVersionsLink
+                  key={`compare:${formatDocRef(selectedRef)}`}
+                  basePath={`${props.basePath}/compare`}
+                  docRef={selectedRef}
+                  versions={doc.versions.length}
+                  title={doc.current.title}
+                />
+              </>
             }
           />
         </div>

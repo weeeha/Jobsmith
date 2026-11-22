@@ -1,6 +1,7 @@
 import { getDocument } from "@/lib/artifacts/read";
 import { formatDocRef, prepGroups, selectDoc, type DocRef } from "@/lib/artifacts/tabs";
 import { DocumentList } from "@/components/job/document-list";
+import { CompareVersionsLink } from "@/components/compare/compare-links";
 import { DocumentView } from "@/components/job/document-view";
 import { PasteDialogTrigger } from "@/components/job/paste-dialog";
 import { BridgePanel } from "@/components/job/bridge-panel";
@@ -68,6 +69,7 @@ export async function TabPrep(props: {
               // back on this tree at the same position must not hand this
               // dialog's open state, or its uncontrolled fields, to a
               // different document.
+              <>
               <PasteDialogTrigger
                 key={formatDocRef(selectedRef)}
                 opportunityId={props.opportunityId}
@@ -79,6 +81,14 @@ export async function TabPrep(props: {
                 ariaLabel={`Paste a new version of ${doc.current.title}`}
                 variant="outline"
               />
+              <CompareVersionsLink
+                  key={`compare:${formatDocRef(selectedRef)}`}
+                  basePath={`${props.basePath}/compare`}
+                  docRef={selectedRef}
+                  versions={doc.versions.length}
+                  title={doc.current.title}
+                />
+              </>
             }
           />
         </div>
