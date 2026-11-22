@@ -309,7 +309,9 @@ test("changing a voice in Settings starts a new plan and keeps the old clips", a
   await expect(page.getByText(before, { exact: true })).toBeVisible();
 
   // Back to the first voice: the kept clips make the bank ready again at once.
-  await page.getByLabel("Interviewer voice", { exact: true }).selectOption(original);
+  const again = page.getByLabel("Interviewer voice", { exact: true });
+  await expect(again.locator("option")).toHaveText(["Vivian", "Ryan", "Aria"]);
+  await again.selectOption(original);
   await page.getByRole("button", { name: "Save voice settings" }).click();
   await expect(page.getByText("Voice settings saved.").first()).toBeVisible();
   await page.goto(`/jobs/${slug}?tab=prep`);
