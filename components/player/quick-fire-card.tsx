@@ -140,7 +140,7 @@ function Step(props: {
 }
 
 function Summary(props: {
-  sessionId: string;
+  sessionId: string | null;
   questions: QuickFireQuestion[];
   marks: Record<string, MarkLevel>;
   backHref: string;
@@ -150,7 +150,7 @@ function Summary(props: {
   const { sessionId, questions, marks } = props;
 
   React.useEffect(() => {
-    if (ended.current) return;
+    if (ended.current || sessionId === null) return;
     ended.current = true;
     const given = questions.filter((q) => marks[q.questionKey] !== undefined);
     const solid = given.filter((q) => marks[q.questionKey] === "solid").length;
@@ -190,7 +190,7 @@ function Summary(props: {
 
 export function QuickFireCard(props: {
   questions: QuickFireQuestion[];
-  sessionId: string;
+  sessionId: string | null;
   // null for a library round: it has no job, so its marks use scope "library".
   opportunityId: string | null;
   backHref: string;

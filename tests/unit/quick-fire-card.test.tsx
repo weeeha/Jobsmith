@@ -239,6 +239,60 @@ describe("QuickFireRound", () => {
   });
 });
 
+describe("QuickFireRound with no network", () => {
+  beforeEach(() => {
+    cleanup();
+    vi.mocked(startSessionAction).mockReset();
+    vi.mocked(endSessionAction).mockReset();
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("starts a local round with no session when the browser is offline and the session call throws", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    vi.mocked(startSessionAction).mockRejectedValue(new TypeError("Failed to fetch"));
+    render(
+      <LiveAnnouncerProvider>
+        <Toaster />
+        <QuickFireRound questions={qs(3)} opportunityId={JOB} backHref="/jobs/x?tab=prep" />
+      </LiveAnnouncerProvider>,
+    );
+    expect(await screen.findByTestId("quick-fire-surface")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("an online failure still shows the message and a retry", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(startSessionAction).mockRejectedValue(new TypeError("Failed to fetch"));
+    render(
+      <LiveAnnouncerProvider>
+        <Toaster />
+        <QuickFireRound questions={qs(3)} opportunityId={JOB} backHref="/jobs/x?tab=prep" />
+      </LiveAnnouncerProvider>,
+    );
+    expect(await screen.findByRole("button", { name: PREP_COPY.quickFire.retry })).toBeTruthy();
+  });
+
+  it("a round with no session ends without calling the end-session action", async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <LiveAnnouncerProvider>
+          <QuickFireCard questions={qs(1)} sessionId={null} opportunityId={JOB} backHref="/jobs/x?tab=prep" />
+        </LiveAnnouncerProvider>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      fireEvent.click(screen.getByTestId("quick-fire-surface"));
+      expect(screen.getByRole("heading", { name: PREP_COPY.quickFire.summaryHeading })).toBeTruthy();
+      expect(endSessionAction).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("QuickFireCard in the library scope", () => {
   beforeEach(() => {
     cleanup();

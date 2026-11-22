@@ -13,7 +13,8 @@ import { messageFor } from "@/lib/pipeline/messages";
 
 type Phase =
   | { kind: "starting" }
-  | { kind: "ready"; sessionId: string; picked: QuickFireQuestion[] }
+  // sessionId is null for a round started with no network: nothing is recorded server side.
+  | { kind: "ready"; sessionId: string | null; picked: QuickFireQuestion[] }
   | { kind: "failed"; message: string };
 
 /**
@@ -45,6 +46,13 @@ export function QuickFireRound(props: {
       const picked = pickQuickFire(questions, seedFromId(result.data.id), QUICK_FIRE_COUNT);
       setPhase({ kind: "ready", sessionId: result.data.id, picked });
     } catch (error) {
+      // Saved for offline: a round must run with no connection. Its marks
+      // queue; only the session's timeline event is skipped.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const picked = pickQuickFire(questions, seedFromId(crypto.randomUUID()), QUICK_FIRE_COUNT);
+        setPhase({ kind: "ready", sessionId: null, picked });
+        return;
+      }
       console.error("start session failed", error);
       setPhase({ kind: "failed", message: `${PREP_COPY.quickFire.startFailed} ${messageFor("unexpected")}` });
     }
