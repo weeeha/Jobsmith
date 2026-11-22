@@ -31,6 +31,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // A cycle that ships a route which must answer without a session adds its
+  // matcher exclusion or PUBLIC_PATHS entry and a row in
+  // tests/fixtures/no-session-routes.json in the same milestone.
+  //
   // api/bridge/ is excluded here, in the matcher, rather than with an early
   // return inside proxy() above: when the proxy runs at all, Next buffers
   // the request body before the route handler ever sees it (capped by
