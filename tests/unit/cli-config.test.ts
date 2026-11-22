@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { configPath, readCredentials, writeCredentials } from "@/cli/src/config";
+import { configPath, readCredentials, readSavedCredentials, secretFileProblem, writeCredentials } from "@/cli/src/config";
 import type { CliIo } from "@/cli/src/io";
 
 function testIo(overrides: Partial<CliIo> = {}): CliIo {
@@ -96,5 +96,36 @@ describe("writeCredentials / readCredentials", () => {
         testIo({ env: { JOBSMITH_URL: "http://env-url.example", JOBSMITH_TOKEN: "placeholder-env-token" }, homedir: home }),
       ),
     ).toEqual({ url: "http://env-url.example", token: "placeholder-env-token" });
+  });
+});
+
+describe("readSavedCredentials", () => {
+  it("ignores JOBSMITH_TOKEN and JOBSMITH_URL", async () => {
+    const home = await makeTempHome();
+    const io = testIo({
+      homedir: home,
+      env: { JOBSMITH_URL: "http://env-url.example", JOBSMITH_TOKEN: "placeholder-env-token" },
+    });
+    expect(await readSavedCredentials(io)).toBeNull();
+    await writeCredentials(io, { url: "http://file-url.example/", token: "placeholder-file-token" });
+    expect(await readSavedCredentials(io)).toEqual({ url: "http://file-url.example", token: "placeholder-file-token" });
+  });
+});
+
+describe("secretFileProblem", () => {
+  it("is null for mode 600, names chmod 600 and the file for 644, 660 and 604, and is null on win32", async () => {
+    const home = await makeTempHome();
+    const file = path.join(home, "secret.json");
+    await writeFile(file, "{}");
+    await chmod(file, 0o600);
+    expect(await secretFileProblem(file, "linux")).toBeNull();
+    for (const mode of [0o644, 0o660, 0o604]) {
+      await chmod(file, mode);
+      const problem = await secretFileProblem(file, "darwin");
+      expect(problem, mode.toString(8)).toContain("chmod 600");
+      expect(problem).toContain(file);
+      expect(await secretFileProblem(file, "win32")).toBeNull();
+    }
+    expect(await secretFileProblem(path.join(home, "missing.json"), "linux")).toBeNull();
   });
 });

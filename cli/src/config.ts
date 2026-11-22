@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, chmod } from "node:fs/promises";
+import { mkdir, readFile, writeFile, chmod, stat } from "node:fs/promises";
 import path from "node:path";
 import type { CliIo } from "./io";
 
@@ -20,6 +20,34 @@ async function readConfigFile(io: CliIo): Promise<{ url: string; token: string }
     // Missing file, unreadable file, or malformed JSON: all three mean
     // "nothing usable on disk," which readCredentials treats the same as
     // an env override that supplies both fields on its own.
+    return null;
+  }
+}
+
+// The pair saved by jobsmith login and nothing else: JOBSMITH_URL and
+// JOBSMITH_TOKEN are never consulted, so an environment value cannot be
+// combined with, or stand in for, what is on disk.
+export async function readSavedCredentials(io: CliIo): Promise<{ url: string; token: string } | null> {
+  const fromFile = await readConfigFile(io);
+  if (!fromFile || !fromFile.url || !fromFile.token) {
+    return null;
+  }
+  return { url: fromFile.url.replace(/\/+$/, ""), token: fromFile.token };
+}
+
+// null when the file is fine, missing, unreadable to stat, or the platform
+// has no POSIX modes; otherwise the sentence to print before refusing.
+export async function secretFileProblem(file: string, platform: string): Promise<string | null> {
+  if (platform === "win32") {
+    return null;
+  }
+  try {
+    const { mode } = await stat(file);
+    if ((mode & 0o077) !== 0) {
+      return `${file} can be read by other users. Run chmod 600 ${file} and start again.`;
+    }
+    return null;
+  } catch {
     return null;
   }
 }
