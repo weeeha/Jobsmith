@@ -68,3 +68,53 @@ export const LIST_JOBS_DEFAULT = 100;
 export const FEED_ITEMS_MAX = 50;
 export const FEED_ITEMS_DEFAULT = 20;
 export const RESOURCES_PAGE = 50;
+
+// job/v1: the structured read of one job (Milestone 30, Task 4).
+export type JobJsonDocument = {
+  key: string;
+  kind: string;
+  scope: WireScope;
+  title: string;
+  stage: string | null;
+  version: number;
+  origin: string;
+  updated_at: string;
+  edited: boolean;
+  sent_at: string | null;
+  open_request: JobJsonOpenRequest | null;
+};
+// Apply and Research's JSON index does not exist on this branch, so the
+// open-request fields are not known yet. Narrow this to that index's exact
+// entry fields when it lands (Task 23 changes only where they are read from).
+export type JobJsonOpenRequest = Record<string, unknown>;
+export type JobJson = {
+  schema: "job/v1";
+  generated_at: string;
+  slug: string;
+  role: string;
+  company: { name: string; domain: string | null; size: string | null; industry: string | null; hq: string | null };
+  location: string | null;
+  work_mode: string | null;
+  status: "active" | "closed";
+  closed_reason: string | null;
+  source_url: string | null;
+  posting_captured_at: string | null;
+  current_stage: { id: string; kind: string; label: string };
+  stages: {
+    id: string;
+    position: number;
+    kind: string;
+    label: string;
+    status: string;
+    scheduled_at: string | null;
+    completed_at: string | null;
+    format: string | null;
+  }[];
+  people: { name: string; title: string | null; role: string; stage: string | null; linkedin_url: string | null }[];
+  fit: { status: string; score: number | null; summary: string | null; failed_filters: string[] } | null;
+  next_action: string | null;
+  next_action_at: string | null;
+  documents: JobJsonDocument[];
+  prep: { questions: number; solid: number; okay: number; shaky: number; unmarked: number };
+  requests: { id: string; kind: string; target: string; status: string; stage: string | null; runner: string | null }[];
+};

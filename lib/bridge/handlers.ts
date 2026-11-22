@@ -3,6 +3,7 @@ import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
 import { authenticate, type BridgeDeps } from "./auth";
 import { logBridgeError } from "./log";
 import { loadContextDocument } from "./context-load";
+import { loadJobJson } from "./job-json";
 import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
@@ -62,6 +63,27 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
       status: 200,
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },
     });
+  } catch (error) {
+    logBridgeError(requestId, error);
+    return bridgeError("server_error", requestId);
+  }
+}
+
+export async function handleGetJob(deps: BridgeDeps, request: Request, slug: string): Promise<Response> {
+  const requestId = deps.requestId();
+  try {
+    const now = deps.now();
+    const auth = await authenticate(deps, request, requestId, now);
+    if (!auth.ok) return auth.response;
+
+    if (!isValidSlugShape(slug)) {
+      return bridgeError("not_found", requestId, { slug });
+    }
+    const job = await loadJobJson(auth.s, slug, now);
+    if (job === null) {
+      return bridgeError("not_found", requestId, { slug });
+    }
+    return bridgeJson(job, { requestId });
   } catch (error) {
     logBridgeError(requestId, error);
     return bridgeError("server_error", requestId);

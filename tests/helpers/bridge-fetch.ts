@@ -1,5 +1,5 @@
 import type { BridgeDeps } from "@/lib/bridge/handlers";
-import { handleListEvents, handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
+import { handleListEvents, handleGetJob, handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
 
 export function bridgeFetch(deps: BridgeDeps): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -11,6 +11,10 @@ export function bridgeFetch(deps: BridgeDeps): typeof fetch {
     }
     if (request.method === "GET" && url.pathname === "/api/bridge/events") {
       return handleListEvents(deps, request);
+    }
+    const jobMatch = /^\/api\/bridge\/opportunities\/([^/]+)$/.exec(url.pathname);
+    if (request.method === "GET" && jobMatch) {
+      return handleGetJob(deps, request, decodeURIComponent(jobMatch[1]!));
     }
     const contextMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/context$/.exec(url.pathname);
     if (request.method === "GET" && contextMatch) {

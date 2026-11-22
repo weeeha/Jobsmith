@@ -270,7 +270,7 @@ it("dates are ISO strings and null stays null", ...)
 // tests/integration/bridge-job.test.ts
 it("GET /api/bridge/opportunities/:slug answers job/v1 for the token's own job", ...)
 it("answers 404 not_found for another user's slug and for a slug with a slash", ...)
-it("documents holds one entry per key for the job and its company; prep is zeros when the job has no question rows", ...)
+it("documents, prep and requests carry their empty values while Apply and Research, Prep and the runner are absent (once they land: documents holds one entry per key for the job and its company; prep is zeros when the job has no question rows)", ...)
 it("401 without a token", ...)
 ```
 
@@ -281,7 +281,7 @@ Expected: FAIL, `lib/bridge/job-json.ts` missing.
 
 - [ ] **Step 3: Implement**
 
-`buildJobJson` is a pure mapper over the `JobView` fields (`opportunity.roleTitle`, `opportunity.workMode`, `opportunity.closedReason`, `opportunity.sourceUrl`, `opportunity.postingCapturedAt`, `company.name`, `stages`, `people` with `link.person`, `link.role`, `link.stageId`). `loadJobJson` reads `getJobView`, the documents via the Apply and Research index function (empty list when it does not exist yet, per "Before starting"), the prep counts via Prep's readers (zeros when absent), `requests` as `[]` (Task 23 fills it), and `failedFilters` from `hardFilters({ roleTitle, location, workMode, compMin, compMax, compCurrency }, (await loadFitProfile(s)).preferences).failed`. `fit.status` is `opportunity.fitStatus`; `score` and `summary` come from `parseStoredFit(opportunity.fit)`. The route is the three-line shape of the existing `context` route.
+`buildJobJson` is a pure mapper over the `JobView` fields (`opportunity.roleTitle`, `opportunity.workMode`, `opportunity.closedReason`, `opportunity.sourceUrl`, `opportunity.postingCapturedAt`, `company.name`, `stages`, `people` with `link.person`, `link.role`, `link.stageId`). `loadJobJson` reads `getJobView`, the documents via the Apply and Research index function (empty list when it does not exist yet, per "Before starting"), the prep counts via Prep's readers (zeros when absent), `requests` as `[]` (Task 23 fills it), and `failedFilters` from `hardFilters({ roleTitle, location, workMode, compMin, compMax, compCurrency }, (await loadFitProfile(s)).preferences).failed`. `fit.status` is `opportunity.fitStatus`; `score` and `summary` come from `parseStoredFit(opportunity.fit)`. The route is the three-line shape of the existing `context` route. The body is the bare `job/v1` object (no `requestId` field; the id is in the `x-request-id` header).
 
 - [ ] **Step 4: Run the tests and watch them pass**
 
