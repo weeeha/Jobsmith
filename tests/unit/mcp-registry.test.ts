@@ -18,8 +18,8 @@ const CONTRACT: Record<string, { title: string; description: string }> = {
   list_feed_items: { title: "List feed items", description: "List roles found by the user's feed, newest first." },
 };
 
-// Tasks 8 and 24 register these; until then they are neither registered nor skipped.
-const NOT_YET_REGISTERED = ["write_document", "list_requests", "create_request", "cancel_request"];
+// Task 24 registers these; until then they are neither registered nor skipped.
+const NOT_YET_REGISTERED = ["list_requests", "create_request", "cancel_request"];
 
 describe("mcp registry", () => {
   it("every registered tool name is in ALLOWED_TOOL_NAMES and every allowed name is registered or in SKIPPED_TOOLS", () => {

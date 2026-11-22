@@ -4,7 +4,7 @@ import type { IncomingArtifact } from "@/lib/artifacts/upsert";
 
 const WIRE_SCOPES = ["opportunity", "company"] as const;
 
-const wireArtifactSchema = z.object({
+export const wireArtifactSchema = z.object({
   key: z
     .string({ error: "key must be a string." })
     .regex(

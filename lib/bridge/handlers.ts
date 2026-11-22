@@ -4,9 +4,9 @@ import { authenticate, type BridgeDeps } from "./auth";
 import { logBridgeError } from "./log";
 import { loadContextDocument } from "./context-load";
 import { loadJobJson } from "./job-json";
-import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
+import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, SLUG_PATTERN, type WireOpportunity } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
-import { upsertArtifacts } from "@/lib/artifacts/upsert";
+import { applyPush } from "./push";
 
 export type { BridgeDeps } from "./auth";
 export { handleListEvents } from "./events";
@@ -154,36 +154,14 @@ export async function handlePushArtifacts(deps: BridgeDeps, request: Request, sl
     }
 
     const inputs = parsed.data.artifacts.map(toIncoming);
-    const outcome = await upsertArtifacts(auth.s, opportunity.id, inputs, { origin: "pushed", dryRun, now });
+    const outcome = await applyPush(deps, auth.s, { opportunity, inputs, dryRun, now });
     if (!outcome.ok) {
       if (outcome.code === "not_found") {
         return bridgeError("not_found", requestId, { slug });
       }
       return bridgeError("invalid_payload", requestId, { text: outcome.message });
     }
-
-    // A push (origin "pushed") never produces planUpsert's "edited" status:
-    // that status is only ever returned for origin "manual". The cast below
-    // is sound because of that origin guarantee, not a runtime check.
-    const results = outcome.data.results.map((r) => ({
-      key: r.key,
-      scope: r.scope,
-      status: r.status as WireStatus,
-      version: r.version,
-    }));
-
-    const changed = results.some((r) => r.status !== "unchanged");
-    if (!dryRun && changed) {
-      deps.revalidate(`/jobs/${slug}`);
-      if (results.some((r) => r.status !== "unchanged" && r.scope === "company")) {
-        const companySlugs = await auth.s.opportunity.listSlugsForCompany(opportunity.companyId);
-        for (const otherSlug of companySlugs) {
-          if (otherSlug !== slug) {
-            deps.revalidate(`/jobs/${otherSlug}`);
-          }
-        }
-      }
-    }
+    const { results } = outcome.data;
 
     return bridgeJson({ dryRun, results, warnings: outcome.data.warnings, requestId }, { requestId });
   } catch (error) {
