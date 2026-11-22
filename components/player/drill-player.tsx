@@ -11,12 +11,22 @@ import { useSpeaker, type BrowserVoices } from "@/components/player/speaker";
 import { useMark } from "@/components/prep/mark-buttons";
 import { EmptyState } from "@/components/super-ai/empty-state";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { LIBRARY_COPY } from "@/lib/library/copy";
 import type { DrillQuestion } from "@/lib/prep/drill";
+import type { PlaybackStep } from "@/lib/prep/plan";
 import { summarizeDrill } from "@/lib/prep/drill-summary";
 import { drillReducer, initialDrillState, keyToLevel } from "@/lib/prep/drill-state";
 import { PREP_COPY } from "@/lib/prep/copy";
-import { MARK_LEVELS, type MarkLevel } from "@/lib/prep/values";
+import { MARK_LEVELS, type MarkLevel, type MarkScope } from "@/lib/prep/values";
+import type { Result } from "@/lib/result";
 import { cn } from "@/lib/utils";
+
+type LibraryClips = { askAssetId: string | null; sayAssetId: string | null };
+
+// A step with the clip an on-demand call produced, when it has none of its own.
+function withClip(step: PlaybackStep, assetId: string | null | undefined): PlaybackStep {
+  return step.clip !== null || !assetId ? step : { ...step, clip: { assetId, suspect: false } };
+}
 
 export type DrillSessionMeta = { order: string[]; docKey: string | null; section: string | null; onlyShaky: boolean };
 
@@ -72,7 +82,8 @@ function Gap(props: { remaining: number; onDone(): void; onMoreTime(): void; rec
 
 function Reveal(props: {
   question: DrillQuestion;
-  opportunityId: string;
+  opportunityId: string | null;
+  scope: MarkScope;
   onMark(level: MarkLevel): void;
   onSkip(): void;
   onReplay(): void;
@@ -84,7 +95,7 @@ function Reveal(props: {
   const { mark, pending } = useMark({
     questionKey: question.questionKey,
     opportunityId: props.opportunityId,
-    scope: "job",
+    scope: props.scope,
     drilled: true,
     onMarked: props.onMark,
   });
@@ -181,7 +192,8 @@ function QuestionStage(props: {
   question: DrillQuestion;
   phase: "gap" | "reveal";
   remaining: number;
-  opportunityId: string;
+  opportunityId: string | null;
+  scope: MarkScope;
   sessionId: string | null;
   refused: boolean;
   onRefused(): void;
@@ -193,7 +205,8 @@ function QuestionStage(props: {
   const { question, phase, dispatch } = props;
   const recorder = useAnswerRecorder({
     phase,
-    opportunityId: props.opportunityId,
+    // A recording belongs to a job; a library drill never offers one.
+    opportunityId: props.opportunityId ?? "",
     sessionId: props.sessionId,
     questionKey: question.questionKey,
     refused: props.refused,
@@ -201,21 +214,23 @@ function QuestionStage(props: {
     env: props.media,
     upload: props.upload,
   });
+  const canRecord = props.scope === "job";
   return phase === "gap" ? (
     <Gap
       remaining={props.remaining}
       onDone={() => dispatch({ type: "done" })}
       onMoreTime={() => dispatch({ type: "more_time" })}
-      record={<RecordControl recorder={recorder} />}
+      record={canRecord ? <RecordControl recorder={recorder} /> : null}
     />
   ) : (
     <Reveal
       question={question}
       opportunityId={props.opportunityId}
+      scope={props.scope}
       onMark={(level) => dispatch({ type: "mark", level })}
       onSkip={() => dispatch({ type: "skip" })}
       onReplay={props.onReplay}
-      record={<RecordedPanel recorder={recorder} />}
+      record={canRecord ? <RecordedPanel recorder={recorder} /> : null}
     />
   );
 }
@@ -229,17 +244,25 @@ function QuestionStage(props: {
 export function DrillPlayer(props: {
   questions: DrillQuestion[];
   sessionMeta: DrillSessionMeta;
-  opportunityId: string;
-  slug: string;
+  // null for the Library's drill: no job, marks in scope "library".
+  opportunityId: string | null;
+  slug: string | null;
   docRef: string | null;
   speed: number;
   browserVoices: BrowserVoices;
+  scope?: MarkScope;
+  // Asks for the clips of the next questions (the Library generates them on
+  // demand). Until a clip exists a step speaks through the browser voice.
+  ensureAudio?: (questionKeys: string[]) => Promise<Result<{ clips: Record<string, LibraryClips> }, string>>;
   // Test seams for the microphone; the browser's own APIs by default.
   media?: MediaEnv;
   upload?: (input: UploadInput) => Promise<UploadResult>;
 }): React.ReactElement {
   const { questions, speed } = props;
+  const scope = props.scope ?? "job";
   const copy = PREP_COPY.drill;
+  const backHref = scope === "library" ? "/library" : `/jobs/${props.slug}?tab=prep`;
+  const backLabel = scope === "library" ? LIBRARY_COPY.back : copy.back;
   const [state, dispatch] = React.useReducer(
     (current: ReturnType<typeof initialDrillState>, event: Parameters<typeof drillReducer>[1]) => drillReducer(current, event, questions),
     undefined,
@@ -251,12 +274,37 @@ export function DrillPlayer(props: {
   // A refused microphone hides Record my answer for the rest of the session.
   const [micRefused, setMicRefused] = React.useState(false);
   const onRefused = React.useCallback(() => setMicRefused(true), []);
+  // Clips made on demand while the drill runs. The ref is what the speaking
+  // effects read, so a clip arriving mid-question never restarts the speech.
+  const [clips, setClips] = React.useState<Record<string, LibraryClips>>({});
+  const clipsRef = React.useRef(clips);
+  React.useEffect(() => {
+    clipsRef.current = clips;
+  }, [clips]);
   const speaker = useSpeaker({ browserVoices: props.browserVoices });
   const { speak, cancel } = speaker;
   const sessionStarted = React.useRef(false);
   const total = questions.length;
   const question = questions[state.index] ?? null;
   const { phase, index } = state;
+
+  // The Library's clips are made on demand: the first two questions on mount
+  // (no sound is made), then the two after the current one at each step.
+  const { ensureAudio } = props;
+  const requested = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    if (!ensureAudio) return;
+    const wanted = (index === 0 ? questions.slice(0, 2) : questions.slice(index + 1, index + 3))
+      .map((q) => q.questionKey)
+      .filter((key) => !requested.current.has(key));
+    if (wanted.length === 0) return;
+    for (const key of wanted) requested.current.add(key);
+    ensureAudio(wanted)
+      .then((result) => {
+        if (result.ok) setClips((current) => ({ ...current, ...result.data.clips }));
+      })
+      .catch((error) => console.error("ensure audio failed", error));
+  }, [ensureAudio, questions, index]);
 
   // One session per visit, also under Strict Mode's second effect run.
   const { opportunityId, sessionMeta } = props;
@@ -274,7 +322,7 @@ export function DrillPlayer(props: {
   React.useEffect(() => {
     if (!started || phase !== "ask" || !question) return;
     let live = true;
-    void speak(question.ask, speed).then((outcome) => {
+    void speak(withClip(question.ask, clipsRef.current[question.questionKey]?.askAssetId), speed).then((outcome) => {
       if (live && outcome !== "cancelled") dispatch({ type: "asked" });
     });
     return () => {
@@ -296,7 +344,7 @@ export function DrillPlayer(props: {
     let live = true;
     void (async () => {
       for (const step of question.say) {
-        const outcome = await speak(step, speed);
+        const outcome = await speak(withClip(step, clipsRef.current[question.questionKey]?.sayAssetId), speed);
         if (!live || outcome === "cancelled") return;
       }
     })();
@@ -316,7 +364,17 @@ export function DrillPlayer(props: {
   }
 
   if (phase === "summary") {
-    return <DrillSummary summary={summary} slug={props.slug} docRef={props.docRef} sessionId={sessionId} seen={total} opportunityId={props.opportunityId} />;
+    return (
+      <DrillSummary
+        summary={summary}
+        scope={scope}
+        slug={props.slug}
+        docRef={props.docRef}
+        sessionId={sessionId}
+        seen={total}
+        opportunityId={props.opportunityId}
+      />
+    );
   }
 
   return (
@@ -326,8 +384,8 @@ export function DrillPlayer(props: {
           {copy.positionOf(index + 1, total)}
           {question.section ? ` · ${question.section}` : ""}
         </p>
-        <Link href={`/jobs/${props.slug}?tab=prep`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          {copy.back}
+        <Link href={backHref} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          {backLabel}
         </Link>
       </div>
 
@@ -354,6 +412,7 @@ export function DrillPlayer(props: {
             phase={phase}
             remaining={state.remaining}
             opportunityId={props.opportunityId}
+            scope={scope}
             sessionId={sessionId}
             refused={micRefused}
             onRefused={onRefused}

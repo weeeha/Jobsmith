@@ -359,3 +359,97 @@ describe("DrillPlayer", () => {
     expect(startSessionAction).not.toHaveBeenCalled();
   });
 });
+
+describe("DrillPlayer in the library scope", () => {
+  type Ensure = NonNullable<React.ComponentProps<typeof DrillPlayer>["ensureAudio"]>;
+
+  function renderLibrary(questions: DrillQuestion[], ensureAudio?: Ensure) {
+    return render(
+      <LiveAnnouncerProvider>
+        <Toaster />
+        <DrillPlayer
+          scope="library"
+          questions={questions}
+          sessionMeta={{ ...META, docKey: null, order: questions.map((q) => q.questionKey) }}
+          opportunityId={null}
+          slug={null}
+          docRef={null}
+          speed={1}
+          browserVoices={{ interviewer: null, candidate: null }}
+          ensureAudio={ensureAudio}
+        />
+      </LiveAnnouncerProvider>,
+    );
+  }
+
+  it("starts a session with no job, marks through the library scope and ends without a job link", async () => {
+    renderLibrary(qs(1));
+    await toReveal();
+    expect(startSessionAction).toHaveBeenCalledWith(expect.objectContaining({ opportunityId: null, mode: "drill" }));
+    await press("1");
+    expect(markQuestionAction).toHaveBeenCalledWith(
+      expect.objectContaining({ opportunityId: null, scope: "library", level: "shaky", drilled: true }),
+    );
+    expect(screen.getByRole("link", { name: "Drill the shaky ones again" }).getAttribute("href")).toBe("/library/drill?only=shaky");
+    expect(screen.getByRole("link", { name: "Back to Library" }).getAttribute("href")).toBe("/library");
+    expect(screen.queryByRole("button", { name: "Save to library" })).toBeNull();
+    expect(endSessionAction).toHaveBeenCalledWith({ id: SESSION, seen: 1, marked: 1, solid: 0 });
+  });
+
+  it("the in-drill back link goes to the Library", async () => {
+    renderLibrary(qs(1));
+    await flush();
+    expect(screen.getByRole("link", { name: "Back to Library" }).getAttribute("href")).toBe("/library");
+  });
+
+  it("asks ensureAudio for the first two questions on mount and the next two as the drill moves on", async () => {
+    const ensure = vi.fn<Ensure>(async () => ({ ok: true, data: { clips: {} } }));
+    const questions = qs(5);
+    renderLibrary(questions, ensure);
+    await flush();
+    expect(ensure).toHaveBeenCalledTimes(1);
+    expect(ensure).toHaveBeenLastCalledWith([questions[0].questionKey, questions[1].questionKey]);
+    await toReveal();
+    await press("3");
+    await flush();
+    expect(ensure).toHaveBeenLastCalledWith([questions[2].questionKey, questions[3].questionKey]);
+    expect(ensure.mock.calls.flat(2)).not.toContain(questions[4].questionKey);
+  });
+
+  it("makes no sound for the ensureAudio call itself, and speaks through the browser voice until a clip arrives", async () => {
+    let release: (value: Awaited<ReturnType<Ensure>>) => void = () => {};
+    const ensure = vi.fn<Ensure>(() => new Promise((resolve) => (release = resolve)));
+    const questions = qs(2);
+    renderLibrary(questions, ensure);
+    await flush();
+    expect(speech.spoken).toHaveLength(0);
+    await start();
+    expect(speech.spoken[0].clip).toBeNull();
+    await finishSpeech();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(speech.spoken.at(-1)).toMatchObject({ text: "Answer text 1", clip: null });
+    // The clips for question 2 arrive while question 1 is on screen.
+    await act(async () => {
+      release({
+        ok: true,
+        data: { clips: { [questions[1].questionKey]: { askAssetId: "ask-asset", sayAssetId: "say-asset" } } },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await press("3");
+    expect(speech.spoken.at(-1)).toMatchObject({ text: "Question text 2", clip: { assetId: "ask-asset" } });
+    await finishSpeech();
+    await press(" ");
+    expect(speech.spoken.at(-1)).toMatchObject({ text: "Answer text 2", clip: { assetId: "say-asset" } });
+  });
+
+  it("a failed ensureAudio call leaves the drill on the browser voice", async () => {
+    const ensure = vi.fn<Ensure>(async () => ({ ok: false, code: "tts_error", message: "no" }));
+    renderLibrary(qs(1), ensure);
+    await toReveal();
+    expect(speech.spoken.at(-1)?.clip).toBeNull();
+    expect(screen.getByText("Browser voice")).toBeTruthy();
+  });
+});

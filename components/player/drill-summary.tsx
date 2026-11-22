@@ -8,6 +8,7 @@ import { endSessionAction } from "@/app/(app)/jobs/[slug]/prep-actions";
 import { SaveToLibraryButton } from "@/components/library/save-to-library-button";
 import { MarkChip } from "@/components/prep/mark-chip";
 import { buttonVariants } from "@/components/ui/button";
+import { LIBRARY_COPY } from "@/lib/library/copy";
 import { PREP_COPY } from "@/lib/prep/copy";
 import type { DrillSummary as Summary } from "@/lib/prep/drill-summary";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,9 @@ import { cn } from "@/lib/utils";
  */
 export function DrillSummary(props: {
   summary: Summary;
-  slug: string;
+  scope?: "job" | "library";
+  // null in the Library's drill, which has no job.
+  slug: string | null;
   docRef: string | null;
   sessionId: string | null;
   seen: number;
@@ -43,7 +46,10 @@ export function DrillSummary(props: {
       });
   }, [sessionId, seen, summary, copy.sessionEndFailed]);
 
-  const againHref = `/jobs/${props.slug}/drill?${props.docRef ? `doc=${props.docRef}&` : ""}only=shaky`;
+  const library = props.scope === "library";
+  const againHref = library
+    ? "/library/drill?only=shaky"
+    : `/jobs/${props.slug}/drill?${props.docRef ? `doc=${props.docRef}&` : ""}only=shaky`;
   const headingRef = React.useRef<HTMLHeadingElement>(null);
   React.useEffect(() => {
     headingRef.current?.focus();
@@ -102,8 +108,11 @@ export function DrillSummary(props: {
             {copy.again}
           </Link>
         ) : null}
-        <Link href={`/jobs/${props.slug}?tab=prep`} className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
-          {copy.back}
+        <Link
+          href={library ? "/library" : `/jobs/${props.slug}?tab=prep`}
+          className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+        >
+          {library ? LIBRARY_COPY.back : copy.back}
         </Link>
       </div>
     </section>

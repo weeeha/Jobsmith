@@ -189,3 +189,8 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   take `scope="library"`, a null job, a back label and an empty title, so the same card runs the round over
   every active job and the library. Library questions carry no number, so the summary shows none. The Library
   page header gains two outline links, Quick-fire and Drill, built from `buttonVariants`.
+- Library Drill (`app/(app)/library/drill`): no new component. `DrillPlayer` and `DrillSummary` take
+  `scope="library"` with no job: marks use the library scope, the Record my answer controls and the Save to
+  library button are left out, and the back and "Drill the shaky ones again" links point at the Library. An
+  optional `ensureAudio` callback asks for the clips of the next two questions in the background; until one
+  exists a step speaks through the browser voice, and a clip arriving mid-question never restarts the speech.

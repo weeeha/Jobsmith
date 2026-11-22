@@ -31,7 +31,8 @@ export type DrillQuestion = {
 export type DrillSessionMeta = { order: string[]; docKey: string | null; section: string | null; onlyShaky: boolean };
 export type DrillData = { questions: DrillQuestion[]; settings: PrepSettings; sessionMeta: DrillSessionMeta };
 
-function toStep(spec: StepSpec, id: string, resolve: ClipResolver): PlaybackStep {
+// Shared with the Library's drill loader.
+export function toStep(spec: StepSpec, id: string, resolve: ClipResolver): PlaybackStep {
   const { hash, clip } = resolve(spec.speaker, spec.text);
   // Drill pauses on its own timer, so no step has a gap after it.
   return { ...spec, id, hash, clip, gapAfterMs: 0 };
