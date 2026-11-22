@@ -31,6 +31,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // A cycle that ships a route which must answer without a session adds its
+  // matcher exclusion or PUBLIC_PATHS entry and a row in
+  // tests/fixtures/no-session-routes.json in the same milestone.
+  //
   // api/bridge/ is excluded here, in the matcher, rather than with an early
   // return inside proxy() above: when the proxy runs at all, Next buffers
   // the request body before the route handler ever sees it (capped by
@@ -39,5 +43,5 @@ export const config = {
   // chance to enforce its own 4 MB limit correctly. Excluding the path from
   // the matcher means the proxy never runs on it at all, so no buffering
   // and no cookie-based redirect ever happens to a bearer-only request.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/bridge/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/bridge/|api/health(?:/|$)).*)"],
 };

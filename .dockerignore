@@ -1,0 +1,16 @@
+.env*
+.git
+node_modules
+.next
+tests
+docs
+.claude
+.superpowers
+cli/dist
+commands
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+.DS_Store
+THIRD_PARTY_LICENSES.txt

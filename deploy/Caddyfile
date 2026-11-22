@@ -1,0 +1,10 @@
+{$JOBSMITH_DOMAIN} {
+	tls {$ACME_EMAIL}
+	header Strict-Transport-Security "max-age=31536000"
+	request_body {
+		max_size 32MB
+	}
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

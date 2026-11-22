@@ -1,0 +1,80 @@
+# Jobsmith self-hosting stack. Run from this folder: `docker compose up -d`.
+# Add `--profile proxy` to put Caddy in front with automatic HTTPS.
+# The app and Postgres publish no host port. To reach the app without Caddy,
+# uncomment the `ports` line of `app`, which binds to this machine only.
+# The optional `tts` service (Kokoro) is not part of this file: its image
+# reference is unconfirmed, so point TTS_BASE_URL at your own server instead.
+# The `scheduler` service is not part of this file yet: it arrives with the
+# hosted scheduler milestone.
+
+services:
+  app:
+    image: ghcr.io/weeeha/jobsmith:${JOBSMITH_TAG:-1}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://jobsmith:${POSTGRES_PASSWORD:?}@postgres:5432/jobsmith
+      PACKS_DIR: /packs
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - storage:/data
+      - ./packs:/packs:ro
+    # ports:
+    #   - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
+    environment:
+      POSTGRES_USER: jobsmith
+      POSTGRES_DB: jobsmith
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobsmith -d jobsmith"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    profiles: ["proxy"]
+    environment:
+      JOBSMITH_DOMAIN: ${JOBSMITH_DOMAIN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  storage:
+  caddy_data:
+  caddy_config:

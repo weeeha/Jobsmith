@@ -1,0 +1,233 @@
+[
+  {
+    "id": "auth",
+    "ships": "Core",
+    "path": "/login",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "the sign-in page cannot require a session",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/login/page.tsx"
+    ]
+  },
+  {
+    "id": "auth",
+    "ships": "Core",
+    "path": "/setup",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "the first-account page runs before any session exists",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/setup"
+    ]
+  },
+  {
+    "id": "auth",
+    "ships": "Core",
+    "path": "/api/auth/sign-in/email",
+    "method": "POST",
+    "mechanism": "public_paths",
+    "why": "sign-in is the call that creates the session (auth prefix)",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/api/auth"
+    ]
+  },
+  {
+    "id": "bridge",
+    "ships": "Core",
+    "path": "/api/bridge/context/northwind-example",
+    "method": "GET",
+    "mechanism": "matcher",
+    "why": "bearer-token CLI route, excluded so the body is never buffered",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/bridge"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/signup",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/verify-email",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/reset-password",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/pricing",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/privacy",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-pages",
+    "ships": "Hosted",
+    "path": "/terms",
+    "method": "GET",
+    "mechanism": "public_paths",
+    "why": "visitors reach it before they have an account",
+    "check": "no redirect to /login, proxy returns next()",
+    "existsAny": [
+      "app/(auth)/signup"
+    ]
+  },
+  {
+    "id": "hosted-posts",
+    "ships": "Hosted",
+    "path": "/api/billing/webhook",
+    "method": "POST",
+    "mechanism": "matcher",
+    "why": "the payment provider posts with a signature, no cookie",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/billing/webhook/route.ts"
+    ]
+  },
+  {
+    "id": "hosted-posts",
+    "ships": "Hosted",
+    "path": "/api/jobs/tick",
+    "method": "POST",
+    "mechanism": "matcher",
+    "why": "the scheduler calls it with a shared secret, no cookie",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/jobs/tick/route.ts"
+    ]
+  },
+  {
+    "id": "feed-posts",
+    "ships": "Feed",
+    "path": "/api/telegram/webhook",
+    "method": "POST",
+    "mechanism": "matcher",
+    "why": "Telegram posts with a secret header, no cookie",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/telegram"
+    ]
+  },
+  {
+    "id": "feed-posts",
+    "ships": "Feed",
+    "path": "/api/notify/unsubscribe",
+    "method": "POST",
+    "mechanism": "matcher",
+    "why": "an email client posts one-click unsubscribe, no cookie",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/notify"
+    ]
+  },
+  {
+    "id": "debrief-upload",
+    "ships": "Debrief",
+    "path": "/api/debrief/upload/northwind-token",
+    "method": "PUT",
+    "mechanism": "matcher",
+    "why": "a signed upload URL carries its own token and a large body",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/debrief"
+    ]
+  },
+  {
+    "id": "manifest-icons",
+    "ships": "Prep",
+    "path": "/manifest.webmanifest",
+    "method": "GET",
+    "mechanism": "matcher",
+    "why": "the browser fetches it without credentials",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/manifest.ts",
+      "public/manifest.webmanifest"
+    ]
+  },
+  {
+    "id": "manifest-icons",
+    "ships": "Prep",
+    "path": "/icon.svg",
+    "method": "GET",
+    "mechanism": "matcher",
+    "why": "the browser fetches it without credentials",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/manifest.ts",
+      "public/manifest.webmanifest"
+    ]
+  },
+  {
+    "id": "manifest-icons",
+    "ships": "Prep",
+    "path": "/apple-icon.png",
+    "method": "GET",
+    "mechanism": "matcher",
+    "why": "the browser fetches it without credentials",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/manifest.ts",
+      "public/manifest.webmanifest"
+    ]
+  },
+  {
+    "id": "health",
+    "ships": "Widen",
+    "path": "/api/health",
+    "method": "GET",
+    "mechanism": "matcher",
+    "why": "the container health check has no session",
+    "check": "path is outside the proxy matcher, so the proxy never runs",
+    "existsAny": [
+      "app/api/health/route.ts"
+    ]
+  }
+]

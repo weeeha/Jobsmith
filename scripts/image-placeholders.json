@@ -1,0 +1,5 @@
+{
+  "databaseUrl": "postgres://build:build@build.invalid:5432/build",
+  "secret": "build-only-placeholder-secret-0000",
+  "appUrl": "http://build.invalid"
+}

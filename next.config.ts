@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The self-host image sets JOBSMITH_STANDALONE=1 to get .next/standalone.
+  // Without it nothing changes, so the Vercel build stays as it was.
+  ...(process.env.JOBSMITH_STANDALONE === "1"
+    ? { output: "standalone" as const }
+    : {}),
+  // Files read at runtime by path, which the file tracer cannot see. Keys are
+  // route globs; "/*" applies to every route. A pattern that matches nothing
+  // yet is harmless.
+  outputFileTracingIncludes: {
+    "/*": [
+      "./content/legal/**",
+      "./lib/auth/disposable-domains.txt",
+      "./lib/doc-export/fonts/**",
+    ],
+  },
   // turndown ships a browser build and linkedom an optional `canvas` require;
   // this makes Next require them at runtime instead of bundling them, so the
   // bundler never has to choose between turndown's builds or resolve an

@@ -53,3 +53,12 @@ skills-lock.json
 
 # the owner's personal import mapping, owner-gated and never committed
 /local/
+
+# bundled commands, written by pnpm scripts:build
+/commands/
+
+# written by pnpm licenses:collect
+THIRD_PARTY_LICENSES.txt
+
+# Self-host backups
+deploy/backups/

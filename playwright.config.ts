@@ -23,19 +23,19 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|home|preferences|settings-profile)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|home|preferences|settings-profile|health)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "webkit",
-      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|home|preferences|settings-profile)\.spec\.ts$/,
+      testMatch: /(shell|pipeline|job-page|documents|bridge|nav|intake|home|preferences|settings-profile|health)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: { ...devices["Desktop Safari"] },
     },
     {
       name: "phone",
-      testMatch: /(shell|pipeline-phone|documents-phone|nav|intake-phone|home|preferences|settings-profile)\.spec\.ts$/,
+      testMatch: /(shell|pipeline-phone|documents-phone|nav|intake-phone|home|preferences|settings-profile|health)\.spec\.ts$/,
       dependencies: ["first-run"],
       use: {
         ...devices["iPhone 13"],
@@ -67,7 +67,9 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
+  // E2E_EXTERNAL_SERVER=1: the specs talk to a server already running at
+  // APP_URL (the image workflow's container), so Playwright starts none.
+  webServer: process.env.E2E_EXTERNAL_SERVER === "1" ? undefined : {
     // All browsers log in from the same address, so the suite raises the
     // sign-in limit for the server it starts. The default stays 5 per
     // minute. SETUP_TOKEN matches the constant in tests/e2e/account.ts, so

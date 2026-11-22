@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client, Pool } from "pg";
-import path from "node:path";
+import { resolveMigrationsFolder } from "./migrations-folder";
 
 // Fixed and arbitrary: derived once from sha256("jobsmith:migrate-advisory-lock")
 // and truncated to 48 bits (comfortably inside both a JS safe integer and a
@@ -39,7 +39,7 @@ async function main() {
 
     const db = drizzle(pool);
     await migrate(db, {
-      migrationsFolder: path.resolve(import.meta.dirname, "../lib/db/migrations"),
+      migrationsFolder: resolveMigrationsFolder(import.meta.dirname),
     });
     console.log("Migrations applied");
   } finally {
@@ -53,6 +53,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("[migrate]", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
