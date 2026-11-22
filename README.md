@@ -256,7 +256,27 @@ Every error response shares one shape, `{ "error": { "code", "message" }, "reque
 ## Deploying
 
 To run it on your own server with Docker, Postgres and Caddy, follow the
-[self-hosting guide](docs/self-hosting.md).
+[self-hosting guide](docs/self-hosting.md). In short:
+
+- The stack is the `deploy/` folder: `compose.yaml` (app, Postgres and an
+  optional Caddy profile for HTTPS), `env.example`, `backup.sh` and
+  `restore.sh`. Copy the folder to the server, fill in `.env`, then run
+  `docker compose --profile proxy up -d`.
+- The image is `ghcr.io/weeeha/jobsmith`, built for `linux/amd64` and
+  `linux/arm64` by `.github/workflows/release.yml` when a `v*` tag is
+  pushed. `JOBSMITH_TAG` in `.env` chooses the version; pin a full tag to
+  upgrade only when you choose.
+- `GET /api/health` answers without a session: 200 with status `ok` when
+  the database answers and the schema matches the image, 503 otherwise.
+  The image healthcheck uses it.
+- Backups and restores are `./backup.sh` and `./restore.sh`. The guide
+  covers the nightly cron line, copying backups off the machine, upgrades
+  and the Postgres major upgrade.
+- The first account is created at `/setup` with `SETUP_TOKEN`, the same as
+  in First run above.
+
+What has been verified, and what has not, is in
+[docs/self-hosting-install-record.md](docs/self-hosting-install-record.md).
 
 On Vercel, the build command is `pnpm db:migrate && pnpm build` (see
 `vercel.ts`): every deployment migrates the database before it builds.
