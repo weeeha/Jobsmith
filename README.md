@@ -395,6 +395,26 @@ default speech URL is `http://127.0.0.1:8890/v1`, where a local Qwen3-TTS server
 another OpenAI-compatible server. Text goes only to that address. If the server wants a key, set
 `JOBSMITH_TTS_API_KEY` in the environment of the command. Run it again to retry any clip that failed.
 
+## Phone
+
+Jobsmith installs as an app. On an iPhone open it in Safari, then Share, then Add to Home Screen. On Android
+or a desktop Chromium use the browser menu's Install item. It needs HTTPS (or `localhost`); the service worker
+registers only in a production build, so `pnpm dev` never caches anything.
+
+On a job's Prep tab, Save for offline stores that job on the device: its questions, its Listen, Drill and
+Quick-fire pages and every audio clip, with the size shown before you start. Remove saved copy deletes it.
+Nothing else is cached: the board, Home, the Library and every job you have not saved need a connection, and
+open to a short offline page that lists the saved jobs. Marks made offline wait on the device (a line shows
+"3 marks waiting to sync") and post when the connection returns, keeping the time you tapped; a newer mark
+made elsewhere wins. Signing out deletes the saved jobs and the waiting marks from that device.
+
+Platform limits. Safari removes the saved copy of a site you have not opened for seven days unless the app is
+on the home screen. Audio on a locked screen depends on the phone. Session notes of a Quick-fire round started
+with no connection are not recorded on the timeline. After new clips are prepared on the server, Remove saved
+copy and save again to include them.
+
+`pnpm icons` redraws the app icons in `public/icons` from `scripts/make-icons.ts`.
+
 ## Scripts
 
 | Script | Purpose |

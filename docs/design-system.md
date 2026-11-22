@@ -152,6 +152,9 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   "You are offline." and, read from Cache Storage, "Open a saved job": one card per saved job with a Listen, Drill
   and Quick-fire link per bank and a Listen link per pitch. The links are plain anchors, not `Link`, so each is a
   document load the worker answers from the saved job's cache. The registry has no offline-fallback pattern.
+- Milestone 10 end to end (`tests/e2e/prep-phone.spec.ts`): no new UI. The hub with the offline panel (not saved and
+  saved) and the offline page (online and with `setOffline`) are scanned with axe in light and dark through the
+  existing `scanForViolations`. Offline checks use `context.setOffline`.
 - `components/native-select.tsx`: hand-written. A styled native `select` with the field look of `Input`.
   Base UI's `Select` is the primary choice, but the speed list and the device-voice list (often over a
   hundred entries) are better in the phone's own picker, and a native element keeps keyboard and

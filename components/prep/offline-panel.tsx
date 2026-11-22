@@ -38,6 +38,10 @@ export function OfflinePanel(props: { slug: string; userHash: string; deps?: Off
   );
   const cachesApi = props.deps?.caches ?? (hasCaches ? window.caches : undefined);
   const fetchApi = props.deps?.fetch;
+  // An arrow, never `window.fetch` itself: saveForOffline calls input.fetch(...)
+  // as a method, and the browser's fetch throws "Illegal invocation" when its
+  // receiver is anything but the window.
+  const doFetch = React.useCallback<typeof fetch>((...args) => (fetchApi ?? fetch)(...args), [fetchApi]);
   const [view, setView] = React.useState<View>({ phase: "loading" });
   const [attempt, setAttempt] = React.useState(0);
   const controller = React.useRef<AbortController | null>(null);
@@ -53,7 +57,7 @@ export function OfflinePanel(props: { slug: string; userHash: string; deps?: Off
           setView({ phase: "saved", savedAt: meta.savedAt, size: formatSaveSize(meta.bytes, meta.clips) });
           return;
         }
-        const res = await (fetchApi ?? fetch)(`/api/prep/${slug}`, { credentials: "include" });
+        const res = await doFetch(`/api/prep/${slug}`, { credentials: "include" });
         if (!res.ok || res.redirected) throw new Error(`manifest ${res.status}`);
         const manifest = (await res.json()) as PrepManifest;
         if (!cancelled) setView({ phase: "ready", size: formatSaveSize(manifest.totalBytes, manifest.assets.length) });
@@ -64,7 +68,7 @@ export function OfflinePanel(props: { slug: string; userHash: string; deps?: Off
     return () => {
       cancelled = true;
     };
-  }, [cachesApi, fetchApi, slug, userHash, attempt]);
+  }, [cachesApi, doFetch, slug, userHash, attempt]);
 
   React.useEffect(() => () => controller.current?.abort(), []);
 
@@ -80,7 +84,7 @@ export function OfflinePanel(props: { slug: string; userHash: string; deps?: Off
       const result = await saveForOffline({
         slug,
         userHash,
-        fetch: fetchApi ?? fetch,
+        fetch: doFetch,
         caches: cachesApi,
         signal: abort.signal,
         onProgress: (p) => {
@@ -97,6 +101,7 @@ export function OfflinePanel(props: { slug: string; userHash: string; deps?: Off
         });
         announce(COPY.savedAnnouncement);
       } else {
+        console.error(`save for offline: not saved ${JSON.stringify(result.failed)}`);
         setView({ phase: "failed", count: result.failed.length });
       }
     } catch {

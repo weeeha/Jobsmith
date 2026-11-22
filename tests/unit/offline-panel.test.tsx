@@ -90,6 +90,23 @@ describe("OfflinePanel", () => {
     expect(screen.queryByText("Saved")).toBeNull();
   });
 
+  it("hands saveForOffline a fetch that works when called as a method of its input", async () => {
+    let receiverIsUndefined: boolean | null = null;
+    const strictFetch = (async function (this: unknown) {
+      receiverIsUndefined = this === undefined;
+      return { ok: true, redirected: false, json: async () => manifest };
+    }) as unknown as typeof fetch;
+    save.mockImplementation(async (input) => {
+      await input.fetch("/api/prep/acme-designer");
+      return { ok: true, failed: [], savedAt: new Date() };
+    });
+    renderPanel(strictFetch);
+    await screen.findByRole("button", { name: "Save for offline" });
+    receiverIsUndefined = null;
+    await click("Save for offline");
+    expect(receiverIsUndefined).toBe(true);
+  });
+
   it("announces 'Saved for offline.' through the live region", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
