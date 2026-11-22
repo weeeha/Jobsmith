@@ -84,13 +84,53 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 14 | Rerun of the packet end-to-end spec after the reviewer's notice fix | The Playwright chain needs WebKit; the behavior was checked by hand in the Browser pane on a job holding both banks, not on a job with the lone no-questions bank |
 | 14 | Preview deployment, the pass in Chrome and Safari on a preview, `pnpm prep:backfill` on a real database | No push, no deploy; Safari was not checked at all |
 
+## Fixed 2026-11-21, second pass
+
+| Item | Commit |
+|---|---|
+| Two simultaneous `endSession` calls wrote two timeline events: the update now runs only while `ended_at` is null (`endIfOpen`), tested with two calls at once | `140ed08` |
+| Two simultaneous "Save to library" clicks made two items: partial unique index on (`user_id`, `question_key`, `source_opportunity_id`), migration `0005`, insert that does nothing on conflict | `bb9a98b` |
+| A changed included document now rebuilds the documents of the job that include it | `33dd79b` |
+| A clip that fails while playing is now labelled "Browser voice" in the transcript | `120f793` |
+| The voice-list wait before the second `selectOption` in Settings (the flaky spot was the return to the first voice, after `page.goto`) | `a585313` |
+| The asset route refuses a real asset id of a second account (two accounts in the end-to-end test; the row is written through the database, the object is not stored) | `aac1f2a` |
+
+Not fixed from the list: the offline mark queue idempotency key. A retry must be recognised across devices and days, which needs a table of applied mark ids (or a client id column), a rule for how long to keep them, and a change to the payload, the queue and the action. That is a design call, so it stays in Postponed below. Unique-index note: a database that already holds two items for one question and job would fail migration `0005`; no account exists on production.
+
+## WebKit and phone results
+
+Run 2026-11-21 and 22 against a production build on port 3470, database `jobsmith_m6_e2e`, WebKit 26.6 from `pnpm exec playwright install webkit`. Machine load stayed under 20. Projects: `webkit`, `phone`, `fit-webkit`, `fit-phone`, `prep-webkit`, `prep-phone` (plus `first-run`), one worker, every project depending on `first-run` only, so one failure did not block the next project. The repo's own config chains the projects, so a single failure there leaves later projects unrun.
+
+| Result | Count |
+|---|---|
+| Passed | 103 |
+| Failed | 3 |
+| Skipped | 6 |
+| Did not run | 20 |
+
+Per project, what I have: `webkit` 22 started, `phone` 14, `fit-webkit` 5, `fit-phone` 5, `prep-webkit` 41, `prep-phone` 41, no failure in the first four. Failures: `prep-webkit` 2, `prep-phone` 1. The line reporter does not print per-project pass and skip counts, so those are not split further, and the 20 that did not run were not traced to a project.
+
+Failures, not fixed:
+
+| Spec | What happened | Verdict |
+|---|---|---|
+| `prep-drill.spec.ts:137` keyboard only, `prep-webkit` | The "Mark this answer" group was not found after the keyboard steps | Unresolved. Needs a look at WebKit keyboard focus (Space and the arrow keys) in the Drill screen, in a headed run |
+| `prep-phone.spec.ts:138` offline playback, `prep-webkit` and `prep-phone` | `page.goto` to Listen: "WebKit encountered an internal error", after the service worker is offline | Unresolved. Probably the Playwright WebKit build with a service worker and offline mode; a real Safari or phone check is still needed |
+
+Flakes seen on the first, parallel pass and gone on the serial pass: `bridge.spec.ts:10` (revoke dialog not found, passed alone), and "goto interrupted by another navigation" in `prep-library.spec.ts:150`, `prep-library.spec.ts:313` and `prep-phone.spec.ts:108`. A wait for `load` in `addJobAndOpen` did not change them (reverted); they passed on the serial run. Treated as load flakes, not product bugs.
+
+Chromium: the voice spec, the one I changed, passed 13 of 13 in `prep-chromium` with `first-run`. The full Chromium suite was not rerun.
+
+Also changed nothing in the repo config. To run one engine without the whole chain, a throwaway config that sets each project's `dependencies` to `first-run` worked; it is not committed.
+
 ## Postponed
 
 The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder decsiosn or jsut pospone fixes or extranl accounts just bascailly create version". Each line is something left for later and what it needs.
 
 | Item | Needs |
 |---|---|
-| WebKit and phone end-to-end projects | `pnpm exec playwright install webkit` (a download), then `pnpm test:e2e` |
+| `prep-drill.spec.ts:137` (keyboard only) fails in `prep-webkit` | A headed WebKit look at Space and arrow-key focus in Drill |
+| `prep-phone.spec.ts:138` (offline playback) fails in WebKit with "internal error" on `goto` | A real Safari or phone check of offline Listen, or a different way to go offline in the test |
 | Safari check of every Prep screen | A person or a WebKit run |
 | Live Vercel Blob storage run | The owner's private Blob store and `BLOB_READ_WRITE_TOKEN`, then `JOBSMITH_LIVE_STORAGE=1` |
 | Live S3 run | `docker compose --profile storage up -d minio`, then `JOBSMITH_LIVE_STORAGE=1` |
@@ -98,23 +138,16 @@ The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder
 | Gemini and ElevenLabs request and response shapes | A read of the provider docs named in the `UNVERIFIED` comments in `lib/tts/gemini.ts` and `lib/tts/elevenlabs.ts`; keys only if a live check is wanted |
 | Voice-list endpoints of the OpenAI-compatible driver | A look at what the local server really answers |
 | `pnpm prep:backfill` on a real database, and a preview deployment | A push and a deploy, both off limits here |
-| Two simultaneous `endSession` calls can both write a timeline event | A guard `where ended_at is null` in the scoped update |
-| A change to an included document does not rebuild the document that includes it | A rebuild of dependents in `lib/prep/rebuild.ts` |
 | Whether the owner's real question banks use `### N.` headings (status question 3) | The owner, or a read of his files |
 | Copy marked "Proposed" in `lib/prep/copy.ts` | Figma drafts or a hand edit |
 | The Hosted spec assumes Gemini as the hosted TTS provider | A different provider choice before the Hosted cycle, since paid Google AI is not used |
-| A clip that fails while playing falls back to the browser voice but is not relabelled "Browser voice" | `ListenPlayer` passing `onClipFailed` to the transcript |
-| The asset route's refusal for another user's clip was tested with a random id only | A second account in the end-to-end suite |
-| `tests/e2e/prep-voice.spec.ts:276` (voice change in Settings) failed once under load and passes alone | A wait for the voice list before `selectOption` |
 | No single clean pass of the whole Chromium suite in milestone 8; two runs together cover every spec | A rerun on a quiet machine |
 | Live microphone check of Record my answer | A phone or a laptop microphone and a person |
-| Two simultaneous clicks on "Save to library" can create two items | A unique index on (`user_id`, `question_key`, source) or a locked check |
 | The offline mark queue can mark items "stuck" after repeated failed sends on a captive network; a drill count can double after a lost response and a retry | A delayed drain and an idempotency key on the mark write |
 | Offline drills and Quick-fire rounds write no session row and no timeline event | A queued session write, if wanted |
 | Saved pages refresh only when visited online; new clips need "Remove saved copy" and a fresh save | A background refresh of saved jobs |
 | A session that expires on its own does not clear the device's saved data | A check at app start |
 | A real phone in airplane mode, an installed app, the install hint inside a real installed app | A phone and a deployed HTTPS preview |
-| The 390 px sideways-scroll checks for the Library and several Phone checks sit behind the phone Playwright project | WebKit installed, then the phone project |
 | The unslop render tier at 375 and 1280 px, light and dark, for every new screen | A design review pass |
 
 ## Progress
