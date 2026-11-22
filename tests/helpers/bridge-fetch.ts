@@ -1,3 +1,4 @@
+import { handleMcp } from "@/lib/bridge/mcp-handler";
 import type { BridgeDeps } from "@/lib/bridge/handlers";
 import { handleListEvents, handleGetJob, handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
 
@@ -6,6 +7,9 @@ export function bridgeFetch(deps: BridgeDeps): typeof fetch {
     const request = new Request(input, init);
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/bridge/mcp") {
+      return handleMcp(deps, request);
+    }
     if (request.method === "GET" && url.pathname === "/api/bridge/opportunities") {
       return handleListOpportunities(deps, request);
     }
