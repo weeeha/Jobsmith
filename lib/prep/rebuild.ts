@@ -1,7 +1,7 @@
 import type { ArtifactRow, Scoped } from "@/lib/db/scoped";
 import type { PrepQuestionFields } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
-import { loadIncludeDocs, makeIncludeResolver } from "./includes";
+import { includeMatches, loadIncludeDocs, makeIncludeResolver } from "./includes";
 import { parseQuestionBank } from "./parse";
 import { PARSED_KINDS } from "./values";
 
@@ -13,6 +13,39 @@ function isParsedKind(kind: string): boolean {
 // the rows commit or roll back with the artifact write. Marks are never
 // touched: they key on question_key, not on these rows.
 export async function rebuildForArtifact(
+  tx: Scoped,
+  artifact: ArtifactRow,
+  options: { dependents?: boolean } = {},
+): Promise<{ rows: number; warnings: number }> {
+  const result = await rebuildOne(tx, artifact);
+  // A changed document also changes every document of the job that includes it.
+  // Includes go one level deep, so dependents never trigger more rebuilds.
+  if (options.dependents !== false) await rebuildDependents(tx, artifact);
+  return result;
+}
+
+const INCLUDE_FILE = /^\{\{include\s+(\S+)\s+\d+(?:\s+\S+)?\}\}\s*$/gm;
+
+function includesDocument(bodyMd: string, key: string): boolean {
+  for (const match of bodyMd.matchAll(INCLUDE_FILE)) {
+    if (includeMatches(match[1], key)) return true;
+  }
+  return false;
+}
+
+async function rebuildDependents(tx: Scoped, artifact: ArtifactRow): Promise<void> {
+  const opportunityId = artifact.opportunityId;
+  if (opportunityId === null || !isParsedKind(artifact.kind)) return;
+  for (const meta of await tx.artifact.listLatestForOpportunity(opportunityId)) {
+    if (meta.key === artifact.key || !isParsedKind(meta.kind)) continue;
+    const row = await tx.artifact.getLatest({ opportunityId }, meta.key);
+    if (row && row.bodyMd.includes("{{include") && includesDocument(row.bodyMd, artifact.key)) {
+      await rebuildOne(tx, row);
+    }
+  }
+}
+
+async function rebuildOne(
   tx: Scoped,
   artifact: ArtifactRow,
 ): Promise<{ rows: number; warnings: number }> {
@@ -81,7 +114,7 @@ export async function rebuildForJob(
       if (!isParsedKind(meta.kind)) continue;
       const row = await tx.artifact.getLatest({ opportunityId }, meta.key);
       if (!row) continue;
-      const result = await rebuildForArtifact(tx, row);
+      const result = await rebuildForArtifact(tx, row, { dependents: false });
       documents += 1;
       rows += result.rows;
     }

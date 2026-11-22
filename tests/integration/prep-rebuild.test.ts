@@ -262,6 +262,26 @@ describe("rebuild on every artifact write", () => {
     }
   });
 
+  it("changing an included document rebuilds the document that includes it", async () => {
+    const { s, close, opportunityId } = await setup("rb12c@example.com");
+    try {
+      // The bank goes in first: its include of "nwt-curveballs" cannot resolve yet.
+      expectOk(await push(s, opportunityId, [bank(BANK_V1)]));
+      const q6 = async () => (await s.prepQuestion.listForArtifactKey(opportunityId, "answers-full")).find((r) => r.number === 6)!;
+      expect((await q6()).unresolvedIncludes).toBe(1);
+
+      expectOk(await push(s, opportunityId, [bank('### 2. "Describe a conflict"\n\n**Say:** First.\n', { key: "nwt-curveballs" })], 2));
+      expect((await q6()).unresolvedIncludes).toBe(0);
+      expect((await q6()).blocks).toEqual([{ label: "Say", spoken: true, text: "First." }]);
+
+      // Editing the included document again changes the including document's rows.
+      expectOk(await push(s, opportunityId, [bank('### 2. "Describe a conflict"\n\n**Say:** Second.\n', { key: "nwt-curveballs" })], 3));
+      expect((await q6()).blocks).toEqual([{ label: "Say", spoken: true, text: "Second." }]);
+    } finally {
+      await close();
+    }
+  });
+
   it("an include finds a document pushed in the same call", async () => {
     const { s, close, opportunityId } = await setup("rb12b@example.com");
     try {
