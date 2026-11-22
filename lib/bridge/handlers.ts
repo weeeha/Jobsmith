@@ -1,58 +1,13 @@
-import { DrizzleQueryError } from "drizzle-orm";
-import { parseBearer, readJsonCapped, bridgeJson, bridgeError } from "./http";
+import { readJsonCapped, bridgeJson, bridgeError } from "./http";
 import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
-import { buildContextDocument } from "./context";
-import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, RATE_LIMIT_PER_MINUTE, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
+import { authenticate, type BridgeDeps } from "./auth";
+import { logBridgeError } from "./log";
+import { loadContextDocument } from "./context-load";
+import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
-import { authenticateBearer } from "@/lib/auth/api-token";
-import { scoped, type Scoped } from "@/lib/db/scoped";
-import type { Db } from "@/lib/db/client";
-import { getJobView } from "@/lib/pipeline/read";
 
-// The request id and error name only, never a message: drizzle wraps every
-// driver error in a DrizzleQueryError whose own message is the full SQL text
-// plus every bound parameter, which for a push can be the document itself.
-// The cause's code and constraint (a Postgres error carries both) are the
-// only extra detail worth the log line.
-function logBridgeError(requestId: string, error: unknown): void {
-  // error.constructor.name rather than error.name: DrizzleQueryError never
-  // sets the latter, so it would otherwise log as the unhelpful "Error".
-  const name = error instanceof Error ? error.constructor.name : "UnknownError";
-  if (error instanceof DrizzleQueryError) {
-    const cause = error.cause as { code?: string; constraint?: string } | undefined;
-    console.error("[bridge]", requestId, name, { code: cause?.code, constraint: cause?.constraint });
-    return;
-  }
-  console.error("[bridge]", requestId, name);
-}
-
-export type BridgeDeps = { db: Db; now(): Date; revalidate(path: string): void; requestId(): string };
-
-type AuthResult = { ok: true; userId: string; s: Scoped } | { ok: false; response: Response };
-
-// Shared by every handler below. Never reads the `cookie` header: that
-// omission, not a check that rejects it, is what keeps a session-looking
-// cookie from ever authenticating a bridge request.
-async function authenticate(deps: BridgeDeps, request: Request, requestId: string, now: Date): Promise<AuthResult> {
-  const token = parseBearer(request.headers.get("authorization"));
-  if (token === null) {
-    return { ok: false, response: bridgeError("unauthorized", requestId) };
-  }
-  const auth = await authenticateBearer(deps.db, token, now);
-  if (auth === null) {
-    return { ok: false, response: bridgeError("unauthorized", requestId) };
-  }
-  if (auth.count > RATE_LIMIT_PER_MINUTE) {
-    const windowEndMs = auth.windowStart.getTime() + 60_000;
-    const secondsLeft = Math.max(1, Math.ceil((windowEndMs - now.getTime()) / 1000));
-    return {
-      ok: false,
-      response: bridgeError("rate_limited", requestId, { seconds: secondsLeft }, { "Retry-After": String(secondsLeft) }),
-    };
-  }
-  return { ok: true, userId: auth.userId, s: scoped(deps.db, auth.userId) };
-}
+export type { BridgeDeps } from "./auth";
 
 // Matches what lib/pipeline/slug.ts actually produces: letters and digits
 // from any script (a company or role name is not always ASCII), plus
@@ -98,13 +53,10 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
     if (!isValidSlugShape(slug)) {
       return bridgeError("not_found", requestId, { slug });
     }
-    const view = await getJobView(auth.s, slug);
-    if (!view) {
+    const doc = await loadContextDocument(auth.s, slug, now);
+    if (doc === null) {
       return bridgeError("not_found", requestId, { slug });
     }
-
-    const companyDocuments = await auth.s.artifact.listLatestForCompany(view.company.id);
-    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now });
     return new Response(doc, {
       status: 200,
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },
