@@ -11,6 +11,7 @@ import { usePlaybackEngine } from "@/components/player/engine";
 import { useMediaSession } from "@/components/player/media-session";
 import { PlayerControls } from "@/components/player/player-controls";
 import { Transcript } from "@/components/player/transcript";
+import { SaveToLibraryButton } from "@/components/library/save-to-library-button";
 import { MarkButtons } from "@/components/prep/mark-buttons";
 import { buttonVariants } from "@/components/ui/button";
 import { messageFor } from "@/lib/pipeline/messages";
@@ -145,7 +146,7 @@ export function ListenPlayer(props: {
       </div>
 
       {!chapters && question ? (
-        <footer className="sticky bottom-0 z-10 border-t border-border bg-background px-4 py-3 sm:px-6">
+        <footer className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-background px-4 py-3 sm:px-6">
           <MarkButtons
             key={question.questionKey}
             questionKey={question.questionKey}
@@ -155,6 +156,14 @@ export function ListenPlayer(props: {
             drilled={false}
             onMarked={(marked) => setLevels((prev) => ({ ...prev, [question.questionKey]: marked }))}
           />
+          <div>
+            <SaveToLibraryButton
+              key={question.questionKey}
+              opportunityId={props.opportunityId}
+              questionKey={question.questionKey}
+              questionLabel={question.question}
+            />
+          </div>
         </footer>
       ) : null}
     </div>

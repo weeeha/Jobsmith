@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { endSessionAction } from "@/app/(app)/jobs/[slug]/prep-actions";
+import { SaveToLibraryButton } from "@/components/library/save-to-library-button";
 import { MarkChip } from "@/components/prep/mark-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { PREP_COPY } from "@/lib/prep/copy";
@@ -22,6 +23,8 @@ export function DrillSummary(props: {
   docRef: string | null;
   sessionId: string | null;
   seen: number;
+  // The job the questions belong to; with it, each marked question can be saved to the library.
+  opportunityId?: string | null;
 }): React.ReactElement {
   const { summary, sessionId, seen } = props;
   const copy = PREP_COPY.drill;
@@ -65,7 +68,12 @@ export function DrillSummary(props: {
           {summary.marks.map((m) => (
             <li key={m.questionKey} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 py-2">
               <p className="min-w-0 flex-1 break-words text-sm text-foreground">{m.question}</p>
-              <MarkChip level={m.level} />
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <MarkChip level={m.level} />
+                {props.opportunityId ? (
+                  <SaveToLibraryButton opportunityId={props.opportunityId} questionKey={m.questionKey} questionLabel={m.question} />
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>

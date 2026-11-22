@@ -1,3 +1,4 @@
+import { NewItemDialog } from "@/components/library/new-item-dialog";
 import { LibraryFilters } from "@/components/library/library-filters";
 import { LibraryList } from "@/components/library/library-list";
 import { requireUser } from "@/lib/auth/session";
@@ -18,7 +19,10 @@ export default async function LibraryPage(props: PageProps<"/library">) {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">Library</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">Library</h1>
+        <NewItemDialog />
+      </div>
       <LibraryFilters q={query.q} kind={query.kind} tag={query.tag} includeArchived={query.includeArchived === true} />
       <LibraryList rows={rows} used={used} filtered={filtered} />
     </div>

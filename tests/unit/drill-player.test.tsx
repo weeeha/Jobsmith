@@ -9,6 +9,7 @@ import type { DrillQuestion } from "@/lib/prep/drill";
 import type { PlaybackStep } from "@/lib/prep/plan";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/app/(app)/library/actions", () => ({ saveToLibraryAction: vi.fn() }));
 vi.mock("@/app/(app)/jobs/[slug]/prep-actions", () => ({
   markQuestionAction: vi.fn(),
   startSessionAction: vi.fn(),

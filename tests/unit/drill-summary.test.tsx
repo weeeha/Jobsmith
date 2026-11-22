@@ -6,6 +6,7 @@ import { DrillSummary } from "@/components/player/drill-summary";
 import { endSessionAction } from "@/app/(app)/jobs/[slug]/prep-actions";
 import type { DrillSummary as Summary } from "@/lib/prep/drill-summary";
 
+vi.mock("@/app/(app)/library/actions", () => ({ saveToLibraryAction: vi.fn() }));
 vi.mock("@/app/(app)/jobs/[slug]/prep-actions", () => ({ endSessionAction: vi.fn() }));
 
 const SESSION = "22222222-2222-4222-8222-222222222222";

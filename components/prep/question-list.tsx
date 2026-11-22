@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 
+import { SaveToLibraryButton } from "@/components/library/save-to-library-button";
 import { MarkButtons } from "@/components/prep/mark-buttons";
 import { MarkChip } from "@/components/prep/mark-chip";
 import { QuestionRecordings } from "@/components/prep/question-recordings";
@@ -89,7 +90,7 @@ export function QuestionList(props: { opportunityId: string; basePath: string; q
                     >
                       {PREP_COPY.hub.markDisclosure}
                     </summary>
-                    <div className="pt-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-2">
                       <MarkButtons
                         questionKey={q.questionKey}
                         opportunityId={props.opportunityId}
@@ -97,6 +98,13 @@ export function QuestionList(props: { opportunityId: string; basePath: string; q
                         current={level}
                         onMarked={(next) => marked(q.questionKey, next)}
                       />
+                      {q.hasAnswer ? (
+                        <SaveToLibraryButton
+                          opportunityId={props.opportunityId}
+                          questionKey={q.questionKey}
+                          questionLabel={q.question}
+                        />
+                      ) : null}
                     </div>
                   </details>
                 </li>

@@ -11,6 +11,7 @@ import type { HubQuestion } from "@/lib/prep/hub";
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("@/app/(app)/library/actions", () => ({ saveToLibraryAction: vi.fn() }));
 vi.mock("@/app/(app)/jobs/[slug]/prep-actions", () => ({
   markQuestionAction: vi.fn(),
   rebuildQuestionsAction: vi.fn(),

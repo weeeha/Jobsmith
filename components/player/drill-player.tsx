@@ -316,7 +316,7 @@ export function DrillPlayer(props: {
   }
 
   if (phase === "summary") {
-    return <DrillSummary summary={summary} slug={props.slug} docRef={props.docRef} sessionId={sessionId} seen={total} />;
+    return <DrillSummary summary={summary} slug={props.slug} docRef={props.docRef} sessionId={sessionId} seen={total} opportunityId={props.opportunityId} />;
   }
 
   return (

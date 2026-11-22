@@ -178,3 +178,10 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   are the item page and its per-job marks. The registry has no search-and-filter list or tag editor.
   Edits and archiving call `router.refresh()`; the library actions never `revalidatePath`, because both
   pages read the database on every request.
+- `components/library/save-to-library-button.tsx` and `new-item-dialog.tsx`: hand-written. The button is
+  a ghost `Button` with an icon, used in the hub's question disclosure, Listen's footer and the Drill
+  summary; its result is a sonner toast ("Saved to library." or "Already in your library.") with an Open
+  link, and the same sentence goes to the live announcer. The dialog is the board's Add job dialog shape
+  (`Dialog`, `FieldRow`, `Input`, `Textarea`, `NativeSelect` for the kind, `ChipField` for tags) with a
+  fresh form state per open and focus sent to the first field in error. The registry has no
+  save-to-collection pattern.

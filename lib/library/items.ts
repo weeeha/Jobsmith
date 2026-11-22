@@ -32,6 +32,12 @@ export const libraryItemInputSchema = z.object({
   tags: tagsSchema,
 });
 
+// Answers come from questions (spec 5.8); by hand the user makes the other three.
+export const HAND_CREATED_KINDS = ["story", "intro", "fact"] as const;
+export const newLibraryItemInputSchema = libraryItemInputSchema.extend({
+  kind: z.enum(HAND_CREATED_KINDS, { message: "Choose story, intro or fact." }),
+});
+
 export type LibraryItemInput = z.input<typeof libraryItemInputSchema>;
 
 export type LibraryItemView = {
