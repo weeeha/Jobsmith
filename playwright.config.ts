@@ -66,6 +66,29 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    // Compare specs: one project per engine, after the first-run account exists.
+    // Milestone 20 owns these names too; whichever merges second keeps one copy.
+    {
+      name: "apply-chromium",
+      testMatch: /compare\.spec\.ts$/,
+      dependencies: ["first-run"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "apply-webkit",
+      testMatch: /compare\.spec\.ts$/,
+      dependencies: ["first-run"],
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "apply-phone",
+      testMatch: /compare\.spec\.ts$/,
+      dependencies: ["first-run"],
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
   webServer: {
     // All browsers log in from the same address, so the suite raises the

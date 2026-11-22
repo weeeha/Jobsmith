@@ -150,7 +150,10 @@ export function planUpsert(versions: VersionState[], intent: UpsertIntent, now: 
   };
 }
 
-export function versionNotice(versions: Pick<VersionState, "version" | "origin" | "editedAt">[], version: number): string | null {
+type VersionNoticeInput = Pick<VersionState, "version" | "origin" | "editedAt">;
+
+/** The version N-1 whose edit this pushed or generated version landed on top of, or null. */
+export function editedBaseOf(versions: VersionNoticeInput[], version: number): number | null {
   const entry = versions.find((v) => v.version === version);
   if (!entry) return null;
   if (entry.origin !== "pushed" && entry.origin !== "generated") return null;
@@ -158,5 +161,10 @@ export function versionNotice(versions: Pick<VersionState, "version" | "origin" 
   const previous = versions.find((v) => v.version === version - 1);
   if (!previous || !previous.editedAt) return null;
 
-  return `Pushed after you edited version ${previous.version}.`;
+  return previous.version;
+}
+
+export function versionNotice(versions: VersionNoticeInput[], version: number): string | null {
+  const base = editedBaseOf(versions, version);
+  return base === null ? null : `Pushed after you edited version ${base}.`;
 }

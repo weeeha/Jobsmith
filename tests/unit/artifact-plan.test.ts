@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planUpsert, versionNotice, type UpsertIntent, type VersionState } from "@/lib/artifacts/plan";
+import { editedBaseOf, planUpsert, versionNotice, type UpsertIntent, type VersionState } from "@/lib/artifacts/plan";
 
 const NOW = new Date("2026-09-19T12:00:00.000Z");
 
@@ -240,5 +240,22 @@ describe("versionNotice", () => {
     const v1 = version({ version: 1, contentHash: "H1", origin: "generated", editedAt: NOW });
     const v2 = version({ version: 2, contentHash: "H2", origin: "generated" });
     expect(versionNotice([v1, v2], 2)).toBe("Pushed after you edited version 1.");
+  });
+});
+
+describe("editedBaseOf", () => {
+  it("returns the edited previous version for pushed and generated, null otherwise", () => {
+    const v2 = version({ version: 2, contentHash: "H2", origin: "pushed", editedAt: NOW });
+    const v1 = version({ version: 1, contentHash: "H1" });
+    expect(editedBaseOf([v1, v2, version({ version: 3, contentHash: "H3", origin: "pushed" })], 3)).toBe(2);
+    expect(editedBaseOf([v1, v2, version({ version: 3, contentHash: "H3", origin: "generated" })], 3)).toBe(2);
+    expect(editedBaseOf([v1, v2, version({ version: 3, contentHash: "H3", origin: "pasted" })], 3)).toBeNull();
+    expect(editedBaseOf([v1, version({ version: 2, contentHash: "H2" })], 2)).toBeNull();
+  });
+
+  it("versionNotice keeps its wording for the same input", () => {
+    const v2 = version({ version: 2, contentHash: "H2", editedAt: NOW });
+    const v3 = version({ version: 3, contentHash: "H3", origin: "pushed" });
+    expect(versionNotice([v2, v3], 3)).toBe("Pushed after you edited version 2.");
   });
 });

@@ -357,7 +357,9 @@ git commit -m "feat(compare): split and inline views with removed and added mark
 export function nextIndex(current: number, total: number, dir: "next" | "previous"): number; // stops at the ends, no wrap; current -1 means none yet
 export function changeLabel(index: number, total: number): string; // index is 0 based: "Change 3 of 12"; total 0: "No changes"
 export function restingLabel(total: number): string; // "12 changes", "1 change", "No changes"
+// components/compare/change-navigator.tsx
 export function ChangeNavigator(props: { total: number }): React.ReactElement; // client; Previous, Next, keys [ and ]
+// components/compare/version-picker.tsx
 export function VersionPicker(props: { versions: { version: number; label: string }[]; a: number; b: number; hrefFor(a: number, b: number): string }): React.ReactElement;
 ```
 
@@ -464,7 +466,7 @@ git commit -m "feat(compare): compare routes for job and company documents"
 
 **Interfaces:**
 - Consumes: `formatCompareHref` (Task 18), `getDocument(...).versions`, `editedBaseOf` (Task 18).
-- Produces: `VersionList` props gain `docRef: DocRef` and `compareBasePath: string`; `CompareVersionsLink(props: { basePath: string; docRef: DocRef; versions: number })` in `components/compare/compare-links.tsx`.
+- Produces: `VersionList` props gain `docRef: DocRef` and `compareBasePath: string`; `CompareVersionsLink(props: { basePath: string; docRef: DocRef; versions: number; title: string })` in `components/compare/compare-links.tsx`.
 
 - [ ] **Step 1: Write the failing tests**
 

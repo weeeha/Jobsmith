@@ -96,3 +96,10 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
 - `components/preferences/test-posting-box.tsx`: hand-written. The test box's filter rows are a
   plain list with a hairline between rows; the registry's `table-view` is a sortable data table,
   more than four fixed rows need.
+- `components/compare/` (split view, inline view, `change-navigator.tsx`, `version-picker.tsx`):
+  hand-written. The registry has no diff or compare view, so the compare rows (a two column grid on
+  wide screens, one column inline on a phone, with `del` and `ins` marks on the `status-*-soft`
+  tokens) are plain app code. The change navigator is a button pair plus the `]` and `[` keys over
+  the visible rows, announced through the live announcer, because the registry has no
+  next-change control. The version picker is two native selects on wide screens and the vendored
+  `Sheet` behind a "Versions 1 and 2" button on a phone.
