@@ -185,3 +185,7 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   (`Dialog`, `FieldRow`, `Input`, `Textarea`, `NativeSelect` for the kind, `ChipField` for tags) with a
   fresh form state per open and focus sent to the first field in error. The registry has no
   save-to-collection pattern.
+- Library Quick-fire (`app/(app)/library/quick-fire`): no new component. `QuickFireCard` and `QuickFireRound`
+  take `scope="library"`, a null job, a back label and an empty title, so the same card runs the round over
+  every active job and the library. Library questions carry no number, so the summary shows none. The Library
+  page header gains two outline links, Quick-fire and Drill, built from `buttonVariants`.

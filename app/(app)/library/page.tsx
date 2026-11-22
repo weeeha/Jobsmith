@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { buttonVariants } from "@/components/ui/button";
+import { LIBRARY_COPY } from "@/lib/library/copy";
 import { NewItemDialog } from "@/components/library/new-item-dialog";
 import { LibraryFilters } from "@/components/library/library-filters";
 import { LibraryList } from "@/components/library/library-list";
@@ -21,7 +25,15 @@ export default async function LibraryPage(props: PageProps<"/library">) {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">Library</h1>
-        <NewItemDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/library/quick-fire" className={buttonVariants({ variant: "outline" })}>
+            {LIBRARY_COPY.quickFire}
+          </Link>
+          <Link href="/library/drill" className={buttonVariants({ variant: "outline" })}>
+            {LIBRARY_COPY.drill}
+          </Link>
+          <NewItemDialog />
+        </div>
       </div>
       <LibraryFilters q={query.q} kind={query.kind} tag={query.tag} includeArchived={query.includeArchived === true} />
       <LibraryList rows={rows} used={used} filtered={filtered} />

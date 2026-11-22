@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/super-ai/empty-state";
 import { Button } from "@/components/ui/button";
 import { PREP_COPY } from "@/lib/prep/copy";
 import { pickQuickFire, QUICK_FIRE_COUNT, seedFromId } from "@/lib/prep/quick-fire";
+import type { MarkScope } from "@/lib/prep/values";
 import { messageFor } from "@/lib/pipeline/messages";
 
 type Phase =
@@ -22,8 +23,12 @@ type Phase =
  */
 export function QuickFireRound(props: {
   questions: QuickFireQuestion[];
-  opportunityId: string;
+  // null for the Library's round: no job, marks in scope "library".
+  opportunityId: string | null;
   backHref: string;
+  scope?: MarkScope;
+  backLabel?: string;
+  emptyTitle?: string;
 }): React.ReactElement {
   const { questions, opportunityId } = props;
   const [phase, setPhase] = React.useState<Phase>({ kind: "starting" });
@@ -53,7 +58,7 @@ export function QuickFireRound(props: {
   }, [start, questions.length]);
 
   if (questions.length === 0) {
-    return <EmptyState size="panel" title={PREP_COPY.quickFireEmpty} />;
+    return <EmptyState size="panel" title={props.emptyTitle ?? PREP_COPY.quickFireEmpty} />;
   }
   if (phase.kind === "failed") {
     return (
@@ -81,6 +86,8 @@ export function QuickFireRound(props: {
       sessionId={phase.sessionId}
       opportunityId={opportunityId}
       backHref={props.backHref}
+      scope={props.scope}
+      backLabel={props.backLabel}
     />
   );
 }

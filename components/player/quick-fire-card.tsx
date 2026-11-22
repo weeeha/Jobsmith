@@ -14,12 +14,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { PREP_COPY, quickFireProgress } from "@/lib/prep/copy";
 import { QUICK_FIRE_SECONDS } from "@/lib/prep/quick-fire";
 import type { MarkLevel } from "@/lib/prep/values";
-import { MARK_LEVELS } from "@/lib/prep/values";
+import { MARK_LEVELS, type MarkScope } from "@/lib/prep/values";
 import { cn } from "@/lib/utils";
 
 export type QuickFireQuestion = {
   questionKey: string;
-  number: number;
+  // Library questions have no number: they come from several jobs.
+  number?: number;
   question: string;
   spine: string;
   level: MarkLevel | null;
@@ -41,7 +42,8 @@ function Step(props: {
   position: number;
   total: number;
   level: MarkLevel | null;
-  opportunityId: string;
+  opportunityId: string | null;
+  scope: MarkScope;
   onNext: () => void;
   onMarked: (level: MarkLevel) => void;
 }) {
@@ -53,7 +55,7 @@ function Step(props: {
   const { mark, pending } = useMark({
     questionKey: question.questionKey,
     opportunityId: props.opportunityId,
-    scope: "job",
+    scope: props.scope,
     onMarked: props.onMarked,
   });
 
@@ -115,7 +117,7 @@ function Step(props: {
           <MarkButtons
             questionKey={question.questionKey}
             opportunityId={props.opportunityId}
-            scope="job"
+            scope={props.scope}
             current={props.level}
             onMarked={props.onMarked}
           />
@@ -142,6 +144,7 @@ function Summary(props: {
   questions: QuickFireQuestion[];
   marks: Record<string, MarkLevel>;
   backHref: string;
+  backLabel: string;
 }) {
   const ended = React.useRef(false);
   const { sessionId, questions, marks } = props;
@@ -170,7 +173,7 @@ function Summary(props: {
           return (
             <li key={q.questionKey} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 py-2">
               <p className="min-w-0 flex-1 break-words text-sm text-foreground">
-                <span className="text-muted-foreground">{q.number}. </span>
+                {q.number === undefined ? null : <span className="text-muted-foreground">{q.number}. </span>}
                 {q.question}
               </p>
               {level ? <MarkChip level={level} /> : <span className="text-xs text-muted-foreground">{PREP_COPY.quickFire.noMark}</span>}
@@ -179,7 +182,7 @@ function Summary(props: {
         })}
       </ul>
       <Link href={props.backHref} className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
-        {PREP_COPY.quickFire.back}
+        {props.backLabel}
       </Link>
     </section>
   );
@@ -188,18 +191,26 @@ function Summary(props: {
 export function QuickFireCard(props: {
   questions: QuickFireQuestion[];
   sessionId: string;
-  opportunityId: string;
+  // null for a library round: it has no job, so its marks use scope "library".
+  opportunityId: string | null;
   backHref: string;
+  scope?: MarkScope;
+  backLabel?: string;
+  emptyTitle?: string;
 }): React.ReactElement {
+  const scope = props.scope ?? "job";
   const [round, dispatch] = React.useReducer(reduce, { index: 0, marks: {}, finished: false });
   const total = props.questions.length;
   const next = React.useCallback(() => dispatch({ type: "next", total }), [total]);
 
   if (total === 0) {
-    return <EmptyState size="panel" title={PREP_COPY.quickFireEmpty} />;
+    return <EmptyState size="panel" title={props.emptyTitle ?? PREP_COPY.quickFireEmpty} />;
   }
   if (round.finished) {
-    return <Summary sessionId={props.sessionId} questions={props.questions} marks={round.marks} backHref={props.backHref} />;
+    return <Summary sessionId={props.sessionId} questions={props.questions} marks={round.marks}
+        backHref={props.backHref}
+        backLabel={props.backLabel ?? PREP_COPY.quickFire.back}
+      />;
   }
 
   const question = props.questions[round.index];
@@ -211,6 +222,7 @@ export function QuickFireCard(props: {
       total={total}
       level={round.marks[question.questionKey] ?? question.level}
       opportunityId={props.opportunityId}
+      scope={scope}
       onNext={next}
       onMarked={(level) => dispatch({ type: "mark", key: question.questionKey, level })}
     />

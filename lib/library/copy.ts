@@ -36,4 +36,11 @@ export const LIBRARY_COPY = {
   marks: { shaky: "Shaky", okay: "Okay", solid: "Solid" },
   noAnswerToSave: "This question has no answer to save.",
   quickFire: "Quick-fire",
+  // Proposed. The Library's own practice screens.
+  drill: "Drill",
+  back: "Back to Library",
+  quickFireEmpty: "Nothing to practice yet. Library Quick-fire needs a question with a Spine, or a library answer.",
+  drillEmpty: "Nothing to drill yet. Save an answer from a question to drill it here.",
+  drillEmptyShaky: "No shaky answers in your library. Drill them all instead.",
+  practiceLinks: "Practice",
 } as const;

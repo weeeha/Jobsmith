@@ -238,3 +238,63 @@ describe("QuickFireRound", () => {
     expect(screen.getByRole("button", { name: PREP_COPY.quickFire.retry })).toBeTruthy();
   });
 });
+
+describe("QuickFireCard in the library scope", () => {
+  beforeEach(() => {
+    cleanup();
+    vi.useFakeTimers();
+    vi.mocked(markQuestionAction).mockReset();
+    vi.mocked(endSessionAction).mockReset();
+    vi.mocked(markQuestionAction).mockImplementation(async (input) => ({
+      ok: true,
+      data: { level: input.level, markedAt: input.markedAt, drillCount: 0, applied: true },
+    }));
+    vi.mocked(endSessionAction).mockResolvedValue({ ok: true, data: { eventWritten: false } });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("with scope library each mark calls the action with scope library and no job", async () => {
+    render(
+      <LiveAnnouncerProvider>
+        <Toaster />
+        <QuickFireCard
+          scope="library"
+          questions={qs(2).map((q) => ({ ...q, number: undefined }))}
+          sessionId={SESSION}
+          opportunityId={null}
+          backHref="/library"
+          backLabel="Back to Library"
+        />
+      </LiveAnnouncerProvider>,
+    );
+    await tick(5);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Shaky" }));
+    });
+    expect(vi.mocked(markQuestionAction).mock.calls[0][0]).toMatchObject({
+      opportunityId: null,
+      scope: "library",
+      level: "shaky",
+      drilled: false,
+    });
+  });
+
+  it("a library round ends with the library back link and no numbers when there are none", async () => {
+    render(
+      <LiveAnnouncerProvider>
+        <QuickFireCard
+          scope="library"
+          questions={qs(1).map((q) => ({ ...q, number: undefined }))}
+          sessionId={SESSION}
+          opportunityId={null}
+          backHref="/library"
+          backLabel="Back to Library"
+        />
+      </LiveAnnouncerProvider>,
+    );
+    await tick(5);
+    fireEvent.click(screen.getByTestId("quick-fire-surface"));
+    expect(screen.getByRole("link", { name: "Back to Library" }).getAttribute("href")).toBe("/library");
+    expect(screen.getAllByRole("listitem")[0].textContent).toBe("Question 1No mark");
+  });
+});
