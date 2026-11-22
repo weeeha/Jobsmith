@@ -451,6 +451,8 @@ const cases: Case[] = [
       expect(await b.prepQuestion.listAll()).toEqual([]);
       expect(await a.prepQuestion.listForJob(ids.opportunityId)).toHaveLength(1);
       expect((await b.prepQuestion.countsByOpportunity()).size).toBe(0);
+      expect((await b.prepQuestion.countJobsByQuestionKey(["0123456789abcdef"])).size).toBe(0);
+      expect((await a.prepQuestion.countJobsByQuestionKey(["0123456789abcdef"])).get("0123456789abcdef")).toBe(1);
     },
   },
   {

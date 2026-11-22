@@ -1,4 +1,4 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, countDistinct, eq, inArray } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
@@ -52,6 +52,17 @@ export function prepQuestionQueries(db: Db, userId: string) {
         .from(table)
         .where(and(eq(table.userId, userId), eq(table.questionKey, questionKey)))
         .orderBy(asc(table.createdAt));
+    },
+    // Distinct jobs holding a row of each key, one grouped query. A key with
+    // no row is absent from the map.
+    async countJobsByQuestionKey(keys: string[]): Promise<Map<string, number>> {
+      if (keys.length === 0) return new Map();
+      const rows = await db
+        .select({ questionKey: table.questionKey, n: countDistinct(table.opportunityId) })
+        .from(table)
+        .where(and(eq(table.userId, userId), inArray(table.questionKey, keys)))
+        .groupBy(table.questionKey);
+      return new Map(rows.map((r) => [r.questionKey, Number(r.n)]));
     },
     async countsByOpportunity(): Promise<Map<string, number>> {
       const rows = await db
