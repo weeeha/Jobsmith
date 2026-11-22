@@ -46,6 +46,13 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 10 to 12 | Extra copy marked "Proposed" in `lib/prep/copy.ts` (`hub.*`, `quickFire.*`, `homeNoPrep`, `VOICE_LINE`) | No Figma drafts; one file to replace |
 | 14 | A question bank with no readable question shows its card with the notice even when it is the job's only bank; the empty state is for a job with no bank card (`components/prep/prep-hub.tsx`, fixed by the reviewer after Task 14) | Spec 5.1 rule 8; the first build showed the empty state and hid the notice |
 | 14 | The Postgres for the end-to-end suite is the project's compose container, started through colima, with a database of its own (`jobsmith_m6_e2e`) on port 5432; the app runs on port 3460 | Port 3000 belongs to another project on this machine |
+| 28 | Next, previous and repeat keep a paused player paused | They never start sound on their own |
+| 29 | Pitch documents get a card with a Listen link; a new hand-written `components/native-select.tsx` serves the speed and device-voice pickers | A native picker suits long voice lists on phones |
+| 30 | The provider's voice list loads on demand in Settings; an empty list and a timeout look the same, with a "Load voices again" button | No provider call during a page render |
+| 31 | Fixed: the Listen player no longer renders a second `<main>`; `tests/e2e/bridge.spec.ts` scopes two text checks to the Prep documents list | Found by the axe spec; the hub repeats those labels |
+| 31 | End-to-end runs use `TTS_PROVIDER=fake` and `STORAGE_PROVIDER=local` under `.data/e2e-storage` | No key and no network |
+| 35 | Drill shows a "Start drill" card first; each Drill page request is a fresh run | No sound before a user gesture; "Drill the shaky ones again" reused the finished run's state |
+| 36 | A kept recording is linked to its question through `prep_session.meta.recordings`; deleting one has no confirm step; uploads are capped at 8 MiB | The `asset` table has no question column |
 | 16 | Packages pinned: `@aws-sdk/client-s3` 3.1174.0 (Apache-2.0), `@vercel/blob` 2.9.0 (Apache-2.0) | The plan gives no versions |
 | 18 | MP3 encoder: `@breezystack/lamejs` 1.2.7 (LGPL-3.0), a pure JavaScript lamejs fork with ESM and types | The plan left the fork open |
 | 18 | Raw `audio/L16` and `audio/pcm` from a provider is read as 16-bit little-endian; a WAV the encoder cannot encode is stored as WAV | Matches the local server and Gemini behavior; nothing is dropped |
@@ -85,6 +92,11 @@ The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder
 | Whether the owner's real question banks use `### N.` headings (status question 3) | The owner, or a read of his files |
 | Copy marked "Proposed" in `lib/prep/copy.ts` | Figma drafts or a hand edit |
 | The Hosted spec assumes Gemini as the hosted TTS provider | A different provider choice before the Hosted cycle, since paid Google AI is not used |
+| A clip that fails while playing falls back to the browser voice but is not relabelled "Browser voice" | `ListenPlayer` passing `onClipFailed` to the transcript |
+| The asset route's refusal for another user's clip was tested with a random id only | A second account in the end-to-end suite |
+| `tests/e2e/prep-voice.spec.ts:276` (voice change in Settings) failed once under load and passes alone | A wait for the voice list before `selectOption` |
+| No single clean pass of the whole Chromium suite in milestone 8; two runs together cover every spec | A rerun on a quiet machine |
+| Live microphone check of Record my answer | A phone or a laptop microphone and a person |
 
 ## Progress
 
@@ -97,3 +109,5 @@ The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder
 | 7 | 15 to 18 | `400af6e` to `7d994fc` | 99 tests rerun |
 | 7 | 19 to 23 | `339081e` to `804f9d1` | 124 tests rerun |
 | 7 | 24 to 27 | `3bc20dd` to `0cd30e6` | 68 tests rerun; `requireUser` in the asset route |
+| 7 | 28 to 31 | `670f5f8` to `9e0959d` | 66 tests rerun; the Listen screen seen at 390 px in the Browser pane (Play not pressed). Executor: 45 Chromium end-to-end tests passed, axe clean on Listen, the hub and Settings Voice |
+| 8 | 32 to 37 | `57f094d` to `36517fa` | 116 tests rerun; `requireUser` in the upload route. Executor: 9 Drill specs passed in Chromium at 1280 and 390 px, axe clean; whole-suite runs had one spec failure each (one fixed, one a load flake) |
