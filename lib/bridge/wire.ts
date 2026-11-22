@@ -43,3 +43,15 @@ export type WireOpportunity = {
 export type WireListResponse = { opportunities: WireOpportunity[]; requestId: string };
 
 export type WireError = { error: { code: string; message: string }; requestId: string };
+
+// Milestone 30: MCP server for the Bridge
+export const MCP_PROTOCOL_BASELINE = "2025-06-18";
+export const EVENTS_PAGE_MAX = 200;
+export const EVENTS_PAGE_DEFAULT = 100; // the spec gives no default; owner may change it
+export const EVENTS_LOOKBACK_DEFAULT_HOURS = 24;
+export const EVENTS_LOOKBACK_MAX_DAYS = 90;
+export const LIST_JOBS_MAX = 200;
+export const LIST_JOBS_DEFAULT = 100;
+export const FEED_ITEMS_MAX = 50;
+export const FEED_ITEMS_DEFAULT = 20;
+export const RESOURCES_PAGE = 50;

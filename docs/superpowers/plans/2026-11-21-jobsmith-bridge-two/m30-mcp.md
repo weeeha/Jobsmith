@@ -85,7 +85,7 @@ git add package.json pnpm-lock.yaml lib/mcp/protocol.ts lib/bridge/wire.ts tests
 git commit -m "feat(mcp): install the SDK and record the protocol findings"
 ```
 
-**Acceptance:** (spec 3) the installed release, its Web-standard transport and its zod 4 support are confirmed or the `rpc` branch is recorded; (5.1) the specification table is in the report; (10) the SDK is a dependency of the app only (`cli/package.json` unchanged, `cli-bundle.test.ts` still green).
+**Acceptance:** (spec 3) the installed release, its Web-standard transport and its zod 4 support are confirmed or the `rpc` branch is recorded; (5.1) the specification table is in the report; (10) the SDK is a dependency of the app only (`cli/package.json` unchanged, `tests/integration/cli-bundle.test.ts` still green).
 
 ---
 
