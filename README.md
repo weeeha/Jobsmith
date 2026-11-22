@@ -207,7 +207,11 @@ is refused by its own preflight check before the request reaches the server at a
 |---|---|---|
 | `GET` | `/api/bridge/opportunities?status=active\|closed\|all` | List your jobs (slug, company, role, current stage). `status` defaults to `active`. |
 | `GET` | `/api/bridge/opportunities/:slug/context` | The job's context document, as `text/markdown`. |
+| `GET` | `/api/bridge/opportunities/:slug` | One job as `job/v1` JSON: company, stages, people, fit, documents, prep counts and open requests. |
 | `PUT` | `/api/bridge/opportunities/:slug/artifacts` | Upsert up to 50 documents; add `?dry_run=true` to preview with nothing saved. |
+| `GET` | `/api/bridge/events` | Recent events across your jobs, newest page after a cursor (`after`, `limit`), for a runner that polls. |
+| `POST` | `/api/bridge/mcp` | The MCP endpoint (stateless Streamable HTTP, POST only). See the MCP section. |
+| `GET` | `/api/bridge/feed` | Later, not built yet. |
 
 The push body:
 
@@ -248,10 +252,68 @@ Every error response shares one shape, `{ "error": { "code", "message" }, "reque
 | 400 | `invalid_payload` | The body does not match the expected shape |
 | 400 | `duplicate_key` | The same key appears twice in one push |
 | 401 | `unauthorized` | Missing, unknown or revoked token |
+| 403 | `origin_refused` | An `Origin` header from another site on the MCP endpoint |
 | 404 | `not_found` | No job with that slug for this token's account |
 | 413 | `payload_too_large` / `too_many_artifacts` / `artifact_too_large` | Over one of the size limits |
 | 429 | `rate_limited` | Over 120 requests per token per minute; `Retry-After` names the wait in seconds |
 | 500 | `server_error` | Something went wrong; the message names a request id for support |
+
+## MCP
+
+The same bridge speaks the Model Context Protocol, so an AI tool you run can list your jobs, read a
+job's context and write a document back, with no files in between. Create a token in Settings first.
+There are three ways to connect.
+
+Claude Code, straight to the server (the token goes in a header):
+
+```bash
+claude mcp add --transport http --scope user jobsmith <APP_URL>/api/bridge/mcp --header "Authorization: Bearer <token>"
+```
+
+Claude Code, through the command line relay (it uses the token saved by `jobsmith login`, so no
+token appears in the MCP configuration):
+
+```bash
+claude mcp add --scope user jobsmith -- jobsmith mcp
+```
+
+Claude Desktop, in `claude_desktop_config.json`. A desktop app does not read your shell's `PATH`, so
+give absolute paths to `node` and to the built command line file:
+
+```json
+{
+  "mcpServers": {
+    "jobsmith": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/jobsmith/cli/dist/jobsmith.mjs", "mcp"]
+    }
+  }
+}
+```
+
+Token rules for `jobsmith mcp`: it reads the token saved by `jobsmith login` and refuses to start
+when `JOBSMITH_TOKEN` is set in its environment, because a token in the environment of a process an
+MCP client starts can leak into every tool that client spawns. Pass `--allow-env-token` to use the
+environment's token on purpose. The saved file must be owner-only: `chmod 600
+~/.config/jobsmith/config.json` (the login command already sets this). The endpoint also refuses a
+request that carries a browser `Origin` header from another site.
+
+Tools:
+
+| Tool | What it does |
+|---|---|
+| `list_jobs` | Your jobs: slug, company, role, current stage. |
+| `get_job` | One job as structured data: company, stages, people, fit, documents, prep counts and open requests. The posting text is in the context document. |
+| `get_job_context` | The job's context document (`context/v1`), the same text `jobsmith pull` writes. |
+| `get_profile` | Your headline, time zone and preferences; pass `include_resume` for the resume text. |
+| `write_document` | Adds a version of a document under a key. |
+
+`write_document` follows the push rules: a repeat with the same body reports `unchanged` and changes
+nothing; a new body adds a version; it never deletes a document, never marks one sent and never
+moves a stage. A write shows on the job page as pushed. `dry_run: true` previews without saving.
+Clients that list resources can also read `jobsmith://jobs/{slug}` and `jobsmith://jobs/{slug}/context`.
+Later, not built yet: `list_feed_items`, `get_prep`, `list_documents`, `read_document` and the
+document resource template.
 
 ## Deploying
 
