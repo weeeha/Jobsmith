@@ -13,6 +13,7 @@ type Core = {
   rangeResponse(response: Response, range: string | null): Promise<Response>;
   route(request: Request, deps: Deps): Promise<Response> | null;
   onInstall(deps: Deps): Promise<unknown>;
+  extractStaticUrls(html: string): string[];
   onActivate(deps: Deps): Promise<unknown>;
 };
 type Deps = { caches: FakeCaches; fetch: (request: Request) => Promise<Response>; buildId: string };
@@ -133,6 +134,36 @@ describe("lifecycle", () => {
     await deps.caches.open("jobsmith-prep-aaaa-acme");
     await core.onActivate(deps);
     expect((await deps.caches.keys()).sort()).toEqual(["jobsmith-prep-aaaa-acme", "jobsmith-shell-b1"]);
+  });
+});
+
+describe("install and the offline page's own files", () => {
+  const HTML = '<html><link rel="stylesheet" href="/_next/static/css/a.css"><script src="/_next/static/chunks/offline.js" async></script><a href="/board">b</a></html>';
+
+  it("extractStaticUrls returns only the /_next/static files of a page", () => {
+    expect(core.extractStaticUrls(HTML)).toEqual(["/_next/static/css/a.css", "/_next/static/chunks/offline.js"]);
+  });
+
+  it("install also stores the offline page's static files, so the page can start with no network", async () => {
+    const fetchSpy = vi.fn(async (r: Request | string) => new Response(`file ${typeof r === "string" ? r : r.url}`));
+    const deps = makeDeps(fetchSpy as unknown as Deps["fetch"]);
+    const shell = await deps.caches.open("jobsmith-shell-b1");
+    shell.add = async (url: string) => {
+      shell.entries.set(new URL(url, ORIGIN).href, new Response(HTML));
+    };
+    await core.onInstall(deps);
+    expect((await shell.match(ORIGIN + "/_next/static/chunks/offline.js"))?.status).toBe(200);
+    expect((await shell.match(ORIGIN + "/_next/static/css/a.css"))?.status).toBe(200);
+  });
+
+  it("a static file that fails to download does not fail the install", async () => {
+    const deps = makeDeps(offline);
+    const shell = await deps.caches.open("jobsmith-shell-b1");
+    shell.add = async (url: string) => {
+      shell.entries.set(new URL(url, ORIGIN).href, new Response(HTML));
+    };
+    await expect(core.onInstall(deps)).resolves.not.toThrow();
+    expect((await shell.match(ORIGIN + "/offline"))?.status).toBe(200);
   });
 });
 

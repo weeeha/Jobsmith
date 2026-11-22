@@ -147,6 +147,11 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   script) with a Dismiss button remembered in `localStorage`; it is not rendered inside an installed app or
   where Cache Storage is missing. Both render nothing on the server and decide after hydration through
   `useSyncExternalStore`. The registry has no install-prompt or offline-storage pattern.
+- `components/offline/offline-notice.tsx` and `app/offline/page.tsx` (the offline page): hand-written, built from
+  `buttonVariants` and the hub's card shell. A public page (no session check; the worker stores it on install) with
+  "You are offline." and, read from Cache Storage, "Open a saved job": one card per saved job with a Listen, Drill
+  and Quick-fire link per bank and a Listen link per pitch. The links are plain anchors, not `Link`, so each is a
+  document load the worker answers from the saved job's cache. The registry has no offline-fallback pattern.
 - `components/native-select.tsx`: hand-written. A styled native `select` with the field look of `Input`.
   Base UI's `Select` is the primary choice, but the speed list and the device-voice list (often over a
   hundred entries) are better in the phone's own picker, and a native element keeps keyboard and

@@ -252,9 +252,47 @@
     }
   }
 
+  // Every /_next/static/... URL in a src or href attribute of a page.
+  function extractStaticUrls(html) {
+    var found = [];
+    var re = /\b(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+    var m;
+    while ((m = re.exec(html))) {
+      var value = (m[1] !== undefined ? m[1] : m[2] || "").replace(/&amp;/g, "&");
+      if (value.indexOf("/_next/static/") === 0 && found.indexOf(value) === -1) found.push(value);
+    }
+    return found;
+  }
+
+  // Precaches /offline and, best effort, the script and style files that page
+  // needs to start: it lists the saved jobs from Cache Storage, which takes
+  // script, and no other page loads its own chunk before the network is gone.
   function onInstall(deps) {
     return deps.caches.open(shellCacheName(deps.buildId)).then(function (cache) {
-      return cache.add(OFFLINE_PATH);
+      return cache
+        .add(OFFLINE_PATH)
+        .then(function () {
+          return cache.match(OFFLINE_PATH);
+        })
+        .then(function (hit) {
+          return hit ? hit.text() : "";
+        })
+        .then(function (html) {
+          return Promise.all(
+            extractStaticUrls(html).map(function (url) {
+              return Promise.resolve()
+                .then(function () {
+                  return deps.fetch(url);
+                })
+                .then(function (response) {
+                  return isCacheable(response) ? cache.put(url, response) : null;
+                })
+                .catch(function () {
+                  return null;
+                });
+            }),
+          );
+        });
     });
   }
 
@@ -285,6 +323,7 @@
     rangeResponse: rangeResponse,
     route: route,
     onInstall: onInstall,
+    extractStaticUrls: extractStaticUrls,
     onActivate: onActivate,
   };
 

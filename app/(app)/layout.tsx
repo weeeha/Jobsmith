@@ -8,10 +8,11 @@ import { logout } from "./actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  const hash = userHash(user.id);
   return (
     <LiveAnnouncerProvider>
-      <OfflineProvider userHash={userHash(user.id)} buildId={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"}>
-        <AppShell email={user.email} onSignOut={logout}>
+      <OfflineProvider userHash={hash} buildId={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"}>
+        <AppShell email={user.email} userHash={hash} onSignOut={logout}>
           {children}
         </AppShell>
         <Toaster />

@@ -28,4 +28,15 @@ export const OFFLINE_COPY = {
     body: "Install Jobsmith from the share sheet or the browser menu. Safari clears saved jobs after seven days of not opening the site unless the app is on the home screen. Audio on a locked screen depends on your phone.",
     dismiss: "Dismiss",
   },
+  // Proposed. The /offline page the worker serves for a page that is not saved.
+  offline: {
+    heading: "You are offline.",
+    help: "This page is not saved on this device. Saved jobs still open.",
+    openHeading: "Open a saved job",
+    empty: "Nothing is saved on this device yet.",
+    jobLabel: (role: string, company: string) => (company ? `${role} at ${company}` : role),
+    listen: "Listen",
+    drill: "Drill",
+    quickFire: "Quick-fire",
+  },
 } as const;
