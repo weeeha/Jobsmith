@@ -1,5 +1,5 @@
 import type { BridgeDeps } from "@/lib/bridge/handlers";
-import { handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
+import { handleListEvents, handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
 
 export function bridgeFetch(deps: BridgeDeps): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -8,6 +8,9 @@ export function bridgeFetch(deps: BridgeDeps): typeof fetch {
 
     if (request.method === "GET" && url.pathname === "/api/bridge/opportunities") {
       return handleListOpportunities(deps, request);
+    }
+    if (request.method === "GET" && url.pathname === "/api/bridge/events") {
+      return handleListEvents(deps, request);
     }
     const contextMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/context$/.exec(url.pathname);
     if (request.method === "GET" && contextMatch) {

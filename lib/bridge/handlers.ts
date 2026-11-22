@@ -8,6 +8,7 @@ import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
 
 export type { BridgeDeps } from "./auth";
+export { handleListEvents } from "./events";
 
 // Matches what lib/pipeline/slug.ts actually produces: letters and digits
 // from any script (a company or role name is not always ASCII), plus

@@ -42,6 +42,19 @@ export type WireOpportunity = {
 
 export type WireListResponse = { opportunities: WireOpportunity[]; requestId: string };
 
+export type WireEvent = {
+  id: string;
+  kind: string;
+  slug: string;
+  stage: string | null;
+  occurred_at: string;
+  created_at: string;
+  body: string | null;
+  meta: Record<string, unknown>;
+};
+
+export type WireEventsResponse = { events: WireEvent[]; next: string | null; requestId: string };
+
 export type WireError = { error: { code: string; message: string }; requestId: string };
 
 // Milestone 30: MCP server for the Bridge

@@ -266,6 +266,14 @@ const cases: Case[] = [
     },
   },
   {
+    name: "event.listFeed excludes A's rows for B",
+    run: async (a, b) => {
+      const since = new Date(Date.now() - 3_600_000);
+      expect(await b.event.listFeed({ since, after: null, limit: 10 })).toEqual([]);
+      expect((await a.event.listFeed({ since, after: null, limit: 10 })).length).toBeGreaterThan(0);
+    },
+  },
+  {
     name: "event.insert ignores a smuggled userId",
     run: async (a, b, ids) => {
       const row = await a.event.insert({
