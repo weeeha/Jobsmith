@@ -56,3 +56,6 @@ skills-lock.json
 
 # bundled commands, written by pnpm scripts:build
 /commands/
+
+# written by pnpm licenses:collect
+THIRD_PARTY_LICENSES.txt
