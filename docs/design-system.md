@@ -168,3 +168,13 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   panel and the Settings Voice section are scanned with axe in light and dark through the existing
   `scanForViolations`, so the voice specs add no component or token of their own. `stub-speech.ts` and
   `fake-speech-server.ts` are test-only helpers under `tests/e2e/`.
+- `components/library/` (Library list and item page): hand-written, built from `ToneChip` and `Badge`,
+  `EmptyState`, `Input`, `Button`, `NativeSelect`, `ChipField`, `ModeTabs`, `FieldRow`, `Textarea`,
+  `Markdown`, `MarkChip` and the hub's list shell (`rounded-lg border border-border` with hairlines).
+  `library-filters.tsx` is a plain GET form (`q`, `kind`, `tag`, `archived=1`) so search and filters are
+  URLs and need no script; `library-list.tsx` is one row per item (kind chip, title link, first line,
+  tags, "Used in N jobs"); `item-editor.tsx` is the Edit toggle of the Documents tab (Write and Preview,
+  title, tags in `ChipField`) plus the Archive and Restore button; `item-view.tsx` and `mark-history.tsx`
+  are the item page and its per-job marks. The registry has no search-and-filter list or tag editor.
+  Edits and archiving call `router.refresh()`; the library actions never `revalidatePath`, because both
+  pages read the database on every request.
