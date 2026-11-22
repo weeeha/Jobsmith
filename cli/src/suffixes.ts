@@ -3,6 +3,7 @@ export type SuffixEntry = { kind?: string; stage?: string; title?: string; scope
 export const BUILT_IN_SUFFIXES: Record<string, SuffixEntry> = {
   recon: { kind: "research", scope: "company" },
   "design-recon": { kind: "research", scope: "company" },
+  research: { kind: "research", scope: "company" },
   jd: { kind: "research" },
   "jd-evidence-map": { kind: "research" },
   "fit-brief": { kind: "fit_brief" },
@@ -14,6 +15,7 @@ export const BUILT_IN_SUFFIXES: Record<string, SuffixEntry> = {
   outreach: { kind: "message_draft" },
   "followup-note": { kind: "message_draft" },
   "form-answers": { kind: "message_draft" },
+  questions: { kind: "question_bank" },
   "hr-bank": { kind: "question_bank", stage: "recruiter_screen" },
   "question-bank": { kind: "question_bank" },
   "interview-questions": { kind: "question_bank" },
