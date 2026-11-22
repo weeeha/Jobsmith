@@ -20,6 +20,16 @@ export function libraryItemQueries(db: Db, userId: string) {
         .returning();
       return row;
     },
+    // Insert unless the (question, job) pair is already saved; null means it was.
+    async insertIfNew(values: LibraryItemFields): Promise<LibraryItemRow | null> {
+      const fields = stripScopedKeys(values);
+      const [row] = await db
+        .insert(table)
+        .values({ ...fields, userId })
+        .onConflictDoNothing()
+        .returning();
+      return row ?? null;
+    },
     async getById(id: string): Promise<LibraryItemRow | null> {
       const [row] = await db
         .select()

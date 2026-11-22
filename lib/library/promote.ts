@@ -2,7 +2,7 @@ import type { Scoped } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 import type { ParsedBlock } from "@/lib/prep/parse";
 import { LIBRARY_COPY } from "./copy";
-import { LIBRARY_TITLE_MAX, createLibraryItem } from "./items";
+import { LIBRARY_TITLE_MAX, createLibraryItemOnce } from "./items";
 
 function blockText(blocks: ParsedBlock[], label: string): string | null {
   const found = blocks.find((b) => b.label.trim().replace(/:$/, "").trim().toLowerCase() === label);
@@ -33,11 +33,11 @@ export async function saveQuestionToLibrary(
   if (sayText !== null) parts.push(sayText);
   if (longText !== null) parts.push(`**Long version:** ${longText}`);
 
-  const created = await createLibraryItem(
+  const created = await createLibraryItemOnce(
     s,
     { kind: "answer", title: row.question.slice(0, LIBRARY_TITLE_MAX), bodyMd: parts.join("\n\n"), tags: [] },
     { questionKey: row.questionKey, sourceOpportunityId: input.opportunityId, sourceArtifactId: row.artifactId },
   );
   if (!created.ok) return created;
-  return ok({ id: created.data.id, created: true });
+  return ok(created.data);
 }

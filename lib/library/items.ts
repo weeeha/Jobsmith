@@ -88,6 +88,27 @@ export async function createLibraryItem(
   return ok(toView(row));
 }
 
+// Like createLibraryItem, but a question already saved for the same job is not saved twice.
+// Returns the existing item's id with created false when a simultaneous call won.
+export async function createLibraryItemOnce(
+  s: Scoped,
+  input: LibraryItemInput,
+  source: { questionKey: string; sourceOpportunityId: string; sourceArtifactId?: string | null },
+): Promise<Result<{ id: string; created: boolean }, "invalid">> {
+  const parsed = libraryItemInputSchema.safeParse(input);
+  if (!parsed.success) return fail("invalid", firstIssue(parsed.error));
+  const row = await s.libraryItem.insertIfNew({
+    ...parsed.data,
+    questionKey: source.questionKey,
+    sourceOpportunityId: source.sourceOpportunityId,
+    sourceArtifactId: source.sourceArtifactId ?? null,
+  });
+  if (row) return ok({ id: row.id, created: true });
+  const existing = await s.libraryItem.findBySource(source.questionKey, source.sourceOpportunityId);
+  if (!existing) return fail("invalid", "Check the item and try again.");
+  return ok({ id: existing.id, created: false });
+}
+
 export async function updateLibraryItem(
   s: Scoped,
   id: string,

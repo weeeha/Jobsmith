@@ -167,4 +167,27 @@ describe("saveQuestionToLibrary", () => {
       await close();
     }
   });
+
+  it("two simultaneous saves of the same question make one item", async () => {
+    const { s, close } = await setup("race@example.com");
+    try {
+      const opportunityId = await job(s);
+      await addQuestion(s, opportunityId, [say("I design pricing flows.")]);
+      const results = await Promise.all([
+        saveQuestionToLibrary(s, { opportunityId, questionKey: KEY }),
+        saveQuestionToLibrary(s, { opportunityId, questionKey: KEY }),
+      ]);
+      const [a, b] = results.map((r) => expectOk(r));
+      expect(a.id).toBe(b.id);
+      expect((await s.libraryItem.listAll()).filter((i) => i.questionKey === KEY)).toHaveLength(1);
+
+      // The index itself: a direct second insert for the same pair does nothing.
+      const again = await s.libraryItem.insertIfNew({
+        kind: "answer", title: "x", bodyMd: "y", tags: [], questionKey: KEY, sourceOpportunityId: opportunityId,
+      });
+      expect(again).toBeNull();
+    } finally {
+      await close();
+    }
+  });
 });

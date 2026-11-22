@@ -36,6 +36,13 @@
       "when": 1795295231700,
       "tag": "0004_clever_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795322865995,
+      "tag": "0005_silly_mariko_yashida",
+      "breakpoints": true
     }
   ]
 }
