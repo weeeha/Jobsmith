@@ -16,6 +16,10 @@ import { createToken } from "./token";
 // browser voice when a clip errors, so the specs only rely on the transcript
 // advancing, never on a clip finishing. Every value here is fictional.
 test.describe.configure({ mode: "serial" });
+// The app's service worker would answer /api/assets itself, outside what
+// page.route can abort, so the failed-clip spec could not fail a clip. These
+// specs have nothing to do with offline: keep the worker out of them.
+test.use({ serviceWorkers: "block" });
 
 const BANK_KEY = "answers-full";
 const BANK = `[data-bank-key="${BANK_KEY}"]`;
