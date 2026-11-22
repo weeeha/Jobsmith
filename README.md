@@ -166,7 +166,11 @@ either variable on its own or both together.
 `jobsmith list` prints your active jobs and their slugs.
 
 `jobsmith pull <slug> [--out <dir>]` writes `<slug>-context.md`: the posting, stages, people, a
-preferences summary and an index of existing documents, as one markdown file with frontmatter.
+preferences summary, an index of existing documents, a `## Prep` section and a `## Library` section, as
+one markdown file with frontmatter (`jobsmith: context/v1`). `## Prep` has a heading per question bank and
+one line per question: its number, section, mark (`solid`, `okay`, `shaky` or `none`) and last drilled
+date, so a skill can start from the shaky answers. `## Library` lists each item's title, kind and tags.
+Neither section carries an answer, a Spine, audio or a recording.
 
 `jobsmith push <slug> [--dir <dir>] [--prefix <file-prefix>] [--dry-run]` reads every
 `<prefix>-*.md` file in `--dir` (default the current directory; the prefix defaults to the slug),

@@ -1,8 +1,25 @@
 import type { JobView } from "@/lib/pipeline/read";
 import type { ArtifactMeta } from "@/lib/db/scoped";
 import { PERSON_ROLE_LABELS } from "@/lib/pipeline/labels";
+import type { ContextLibrary, ContextPrep } from "./context-prep";
 
-export type ContextInput = { view: JobView; companyDocuments: ArtifactMeta[]; generatedAt: Date };
+export type ContextInput = {
+  view: JobView;
+  companyDocuments: ArtifactMeta[];
+  generatedAt: Date;
+  prep: ContextPrep;
+  library: ContextLibrary;
+};
+
+// A line of a list: line breaks collapse to spaces. Pipes stay, since these are
+// lists and not table cells.
+function oneLine(value: string): string {
+  return value.replace(/\s*(?:\r\n|\r|\n)\s*/g, " ").trim();
+}
+
+function withStop(text: string): string {
+  return /[.?!:;]$/.test(text) ? text : `${text}.`;
+}
 
 // Table cells are single-line and pipe-delimited, so any value placed inside
 // one has its own pipes escaped and its line breaks collapsed to spaces.
@@ -21,7 +38,7 @@ function fenceFor(text: string): string {
 }
 
 export function buildContextDocument(input: ContextInput): string {
-  const { view, companyDocuments, generatedAt } = input;
+  const { view, companyDocuments, generatedAt, prep, library } = input;
   const { opportunity, company, currentStage } = view;
   const lines: string[] = [];
 
@@ -132,6 +149,36 @@ export function buildContextDocument(input: ContextInput): string {
       lines.push(
         `| ${escapeCell(doc.key)} | ${doc.kind} | ${scopeTag} | ${escapeCell(stageLabel)} | ${doc.version} | ${doc.updatedAt.toISOString()} |`,
       );
+    }
+  }
+  lines.push("");
+
+  lines.push("## Prep");
+  lines.push("");
+  if (prep.banks.length === 0) {
+    lines.push("No question banks parsed yet.");
+    lines.push("");
+  } else {
+    for (const bank of prep.banks) {
+      lines.push(`### ${oneLine(bank.title)} (${bank.key})`);
+      lines.push("");
+      for (const q of bank.questions) {
+        const section = q.section ? ` Section: ${oneLine(q.section)}.` : "";
+        const drilled = q.lastDrilledAt ? q.lastDrilledAt.toISOString().slice(0, 10) : "never";
+        lines.push(`- ${q.number}. ${withStop(oneLine(q.question))}${section} Mark: ${q.level ?? "none"}. Last drilled: ${drilled}.`);
+      }
+      lines.push("");
+    }
+  }
+
+  lines.push("## Library");
+  lines.push("");
+  if (library.items.length === 0) {
+    lines.push("No library items yet.");
+  } else {
+    for (const item of library.items) {
+      const tags = item.tags.length > 0 ? item.tags.map(oneLine).join(", ") : "none";
+      lines.push(`- ${oneLine(item.title)} (${item.kind}). Tags: ${tags}.`);
     }
   }
   lines.push("");

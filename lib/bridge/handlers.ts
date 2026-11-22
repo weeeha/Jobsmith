@@ -2,6 +2,7 @@ import { DrizzleQueryError } from "drizzle-orm";
 import { parseBearer, readJsonCapped, bridgeJson, bridgeError } from "./http";
 import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
 import { buildContextDocument } from "./context";
+import { loadContextLibrary, loadContextPrep } from "./context-prep";
 import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, RATE_LIMIT_PER_MINUTE, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
@@ -113,7 +114,9 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
     }
 
     const companyDocuments = await auth.s.artifact.listLatestForCompany(view.company.id);
-    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now });
+    const prep = await loadContextPrep(auth.s, view.opportunity.id);
+    const library = await loadContextLibrary(auth.s);
+    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now, prep, library });
     return new Response(doc, {
       status: 200,
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },
