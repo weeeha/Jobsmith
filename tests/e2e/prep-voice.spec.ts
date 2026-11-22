@@ -1,6 +1,7 @@
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { scanForViolations } from "./axe";
 import { runCli } from "./cli";
+import { insertOtherUsersAsset } from "./db";
 import { startFakeSpeechServer } from "./fake-speech-server";
 import { addJobAndOpen, login, uniqueName } from "./session";
 import { plays, spoken, stubSpeech } from "./stub-speech";
@@ -237,9 +238,11 @@ test("the asset route answers a Range request with 206, refuses a stranger and a
   const beyond = await page.request.get(url, { headers: { Range: `bytes=${size + 10}-${size + 20}` } });
   expect(beyond.status()).toBe(416);
 
-  // The account is the only one, so a foreign id is one no asset of this user has.
+  // An id no asset has, and a real asset id that belongs to a second account.
   const foreign = await page.request.get("/api/assets/00000000-0000-4000-8000-000000000000");
   expect(foreign.status()).toBe(404);
+  const strangers = await insertOtherUsersAsset();
+  expect((await page.request.get(`/api/assets/${strangers}`)).status()).toBe(404);
   expect((await page.request.get("/api/assets/not-an-id")).status()).toBe(404);
 
   // Signed out: nothing is served, whatever the id.
