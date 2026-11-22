@@ -46,6 +46,17 @@ The owner's instruction, relayed by the coordinating session: "please do all tas
 | 10 to 12 | Extra copy marked "Proposed" in `lib/prep/copy.ts` (`hub.*`, `quickFire.*`, `homeNoPrep`, `VOICE_LINE`) | No Figma drafts; one file to replace |
 | 14 | A question bank with no readable question shows its card with the notice even when it is the job's only bank; the empty state is for a job with no bank card (`components/prep/prep-hub.tsx`, fixed by the reviewer after Task 14) | Spec 5.1 rule 8; the first build showed the empty state and hid the notice |
 | 14 | The Postgres for the end-to-end suite is the project's compose container, started through colima, with a database of its own (`jobsmith_m6_e2e`) on port 5432; the app runs on port 3460 | Port 3000 belongs to another project on this machine |
+| 38 | `createLibraryItem` takes an optional third argument (question key and source); the edit form never changes an item's kind | `lib/library/items.ts` stays the only writer |
+| 39 | A question with only a Long version block saves as that block; titles are cut to 200 characters | The plan did not cover the case |
+| 43, 44 | Library Quick-fire and drill write marks in the library scope, with no job and no timeline event; Record my answer and Save to library are not offered there | Recordings and events belong to a job |
+| 44 | Library audio is made on demand, two questions ahead, hashed the same way cleanup reads library items | A clip arriving mid-question never restarts speech |
+| 45 | The context document lists marks and labels only: no answer text, no Spine, no audio | Stays `context/v1` |
+| 47 | The existing `app/apple-icon.png` is kept; `pnpm icons` generates the 192 and 512 px icons | The re-render inverted the colors |
+| 48 | The worker caches a player page only on a real page load; a cached clip answers a `Range` request with 206 | Client-side navigation would overwrite saved HTML; Safari's audio element needs 206 |
+| 50 | The service worker registers only in a production build | The dev server must stay unaffected |
+| 52 | One offline panel and one install hint at the top of the hub; the hint's dismissal is kept in `localStorage` | Saving is per job |
+| 53 | The worker also stores the offline page's own static files at install; a Quick-fire round can start offline without a session | The saved-job list could not render offline; the round failed to start |
+| 54 | Fixed: the panel wraps `window.fetch` (a bare reference threw "Illegal invocation" and every save failed); `tests/e2e/prep-voice.spec.ts` blocks service workers | Found by the first end-to-end run |
 | 28 | Next, previous and repeat keep a paused player paused | They never start sound on their own |
 | 29 | Pitch documents get a card with a Listen link; a new hand-written `components/native-select.tsx` serves the speed and device-voice pickers | A native picker suits long voice lists on phones |
 | 30 | The provider's voice list loads on demand in Settings; an empty list and a timeout look the same, with a "Load voices again" button | No provider call during a page render |
@@ -97,6 +108,14 @@ The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder
 | `tests/e2e/prep-voice.spec.ts:276` (voice change in Settings) failed once under load and passes alone | A wait for the voice list before `selectOption` |
 | No single clean pass of the whole Chromium suite in milestone 8; two runs together cover every spec | A rerun on a quiet machine |
 | Live microphone check of Record my answer | A phone or a laptop microphone and a person |
+| Two simultaneous clicks on "Save to library" can create two items | A unique index on (`user_id`, `question_key`, source) or a locked check |
+| The offline mark queue can mark items "stuck" after repeated failed sends on a captive network; a drill count can double after a lost response and a retry | A delayed drain and an idempotency key on the mark write |
+| Offline drills and Quick-fire rounds write no session row and no timeline event | A queued session write, if wanted |
+| Saved pages refresh only when visited online; new clips need "Remove saved copy" and a fresh save | A background refresh of saved jobs |
+| A session that expires on its own does not clear the device's saved data | A check at app start |
+| A real phone in airplane mode, an installed app, the install hint inside a real installed app | A phone and a deployed HTTPS preview |
+| The 390 px sideways-scroll checks for the Library and several Phone checks sit behind the phone Playwright project | WebKit installed, then the phone project |
+| The unslop render tier at 375 and 1280 px, light and dark, for every new screen | A design review pass |
 
 ## Progress
 
@@ -111,3 +130,6 @@ The owner's second instruction, relayed 2026-11-21: "okay for all do recomennder
 | 7 | 24 to 27 | `3bc20dd` to `0cd30e6` | 68 tests rerun; `requireUser` in the asset route |
 | 7 | 28 to 31 | `670f5f8` to `9e0959d` | 66 tests rerun; the Listen screen seen at 390 px in the Browser pane (Play not pressed). Executor: 45 Chromium end-to-end tests passed, axe clean on Listen, the hub and Settings Voice |
 | 8 | 32 to 37 | `57f094d` to `36517fa` | 116 tests rerun; `requireUser` in the upload route. Executor: 9 Drill specs passed in Chromium at 1280 and 390 px, axe clean; whole-suite runs had one spec failure each (one fixed, one a load flake) |
+| 9 | 38 to 46 | `f7618c2` to `f6223ca` | 119 tests rerun. Executor: whole Chromium suite 61 passed in one run, axe clean on the four Library screens |
+| 10 | 47 to 54 | `f1056ce` to `2b8ef56` | 85 tests rerun for tasks 47 to 51. Executor: 14 Phone specs and the whole Chromium suite (71 passed, 1 skipped), cookieless 200 for `/manifest.webmanifest`, `/sw.js`, `/icons/icon-192.png` and `/offline` on a production build |
+| all | final | head of `build/prep` | Reviewer: full typecheck, lint and `pnpm test` rerun (result in the closing report); at 390 px in the Browser pane on the dev server: Library list, the hub with the offline panel and Listen, Drill and Quick-fire links, the Drill start card, the Settings Voice section, none scrolling sideways. Sound, the service worker and offline were not exercised by hand |
