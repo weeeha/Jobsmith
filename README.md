@@ -255,6 +255,9 @@ Every error response shares one shape, `{ "error": { "code", "message" }, "reque
 
 ## Deploying
 
+To run it on your own server with Docker, Postgres and Caddy, follow the
+[self-hosting guide](docs/self-hosting.md).
+
 On Vercel, the build command is `pnpm db:migrate && pnpm build` (see
 `vercel.ts`): every deployment migrates the database before it builds.
 

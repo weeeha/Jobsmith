@@ -696,6 +696,9 @@ git commit -m "ci(release): tag-driven multi-arch publish with provenance, SBOM 
 
 ### Task 39: Self-hosting guide
 
+> **Plan fixes (built on the selfhost branch, without milestones 11, 31 and 33):** the guide documents `docker compose restart app` (no `scheduler` service yet), a one-line "arrives with packs" note instead of the Packs steps (no `packs-check`, no `seed --pack`, so Demo data runs `seed` alone), no `tts` profile (the plan's any-OpenAI-compatible-server sentence), and one sentence for the Local runner (no units). The test list changes the same way: it asserts `restart app` and `run --rm app seed`, and asserts the absent commands are not documented. The health check in Troubleshooting uses `docker compose exec app node -e fetch(...)`, since the image has no `curl`. `POSTGRES_PASSWORD` is made with `openssl rand -hex 16`, since the plan's base64 can add `+`, `/` and `=`, which break the database URL.
+
+
 **Files:**
 - Modify: `docs/self-hosting.md` (everything around the Task 27 table), `README.md` (Deploying: a link, the Docker path), `.env.example`
 - Test: `tests/unit/self-hosting-guide.test.ts`
