@@ -33,8 +33,21 @@ Next.js 16 and React 19 with Tailwind CSS 4, Postgres through Drizzle ORM, Bette
 the Vercel AI SDK for the optional AI features (`package.json`).
 
 Pages: `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/settings`, and `/` (Home).
-`/preferences` holds the filters that new jobs are checked against. `/library` is a placeholder until interview prep lands. Without a session, every page
-redirects to `/login`, except `/setup` and `/login` themselves.
+`/preferences` holds the filters that new jobs are checked against. `/library` is the answers, stories, intros
+and facts you reuse across jobs (see below). Without a session, every page redirects to `/login`, except
+`/setup` and `/login` themselves.
+
+## Library
+
+`/library` lists the items you reuse across jobs: an **answer** saved from a question ("Save to library" in the
+Prep tab, in Listen and after a Drill), and **stories**, **intros** and **facts** you add by hand. Search by
+text, filter by kind and tag, edit, and archive (a flag, not a delete). An item that came from a question shows
+"Used in N jobs" and, on its page, the mark each job gave that question with its date, plus the library's own.
+`/library/quick-fire` runs a ten-question round over every active job's questions that have a Spine and every
+library item that has a question. `/library/drill` runs the Drill loop over the items that have a question;
+their answers are spoken from clips made on demand, or by the browser voice when voice generation is off. Library
+rounds and drills write marks in the library scope and no timeline event, because they belong to no job.
+`jobsmith pull` writes the `## Prep` and `## Library` sections of the context file (see the CLI section).
 
 ## Requirements
 

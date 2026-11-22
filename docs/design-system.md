@@ -194,3 +194,7 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   library button are left out, and the back and "Drill the shaky ones again" links point at the Library. An
   optional `ensureAudio` callback asks for the clips of the next two questions in the background; until one
   exists a step speaks through the browser voice, and a clip arriving mid-question never restarts the speech.
+- Milestone 9 end to end (`tests/e2e/prep-library.spec.ts`): no new UI. The Library list, an item page, Library
+  Quick-fire and Library drill are scanned with axe in light and dark (`scanForViolations` for the two server
+  pages, `scanInPlace` for the two that keep their state in the page), and checked for sideways scroll at 390 px.
+  The context document's two new sections are text, so they need no component or token.
