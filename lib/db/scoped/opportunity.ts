@@ -45,6 +45,10 @@ export type OpportunitySummary = {
   companyId: string;
   status: OpportunityStatus;
   stage: { kind: StageKind; label: string };
+  fitScore: number | null;
+  nextAction: string | null;
+  nextActionAt: Date | null;
+  updatedAt: Date;
 };
 
 export function opportunityQueries(db: Db, userId: string) {
@@ -243,6 +247,10 @@ export function opportunityQueries(db: Db, userId: string) {
           status: schema.opportunity.status,
           stageKind: schema.stage.kind,
           stageLabel: schema.stage.label,
+          fitScore: schema.opportunity.fitScore,
+          nextAction: schema.opportunity.nextAction,
+          nextActionAt: schema.opportunity.nextActionAt,
+          updatedAt: schema.opportunity.updatedAt,
         })
         .from(schema.opportunity)
         .innerJoin(
@@ -265,6 +273,10 @@ export function opportunityQueries(db: Db, userId: string) {
         companyId: r.companyId,
         status: r.status,
         stage: { kind: r.stageKind as StageKind, label: r.stageLabel },
+        fitScore: r.fitScore,
+        nextAction: r.nextAction,
+        nextActionAt: r.nextActionAt,
+        updatedAt: r.updatedAt,
       }));
     },
     async insert(values: OpportunityFields): Promise<OpportunityRow> {
