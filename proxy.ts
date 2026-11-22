@@ -43,5 +43,5 @@ export const config = {
   // chance to enforce its own 4 MB limit correctly. Excluding the path from
   // the matcher means the proxy never runs on it at all, so no buffering
   // and no cookie-based redirect ever happens to a bearer-only request.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/bridge/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/bridge/|api/health(?:/|$)).*)"],
 };
