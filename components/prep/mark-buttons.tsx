@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { markQuestionAction } from "@/app/(app)/jobs/[slug]/prep-actions";
 import { useAnnounce } from "@/components/live-announcer";
+import { useOffline } from "@/components/offline/offline-provider";
 import { Button } from "@/components/ui/button";
 import { markedAnnouncement, PREP_COPY } from "@/lib/prep/copy";
 import { MARK_LEVELS, type MarkLevel, type MarkScope } from "@/lib/prep/values";
@@ -20,27 +21,39 @@ type MarkTarget = {
 };
 
 /**
- * Writes one mark, announces it and reports the level the server kept. The
+ * Writes one mark, announces it and reports the level the server kept (or the
+ * level chosen, when the mark is queued offline). The
  * caller owns what happens after (a refresh, the next card). Shared by the
  * buttons and by keyboard shortcuts on the players.
  */
 export function useMark(target: MarkTarget): { mark: (level: MarkLevel) => void; pending: boolean } {
   const announce = useAnnounce();
+  // Null outside the app shell (the unit tests): the mark is then sent directly.
+  const offline = useOffline();
   const [pending, startTransition] = React.useTransition();
 
   function mark(level: MarkLevel) {
     startTransition(async () => {
       try {
-        const result = await markQuestionAction({
+        const input = {
           opportunityId: target.opportunityId,
           scope: target.scope,
           questionKey: target.questionKey,
           level,
-          markedAt: new Date().toISOString(),
           drilled: target.drilled ?? false,
-        });
-        if (!result.ok) {
-          toast.error(result.message);
+        };
+        const submitted = offline
+          ? await offline.submit(input)
+          : { queued: false, result: await markQuestionAction({ ...input, markedAt: new Date().toISOString() }) };
+        if (submitted.queued) {
+          // Waiting to sync: show the chosen level at once, as if it had been kept.
+          announce(markedAnnouncement(level));
+          target.onMarked(level);
+          return;
+        }
+        const result = submitted.result;
+        if (!result?.ok) {
+          toast.error(result?.message ?? messageFor("unexpected"));
           return;
         }
         announce(markedAnnouncement(result.data.level));
