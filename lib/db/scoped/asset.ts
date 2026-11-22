@@ -1,4 +1,4 @@
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
@@ -23,6 +23,14 @@ export function assetQueries(db: Db, userId: string) {
         .from(table)
         .where(and(eq(table.id, id), eq(table.userId, userId)));
       return row ?? null;
+    },
+    // Only the caller's own assets: an id of another user's is simply absent.
+    async listByIds(ids: string[]): Promise<AssetRow[]> {
+      if (ids.length === 0) return [];
+      return db
+        .select()
+        .from(table)
+        .where(and(eq(table.userId, userId), inArray(table.id, ids)));
     },
     // Returns the deleted row so the caller can delete the stored object.
     async delete(id: string): Promise<AssetRow | null> {
