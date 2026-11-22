@@ -1,0 +1,10 @@
+# For the image workflow only: publishes the app and Postgres on this
+# machine's loopback so the tests can reach them. Never use it on a server.
+#   docker compose -f compose.yaml -f compose.ci.yaml up -d
+services:
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"

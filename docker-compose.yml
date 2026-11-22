@@ -1,6 +1,8 @@
+# Development database. It runs Postgres 17. A volume created by Postgres 16
+# cannot be opened by 17: remove it once with `docker compose down -v`.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
