@@ -1,0 +1,202 @@
+name: Image
+
+# Builds the self-host image and runs the whole stack from it. Reused by
+# release.yml through workflow_call.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      JOBSMITH_TAG: ci
+    steps:
+      # Actions are pinned by version tag, the style of ci.yml. Neither
+      # workflow pins a commit SHA yet; see the note in the task report.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: jobsmith:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Image size is within budget
+        run: node scripts/image-smoke.mjs size jobsmith:ci "$((400 * 1024 * 1024))"
+
+      - name: Runs as user 1000 and the root filesystem is read-only
+        run: |
+          set -eu
+          uid="$(docker run --rm --entrypoint id jobsmith:ci -u)"
+          test "$uid" = "1000"
+          if docker run --rm --read-only --entrypoint sh jobsmith:ci -c 'touch /probe'; then
+            echo "a write to / succeeded under --read-only" >&2
+            exit 1
+          fi
+
+      - name: No build placeholder in the image
+        run: |
+          set -eu
+          # Clean image: the script is mounted read-only, nothing is copied in.
+          docker run --rm --entrypoint node -v "$PWD/scripts:/s:ro" \
+            jobsmith:ci /s/image-smoke.mjs placeholders /app
+          # Planted positive: the same check must catch a file we plant.
+          if docker run --rm --entrypoint sh -v "$PWD/scripts:/s:ro" jobsmith:ci \
+            -c 'echo build.invalid > /tmp/planted && node /s/image-smoke.mjs placeholders /tmp'; then
+            echo "the placeholder check missed a planted build.invalid" >&2
+            exit 1
+          fi
+
+      - name: Write deploy/.env
+        working-directory: deploy
+        run: |
+          set -eu
+          pw="$(openssl rand -hex 16)"
+          {
+            echo "POSTGRES_PASSWORD=$pw"
+            echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
+            echo "APP_URL=http://localhost:3000"
+            echo "SETUP_TOKEN=e2e-setup-token-0123456789"
+            echo "AUTH_SIGNIN_MAX_PER_MINUTE=1000"
+            echo "AI_PROVIDER=fake"
+            echo "JOBSMITH_TAG=ci"
+            # The TTS_, TRANSCRIBE_ and EMAIL_ fake providers and
+            # STORAGE_PROVIDER=local are added when their parsers exist
+            # (none of them does yet).
+          } > .env
+          chmod 600 .env
+          echo "::add-mask::$pw"
+          echo "DATABASE_URL=postgres://jobsmith:$pw@localhost:5432/jobsmith" >> "$GITHUB_ENV"
+
+      - name: Start the stack
+        working-directory: deploy
+        run: docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Needs the webServer block of playwright.config.ts to be skipped when
+      # E2E_EXTERNAL_SERVER=1 (Task 37 file list; not done in this change).
+      - name: Playwright against the container
+        env:
+          APP_URL: http://localhost:3000
+          E2E_EXTERNAL_SERVER: "1"
+          ALLOW_DB_RESET: "true"
+        run: pnpm exec playwright test --project=first-run --project=chromium tests/e2e/first-run.spec.ts tests/e2e/pipeline.spec.ts tests/e2e/documents.spec.ts
+
+      - name: No route sends a visitor to /login
+        run: node scripts/image-smoke.mjs routes http://localhost:3000
+
+      # Added later, when debrief milestone 28 lands (app/api/debrief).
+      - name: 24 MB upload through Caddy
+        if: hashFiles('app/api/debrief/**') != ''
+        working-directory: deploy
+        run: |
+          echo "upload step is added with debrief milestone 28" >&2
+          exit 1
+
+      - name: Seed the demo pack
+        working-directory: deploy
+        run: |
+          set -eu
+          count() { docker compose exec -T postgres psql -U jobsmith -d jobsmith -tAc 'select count(*) from opportunity'; }
+          before="$(count)"
+          echo "$before" > "$RUNNER_TEMP/jobs-before"
+          docker compose run --rm app seed --pack data
+          after="$(count)"
+          test "$((after - before))" -eq 6
+          echo "$after" > "$RUNNER_TEMP/jobs-after"
+
+      - name: Data survives down and up
+        working-directory: deploy
+        run: |
+          set -eu
+          docker compose -f compose.yaml -f compose.ci.yaml down
+          docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+          n="$(docker compose exec -T postgres psql -U jobsmith -d jobsmith -tAc 'select count(*) from opportunity')"
+          test "$n" = "$(cat "$RUNNER_TEMP/jobs-after")"
+
+      # The tar in backup.sh runs as the container user (1000) into ./backups,
+      # which the runner user owns. If this step fails with a permission
+      # error on the tarball, that is the host-folder problem flagged in
+      # Task 35; do not hide it with chmod here, fix backup.sh.
+      - name: Back up, restore into a second stack, same jobs
+        working-directory: deploy
+        run: |
+          set -eu
+          ./backup.sh
+          dump="$(ls backups/db-*.dump | tail -n 1)"
+          tarball="$(ls backups/storage-*.tar.gz | tail -n 1)"
+          export COMPOSE_PROJECT_NAME=jobsmith-restore
+          # compose.yaml alone publishes no port, so it sits beside the first stack.
+          docker compose up -d --wait
+          ./restore.sh "$dump" "$tarball"
+          n="$(docker compose exec -T postgres psql -U jobsmith -d jobsmith -tAc 'select count(*) from opportunity')"
+          test "$n" = "$(cat "$RUNNER_TEMP/jobs-after")"
+          docker compose down -v
+
+      - name: A broken pack is refused and named
+        working-directory: deploy
+        run: |
+          set -eu
+          printf '{"columns":["%s"]}\n' "$(printf 'x%.0s' $(seq 25))" > packs/broken.json
+          out="$RUNNER_TEMP/broken.out"
+          if timeout 120 docker compose -f compose.yaml -f compose.ci.yaml run --rm app > "$out" 2>&1; then
+            echo "app started with a broken pack" >&2
+            rm -f packs/broken.json
+            exit 1
+          fi
+          rm -f packs/broken.json
+          grep -q 'broken.json' "$out"
+
+      # Added later, when the first release tag exists: start the previous
+      # tag's image from GHCR, add data, switch to jobsmith:ci, check the data
+      # is intact. Runs only if `git describe --tags --abbrev=0` finds a tag
+      # and that image is on GHCR.
+
+      - name: Collect compose logs
+        if: failure()
+        working-directory: deploy
+        run: docker compose -f compose.yaml -f compose.ci.yaml logs --no-color > "$RUNNER_TEMP/compose.log" 2>&1 || true
+
+      - name: Upload compose logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs
+          path: ${{ runner.temp }}/compose.log
+          if-no-files-found: ignore
+
+      - name: Stop the stack
+        if: always()
+        working-directory: deploy
+        run: docker compose -f compose.yaml -f compose.ci.yaml down -v || true
