@@ -21,6 +21,7 @@ vi.mock("@/components/player/media-session", () => ({ useMediaSession: vi.fn() }
 
 const JOB = "11111111-1111-4111-8111-111111111111";
 const dispatch = vi.fn<(event: EngineEvent) => void>();
+let engineOptions: Parameters<typeof usePlaybackEngine>[1] | null = null;
 let engineState: EngineState;
 let media = { backgroundStopped: false };
 
@@ -93,8 +94,8 @@ beforeEach(() => {
   refresh.mockReset();
   media = { backgroundStopped: false };
   engineAt(0);
-  vi.mocked(usePlaybackEngine).mockImplementation((plan) => ({
-    state: engineState,
+  vi.mocked(usePlaybackEngine).mockImplementation((plan, options) => ({
+    state: (engineOptions = options, engineState),
     currentStep: plan.steps[engineState.stepIndex] ?? null,
     currentQuestionIndex: plan.steps[engineState.stepIndex]?.questionIndex ?? 0,
     dispatch,
@@ -190,6 +191,15 @@ describe("ListenPlayer", () => {
     engineAt(5, "ended");
     renderPlayer(bank(3));
     expect(screen.getByText(/End of the list/)).toBeTruthy();
+  });
+
+  it("a clip that fails while playing is relabelled 'Browser voice' in the transcript", () => {
+    const plan = bank(1);
+    plan.steps = plan.steps.map((step, i) => ({ ...step, clip: { assetId: `a${i}`, suspect: false }, hash: `d${i}`.padEnd(16, "d") }));
+    renderPlayer(plan);
+    expect(screen.queryByText("Browser voice")).toBeNull();
+    act(() => engineOptions!.onClipFailed!(plan.steps[1]));
+    expect(screen.getByText("Browser voice")).toBeTruthy();
   });
 
   it("regenerating a suspect clip calls the action and refreshes", async () => {

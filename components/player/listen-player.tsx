@@ -44,7 +44,10 @@ export function ListenPlayer(props: {
   const [noticeDismissed, setNoticeDismissed] = React.useState(false);
   const [regenerating, setRegenerating] = React.useState(false);
 
+  const [failedHashes, setFailedHashes] = React.useState<ReadonlySet<string>>(() => new Set());
+
   const { state, currentStep, currentQuestionIndex, dispatch } = usePlaybackEngine(plan, {
+    onClipFailed: (step) => setFailedHashes((prev) => new Set(prev).add(step.hash)),
     speed: props.speed,
     gapFactor: props.gapFactor,
     browserVoices: props.browserVoices,
@@ -142,6 +145,7 @@ export function ListenPlayer(props: {
           onSeek={(stepIndex) => dispatch({ type: "seek_step", stepIndex })}
           onRegenerate={regenerate}
           regenerating={regenerating}
+          failedHashes={failedHashes}
         />
       </div>
 

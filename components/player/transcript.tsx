@@ -20,6 +20,8 @@ export function Transcript(props: {
   onSeek(stepIndex: number): void;
   onRegenerate(hashes: string[]): void;
   regenerating: boolean;
+  // Hashes of clips that failed while playing: spoken by the browser voice, so labelled as such.
+  failedHashes?: ReadonlySet<string>;
 }): React.ReactElement | null {
   const { plan, questionIndex } = props;
   const question = plan.questions[questionIndex];
@@ -29,7 +31,9 @@ export function Transcript(props: {
   const steps = plan.steps.map((step, index) => ({ step, index })).filter((s) => s.step.questionIndex === questionIndex);
   const playing = plan.steps[props.currentStepIndex];
   const playingBlock = playing && playing.questionIndex === questionIndex ? playing.blockIndex : null;
-  const questionClipMissing = steps.some((s) => s.step.blockIndex === null && s.step.clip === null);
+  const failed = props.failedHashes;
+  const noClip = (step: { clip: unknown; hash: string }) => step.clip === null || (failed?.has(step.hash) ?? false);
+  const questionClipMissing = steps.some((s) => s.step.blockIndex === null && noClip(s.step));
 
   return (
     <section aria-label={PREP_COPY.listen.transcript} className="flex min-w-0 flex-col gap-3">
@@ -51,7 +55,7 @@ export function Transcript(props: {
           }
 
           const isPlaying = playingBlock === block.index;
-          const browser = own.some((s) => s.step.clip === null);
+          const browser = own.some((s) => noClip(s.step));
           const suspect = own.filter((s) => s.step.clip?.suspect);
           const textId = `${baseId}-${block.index}`;
           return (
