@@ -42,7 +42,9 @@ export async function endSession(
     if (session.endedAt !== null) return ok({ eventWritten: false });
 
     const now = input.now ?? new Date();
-    await tx.prepSession.update(session.id, { endedAt: now, questions: input.seen, marked: input.marked });
+    // Guarded on ended_at being null: a second simultaneous call updates nothing and writes no event.
+    const ended = await tx.prepSession.endIfOpen(session.id, { endedAt: now, questions: input.seen, marked: input.marked });
+    if (!ended) return ok({ eventWritten: false });
 
     const writesEvent = session.opportunityId !== null && (session.mode === "drill" || session.mode === "quick_fire");
     if (!writesEvent || session.opportunityId === null) return ok({ eventWritten: false });

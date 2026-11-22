@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
@@ -33,6 +33,17 @@ export function prepSessionQueries(db: Db, userId: string) {
         .update(table)
         .set({ ...fields, updatedAt: new Date() })
         .where(and(eq(table.id, id), eq(table.userId, userId)))
+        .returning();
+      return row ?? null;
+    },
+    // Ends a session only while it is still open, so two simultaneous ends
+    // cannot both win. Returns null when the session is gone or already ended.
+    async endIfOpen(id: string, values: Partial<PrepSessionFields>): Promise<PrepSessionRow | null> {
+      const fields = stripScopedKeys(values);
+      const [row] = await db
+        .update(table)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(and(eq(table.id, id), eq(table.userId, userId), isNull(table.endedAt)))
         .returning();
       return row ?? null;
     },

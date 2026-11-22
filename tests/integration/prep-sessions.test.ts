@@ -128,6 +128,25 @@ describe("prep sessions", () => {
     }
   });
 
+  it("two simultaneous endSession calls write one event, and endIfOpen updates an open session only once", async () => {
+    const { s, close, opportunityId } = await setup("ps10@example.com");
+    try {
+      const { id } = expectOk(await startSession(s, { opportunityId, mode: "drill", questions: 5, now: T0 }));
+      const results = await Promise.all([
+        endSession(s, { id, seen: 5, marked: 3, solid: 2, now: T1 }),
+        endSession(s, { id, seen: 5, marked: 3, solid: 2, now: T1 }),
+      ]);
+      expect(results.map((r) => expectOk(r).eventWritten).sort()).toEqual([false, true]);
+      expect(await drilled(s, opportunityId)).toHaveLength(1);
+
+      // The guard itself: a session that already ended is not updated again.
+      expect(await s.prepSession.endIfOpen(id, { endedAt: new Date(), questions: 9 })).toBeNull();
+      expect((await s.prepSession.getById(id))!.questions).toBe(5);
+    } finally {
+      await close();
+    }
+  });
+
   it("endSession for a missing or foreign session is not_found", async () => {
     const mine = await setup("ps9a@example.com");
     try {
