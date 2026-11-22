@@ -21,6 +21,7 @@
     "reset-db": "tsx --env-file-if-exists=.env scripts/reset-db.ts",
     "import:applications": "tsx --env-file-if-exists=.env scripts/import-applications.ts",
     "prep:backfill": "tsx --env-file-if-exists=.env scripts/prep-backfill.ts",
+    "icons": "tsx scripts/make-icons.ts",
     "cli:build": "node scripts/build-cli.mjs",
     "jobsmith": "node cli/dist/jobsmith.mjs"
   },
