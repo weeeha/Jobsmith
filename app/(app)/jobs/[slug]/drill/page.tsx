@@ -39,12 +39,17 @@ export default async function DrillPage(props: PageProps<"/jobs/[slug]/drill">) 
   const loaded = await loadDrillData(s, { opportunityId: opportunity.id, docKey, section, count, onlyShaky, audio });
   if (!loaded.ok && loaded.code === "not_found") notFound();
 
+  // Each request is its own run. "Drill the shaky ones again" lands on this same
+  // route, and React would otherwise keep the finished run's state (its index
+  // and its summary phase) and hand it the new questions.
+  const runId = crypto.randomUUID();
   const backHref = `/jobs/${slug}?tab=prep`;
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 sm:p-6">
       <h1 className="text-lg font-semibold text-foreground">{PREP_COPY.drill.heading}</h1>
       {loaded.ok ? (
         <DrillPlayer
+          key={runId}
           questions={loaded.data.questions}
           sessionMeta={loaded.data.sessionMeta}
           opportunityId={opportunity.id}
