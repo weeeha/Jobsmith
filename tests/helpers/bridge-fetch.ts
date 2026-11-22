@@ -1,13 +1,24 @@
+import { handleMcp } from "@/lib/bridge/mcp-handler";
 import type { BridgeDeps } from "@/lib/bridge/handlers";
-import { handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
+import { handleListEvents, handleGetJob, handleListOpportunities, handleGetContext, handlePushArtifacts } from "@/lib/bridge/handlers";
 
 export function bridgeFetch(deps: BridgeDeps): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/bridge/mcp") {
+      return handleMcp(deps, request);
+    }
     if (request.method === "GET" && url.pathname === "/api/bridge/opportunities") {
       return handleListOpportunities(deps, request);
+    }
+    if (request.method === "GET" && url.pathname === "/api/bridge/events") {
+      return handleListEvents(deps, request);
+    }
+    const jobMatch = /^\/api\/bridge\/opportunities\/([^/]+)$/.exec(url.pathname);
+    if (request.method === "GET" && jobMatch) {
+      return handleGetJob(deps, request, decodeURIComponent(jobMatch[1]!));
     }
     const contextMatch = /^\/api\/bridge\/opportunities\/([^/]+)\/context$/.exec(url.pathname);
     if (request.method === "GET" && contextMatch) {

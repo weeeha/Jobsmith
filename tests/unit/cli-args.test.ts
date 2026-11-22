@@ -101,4 +101,10 @@ describe("parseCommand", () => {
   it("no arguments at all is a usage error", () => {
     expect(parseCommand([])).toEqual({ ok: false, message: USAGE });
   });
+
+  it("parses 'mcp' and 'mcp --allow-env-token'; rejects 'mcp extra'", () => {
+    expect(parseCommand(["mcp"])).toEqual({ ok: true, command: { name: "mcp", allowEnvToken: false } });
+    expect(parseCommand(["mcp", "--allow-env-token"])).toEqual({ ok: true, command: { name: "mcp", allowEnvToken: true } });
+    expect(parseCommand(["mcp", "extra"])).toEqual({ ok: false, message: USAGE });
+  });
 });

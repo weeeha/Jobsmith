@@ -38,3 +38,13 @@ export function runCli(
     child.stdin.end();
   });
 }
+
+// Starts the command, writes each line to its standard input, then closes it
+// and waits for the command to finish. For a relay such as `jobsmith mcp`,
+// which answers on standard output as it reads.
+export function runCliWithStdin(
+  args: string[],
+  options: { configHome: string; lines: string[] },
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  return runCli(args, { configHome: options.configHome, input: options.lines.map((l) => `${l}\n`).join("") });
+}

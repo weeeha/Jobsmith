@@ -6,6 +6,7 @@ export type Command =
   | { name: "list" }
   | { name: "pull"; slug: string; out: string | null }
   | { name: "push"; slug: string; dir: string | null; prefix: string | null; dryRun: boolean }
+  | { name: "mcp"; allowEnvToken: boolean }
   | { name: "help" }
   | { name: "version" };
 
@@ -16,6 +17,7 @@ export const USAGE = `Usage: jobsmith <command> [options]
   pull <slug> [--out <dir>]       Write <slug>-context.md
   push <slug> [--dir <dir>] [--prefix <file-prefix>] [--dry-run]
                                   Push <prefix>-*.md files as documents
+  mcp [--allow-env-token]         Relay an MCP client on standard input and output to the Jobsmith server
 `;
 
 export function parseCommand(argv: string[]): { ok: true; command: Command } | { ok: false; message: string } {
@@ -38,6 +40,7 @@ export function parseCommand(argv: string[]): { ok: true; command: Command } | {
         dir: { type: "string" },
         prefix: { type: "string" },
         "dry-run": { type: "boolean" },
+        "allow-env-token": { type: "boolean" },
         help: { type: "boolean" },
         version: { type: "boolean" },
       },
@@ -68,6 +71,11 @@ export function parseCommand(argv: string[]): { ok: true; command: Command } | {
       }
       case "list":
         return { ok: true, command: { name: "list" } };
+      case "mcp":
+        if (rest.length > 0) {
+          return { ok: false, message: USAGE };
+        }
+        return { ok: true, command: { name: "mcp", allowEnvToken: values["allow-env-token"] ?? false } };
       case "pull": {
         const slug = rest[0];
         if (!slug) {

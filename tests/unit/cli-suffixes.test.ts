@@ -43,6 +43,24 @@ describe("lookupSuffix", () => {
     expect(lookupSuffix("call-card-extra", map)).toEqual({ kind: "call_card" });
   });
 
+  it("maps 'questions-recruiter-screen' to question_bank and 'research' to research with scope company", () => {
+    expect(lookupSuffix("questions-recruiter-screen", BUILT_IN_SUFFIXES)).toEqual({ kind: "question_bank" });
+    expect(lookupSuffix("questions", BUILT_IN_SUFFIXES)).toEqual({ kind: "question_bank" });
+    expect(lookupSuffix("research", BUILT_IN_SUFFIXES)).toEqual({ kind: "research", scope: "company" });
+    expect(lookupSuffix("research-notes", BUILT_IN_SUFFIXES)).toEqual({ kind: "research", scope: "company" });
+  });
+
+  it("an existing 'research-refresh' entry still wins over 'research' for 'research-refresh' (longest prefix)", () => {
+    const map = { ...BUILT_IN_SUFFIXES, "research-refresh": { kind: "other" } };
+    expect(lookupSuffix("research-refresh", map)).toEqual({ kind: "other" });
+    expect(lookupSuffix("research-refresh-2", map)).toEqual({ kind: "other" });
+  });
+
+  it("call-card and people still match as before", () => {
+    expect(lookupSuffix("call-card", BUILT_IN_SUFFIXES)).toEqual({ kind: "call_card" });
+    expect(lookupSuffix("people", BUILT_IN_SUFFIXES)).toEqual({ kind: "people_notes" });
+  });
+
   it("returns undefined when nothing matches", () => {
     expect(lookupSuffix("mystery-file", BUILT_IN_SUFFIXES)).toBeUndefined();
   });

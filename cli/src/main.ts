@@ -5,6 +5,7 @@ import { runLogin } from "./commands/login";
 import { runList } from "./commands/list";
 import { runPull } from "./commands/pull";
 import { runPush } from "./commands/push";
+import { runMcp } from "./commands/mcp";
 import type { CliIo } from "./io";
 
 export async function run(argv: string[], io: CliIo): Promise<number> {
@@ -24,6 +25,8 @@ export async function run(argv: string[], io: CliIo): Promise<number> {
       return 0;
     case "login":
       return runLogin(io, command);
+    case "mcp":
+      return runMcp(io, command);
     case "list": {
       const creds = await readCredentials(io);
       if (!creds) {

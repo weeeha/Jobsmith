@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, max } from "drizzle-orm";
+import { and, asc, desc, eq, gte, max, sql } from "drizzle-orm";
 import * as schema from "../schema";
 import type { Db } from "../client";
 import { stripScopedKeys } from "./strip";
@@ -8,6 +8,17 @@ export type EventFields = Omit<
   typeof schema.event.$inferInsert,
   "id" | "userId" | "createdAt" | "updatedAt"
 >;
+
+export type FeedEventRow = {
+  id: string;
+  kind: string;
+  slug: string;
+  stageLabel: string | null;
+  occurredAt: Date;
+  createdAt: Date;
+  body: string | null;
+  meta: unknown;
+};
 
 export function eventQueries(db: Db, userId: string) {
   return {
@@ -28,6 +39,45 @@ export function eventQueries(db: Db, userId: string) {
       const out = new Map<string, Date>();
       for (const r of rows) if (r.last) out.set(r.opportunityId, r.last);
       return out;
+    },
+    // The Bridge events feed: this user's events oldest first by created time
+    // then id, no earlier than `since`, and strictly after the cursor tuple
+    // when one is given. Created time is truncated to milliseconds on both
+    // the order and the comparison, because a Date carries milliseconds and
+    // the column carries microseconds: without it a cursor built from a Date
+    // would sort just before its own row and return that row again.
+    async listFeed(input: {
+      since: Date;
+      after: { createdAt: Date; id: string } | null;
+      limit: number;
+    }): Promise<FeedEventRow[]> {
+      const createdMs = sql`date_trunc('milliseconds', ${schema.event.createdAt})`;
+      const conditions = [eq(schema.event.userId, userId), gte(createdMs, sql`${input.since.toISOString()}::timestamptz`)];
+      if (input.after) {
+        conditions.push(
+          sql`(${createdMs}, ${schema.event.id}) > (${input.after.createdAt.toISOString()}::timestamptz, ${input.after.id}::uuid)`,
+        );
+      }
+      return db
+        .select({
+          id: schema.event.id,
+          kind: schema.event.kind,
+          slug: schema.opportunity.slug,
+          stageLabel: schema.stage.label,
+          occurredAt: schema.event.occurredAt,
+          createdAt: schema.event.createdAt,
+          body: schema.event.body,
+          meta: schema.event.meta,
+        })
+        .from(schema.event)
+        .innerJoin(
+          schema.opportunity,
+          and(eq(schema.opportunity.id, schema.event.opportunityId), eq(schema.opportunity.userId, userId)),
+        )
+        .leftJoin(schema.stage, and(eq(schema.stage.id, schema.event.stageId), eq(schema.stage.userId, userId)))
+        .where(and(...conditions))
+        .orderBy(asc(createdMs), asc(schema.event.id))
+        .limit(input.limit);
     },
     async insert(values: EventFields): Promise<EventRow> {
       const fields = stripScopedKeys(values);

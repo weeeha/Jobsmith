@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db/client";
-import type { BridgeDeps } from "./handlers";
+import { env } from "@/lib/env";
+import type { BridgeDeps } from "./auth";
 
 export function productionDeps(): BridgeDeps {
   return {
@@ -8,5 +9,6 @@ export function productionDeps(): BridgeDeps {
     now: () => new Date(),
     revalidate: (path) => revalidatePath(path),
     requestId: () => crypto.randomUUID(),
+    appUrl: env().APP_URL,
   };
 }

@@ -1,5 +1,6 @@
 export type BridgeErrorCode =
   | "unauthorized"
+  | "origin_refused"
   | "rate_limited"
   | "not_found"
   | "invalid_query"
@@ -20,11 +21,15 @@ export type BridgeErrorDetail = { slug?: string; key?: string; seconds?: number;
 
 export const BRIDGE_ERRORS: Record<
   BridgeErrorCode,
-  { status: 400 | 401 | 404 | 413 | 429 | 500; message(detail: BridgeErrorDetail & { requestId: string }): string }
+  { status: 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500; message(detail: BridgeErrorDetail & { requestId: string }): string }
 > = {
   unauthorized: {
     status: 401,
     message: () => "Missing, unknown or revoked token.",
+  },
+  origin_refused: {
+    status: 403,
+    message: () => "This endpoint does not accept requests from a browser origin.",
   },
   rate_limited: {
     status: 429,

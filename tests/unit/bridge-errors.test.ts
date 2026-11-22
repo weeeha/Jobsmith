@@ -65,4 +65,18 @@ describe("BRIDGE_ERRORS", () => {
       "Something went wrong on the server. Request id abc-123.",
     );
   });
+
+  it("origin_refused is status 403 with the Contract message", () => {
+    expect(BRIDGE_ERRORS.origin_refused.status).toBe(403);
+    expect(BRIDGE_ERRORS.origin_refused.message({ requestId })).toBe(
+      "This endpoint does not accept requests from a browser origin.",
+    );
+  });
+
+  it("every code's status is one of 400, 401, 403, 404, 409, 413, 429, 500", () => {
+    const allowed = [400, 401, 403, 404, 409, 413, 429, 500];
+    for (const entry of Object.values(BRIDGE_ERRORS)) {
+      expect(allowed).toContain(entry.status);
+    }
+  });
 });
