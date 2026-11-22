@@ -3,6 +3,9 @@ export const sessionPolicy = {
   refreshAfterDays: 1,
 };
 
+// Operator variables this module reads (see tests/unit/env-inventory.test.ts).
+export const ENV_NAMES = ["AUTH_SIGNIN_MAX_PER_MINUTE"] as const;
+
 export const MIN_PASSWORD_LENGTH = 12;
 
 const DEFAULT_SIGNIN_MAX_PER_MINUTE = 5;

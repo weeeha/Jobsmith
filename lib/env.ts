@@ -21,6 +21,21 @@ const rawEnvSchema = z.object({
   SETUP_TOKEN: z.string().min(16).optional(),
 });
 
+// Every operator variable this module reads, checked against .env.example and
+// docs/self-hosting.md by tests/unit/env-inventory.test.ts.
+// DATABASE_URL_UNPOOLED is read by scripts/migrate.ts and listed here so the
+// migration variable has an owner. Platform variables (VERCEL_*) are not
+// operator settings and stay out.
+export const ENV_NAMES = [
+  "DATABASE_URL",
+  "DATABASE_URL_UNPOOLED",
+  "BETTER_AUTH_SECRET",
+  "APP_URL",
+  "SETUP_TOKEN",
+  "ALLOW_SIGNUP",
+  "DEMO_MODE",
+] as const;
+
 export type Env = {
   DATABASE_URL: string;
   BETTER_AUTH_SECRET: string;

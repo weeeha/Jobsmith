@@ -1,3 +1,12 @@
+// Operator variables this module reads (see tests/unit/env-inventory.test.ts).
+// VERCEL is a platform variable and stays out.
+export const ENV_NAMES = [
+  "AI_PROVIDER",
+  "AI_GATEWAY_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "AI_MODEL",
+] as const;
+
 export const AI_PROVIDERS = ["gateway", "anthropic", "fake"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
