@@ -30,3 +30,25 @@ describe("workflows", () => {
     expect(head).toMatch(/^ {2}workflow_call:/m);
   });
 });
+
+describe("playwright.config.ts", () => {
+  const load = async (external: string | undefined) => {
+    const { vi } = await import("vitest");
+    vi.resetModules();
+    if (external === undefined) delete process.env.E2E_EXTERNAL_SERVER;
+    else process.env.E2E_EXTERNAL_SERVER = external;
+    return (await import("../../playwright.config")).default;
+  };
+  it("keeps webServer by default and omits it when E2E_EXTERNAL_SERVER=1", async () => {
+    const saved = process.env.E2E_EXTERNAL_SERVER;
+    try {
+      const normal = await load(undefined);
+      expect(normal.webServer).toBeTruthy();
+      expect((normal.webServer as { reuseExistingServer: boolean }).reuseExistingServer).toBe(false);
+      expect((await load("1")).webServer).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env.E2E_EXTERNAL_SERVER;
+      else process.env.E2E_EXTERNAL_SERVER = saved;
+    }
+  });
+});
