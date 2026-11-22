@@ -1,0 +1,39 @@
+// Copy for the Library. Strings the spec fixes are exact; the rest is the
+// plan's wording, marked "Proposed", kept here so it can change in one place.
+export const LIBRARY_COPY = {
+  // Proposed.
+  empty: "Your library is empty. Save an answer from a question, or add a story, an intro or a fact.",
+  // Proposed. No match for the current search or filters.
+  noMatches: "No items match.",
+  saved: "Saved to library.",
+  alreadySaved: "Already in your library.",
+  open: "Open",
+  saveButton: "Save to library",
+  saveFailed: "Could not save to the library. Try again.",
+  // Proposed.
+  usedIn: (n: number) => (n === 1 ? "Used in 1 job" : `Used in ${n} jobs`),
+  kinds: { answer: "Answer", story: "Story", intro: "Intro", fact: "Fact" },
+  edit: "Edit",
+  archive: "Archive",
+  unarchive: "Restore",
+  archived: "Archived",
+  archivedNote: "This item is archived. It stays out of the list and drills until you restore it.",
+  save: "Save changes",
+  cancel: "Cancel",
+  write: "Write",
+  preview: "Preview",
+  newItem: "New item",
+  newItemTitle: "New library item",
+  create: "Create item",
+  fields: { kind: "Kind", title: "Title", body: "Body", tags: "Tags", search: "Search", tag: "Tag", allKinds: "All kinds", showArchived: "Show archived" },
+  filter: "Filter",
+  clear: "Clear filters",
+  sourceJob: "Source job",
+  markHistory: "Marks by job",
+  noMarks: "No marks yet.",
+  libraryMark: "Library drill",
+  drilledTimes: (n: number) => (n === 1 ? "drilled 1 time" : `drilled ${n} times`),
+  marks: { shaky: "Shaky", okay: "Okay", solid: "Solid" },
+  noAnswerToSave: "This question has no answer to save.",
+  quickFire: "Quick-fire",
+} as const;
