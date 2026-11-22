@@ -160,6 +160,10 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   pressed, nothing animates (so `prefers-reduced-motion` needs nothing beyond the global rule), and keys
   1 to 3, Space and the right arrow work with no pointer. The registry has no timed-recall or
   self-grading pattern.
+- Milestone 8 end to end (`tests/e2e/prep-drill.spec.ts`): no new UI. Drill's state is not in the URL, so its
+  axe scans run on the live page in each color scheme through the existing `scanInPlace` instead of reloading as
+  `scanForViolations` does; the hub and the start screen still use the shared helper. `stub-media.ts` is a test-only stand-in for
+  the microphone and `MediaRecorder`.
 - Milestone 7 end to end (`tests/e2e/prep-voice.spec.ts`): no new UI. The Listen screen, the hub's audio
   panel and the Settings Voice section are scanned with axe in light and dark through the existing
   `scanForViolations`, so the voice specs add no component or token of their own. `stub-speech.ts` and

@@ -208,6 +208,16 @@ you set per question. A mark stays when the file is pushed again with changed te
 round of up to ten questions: five seconds to recall the shape of the answer, then the Spine, then a
 mark. It uses no audio (Listen does; see Voice). A finished round leaves a line on the job's timeline.
 
+Drill rehearses the answers out loud. Open it from a bank card (or "Drill this section" on a section heading)
+and press Start drill: the interviewer asks, the question appears, and a silent countdown gives you time to
+answer aloud, sized to the length of the answer (Done ends it early, More time adds 30 seconds). Then the Spine
+shows first, the answer plays in your voice, and you mark it Shaky, Okay or Solid or Skip it. Keys: Space ends
+the wait or plays the answer again, 1 to 3 mark, the right arrow skips. A drill takes ten questions, shakiest
+and longest undrilled first, so the next run starts with what you marked Shaky. The summary lists the marks and
+links "Drill the shaky ones again". If your browser can record, "Record my answer" captures the wait and
+offers Keep or Discard after the reveal; nothing leaves the browser until Keep, and a kept recording is listed
+under its question on the Prep tab with a Delete button. A finished drill leaves a line on the job's timeline.
+
 Questions are read from the pushed documents into their own table. If a row is ever missing, the
 card shows a Rebuild questions button. To fill the table for documents pushed before it existed, run
 this once against each database, after the migration has been applied:
