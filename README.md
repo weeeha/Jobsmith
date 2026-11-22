@@ -195,6 +195,16 @@ Credentials live in a different file from the suffix map on purpose: one is per 
 (`~/.config/jobsmith/config.json`), the other is per content folder (`jobsmith.config.json`, next to
 the markdown files themselves, so a folder synced between machines carries its own mapping with it).
 
+## Compare versions
+
+A document with two or more versions has a "Compare versions" link on its Research, Documents and
+Prep tabs, and each row of its version list links to a comparison with the version before it. The
+compare page marks removed and added words: side by side on a wide screen, inline on a phone, with
+the screen reader text "removed" and "added" on every mark. Press `]` for the next change and `[`
+for the previous one, or use the Previous and Next buttons. The two version pickers choose any pair,
+and `?view=split` or `?view=inline` forces one view. Two equal versions show "Pick two different
+versions", and versions that differ too much to compare line by line are shown in full.
+
 ## API
 
 Every route below needs `Authorization: Bearer <token>`, a token created in Settings. The bridge

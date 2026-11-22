@@ -4,8 +4,16 @@ import { COPY } from "./compare-copy";
 import { BLOCK, Del, Ins, Parts } from "./marks";
 
 export function SplitView({ rows, onExpand }: { rows: ViewRow[]; onExpand(key: string): void }) {
+  // The box scrolls sideways on a narrow screen when ?view=split forces it,
+  // so it is a focusable region: keyboard users can reach the overflow.
   return (
-    <div className="overflow-x-auto" data-view="split">
+    <div
+      className="overflow-x-auto"
+      data-view="split"
+      role="region"
+      aria-label="Side by side comparison"
+      tabIndex={0}
+    >
       <div className="min-w-160">
         {rows.map((row, i) => {
           if (row.type === "same") {
