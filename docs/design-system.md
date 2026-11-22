@@ -138,6 +138,15 @@ Other dependencies: `@dnd-kit/core` `6.3.1` (not a registry item; the board's dr
   `lib/prep/engine-state.ts`. The registry has no audio-player or transcript pattern. Playback never
   starts without a press of Play, nothing animates (so `prefers-reduced-motion` needs nothing beyond the
   global rule), and every control is a native button with an accessible name and the shared focus ring.
+- `components/prep/offline-panel.tsx` and `components/prep/install-hint.tsx` (Prep hub, Save for offline): hand-written,
+  built from `Button`, `LocalTime`, the live announcer and the hub's card shell (`rounded-xl bg-card ring-1
+  ring-foreground/10`). The panel is one card per job above the bank cards: the size it will take ("38 MB, 96
+  clips"), a text progress line ("Saving 40 of 96", no bar, so nothing animates), then "Saved" with the date
+  and Remove saved copy, or the failed count with Try again. It never saves without the press, and
+  "Saved for offline." is announced once. The hint is a native `details` card (keyboard reachable with no
+  script) with a Dismiss button remembered in `localStorage`; it is not rendered inside an installed app or
+  where Cache Storage is missing. Both render nothing on the server and decide after hydration through
+  `useSyncExternalStore`. The registry has no install-prompt or offline-storage pattern.
 - `components/native-select.tsx`: hand-written. A styled native `select` with the field look of `Input`.
   Base UI's `Select` is the primary choice, but the speed list and the device-voice list (often over a
   hundred entries) are better in the phone's own picker, and a native element keeps keyboard and

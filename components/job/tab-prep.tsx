@@ -16,6 +16,7 @@ export async function TabPrep(props: {
   basePath: string;
   stages: StageRow[]; // position-sorted; prepGroups sorts its own copy again regardless
   slug: string;
+  userHash: string;
 }): Promise<React.ReactElement> {
   const groups = prepGroups(props.jobDocuments, props.stages);
   const selected = selectDoc(groups, props.docRef);
@@ -30,6 +31,7 @@ export async function TabPrep(props: {
       s={props.s}
       opportunityId={props.opportunityId}
       slug={props.slug}
+      userHash={props.userHash}
       docs={props.jobDocuments}
       stages={props.stages}
       docRef={props.docRef}

@@ -8,4 +8,24 @@ export const OFFLINE_COPY = {
     stuckHelp: "It was tried 10 times. Retry it, or discard it.",
     syncedAnnouncement: "Marks synced.",
   },
+  // Proposed. The hub's Save for offline panel.
+  panel: {
+    heading: "Offline",
+    help: "Saves this job's questions, pages and clips on this device, so they play with no connection.",
+    save: "Save for offline",
+    saving: (done: number, total: number) => `Saving ${done} of ${total}`,
+    saved: "Saved",
+    remove: "Remove saved copy",
+    failedLine: (count: number) => (count === 1 ? "1 item could not be saved" : `${count} items could not be saved`),
+    retry: "Try again",
+    sizeFailed: "Could not read what this job needs to save.",
+    savedAnnouncement: "Saved for offline.",
+    removedAnnouncement: "Saved copy removed.",
+  },
+  // Proposed. The collapsible install card on the hub.
+  install: {
+    heading: "Install on your phone",
+    body: "Install Jobsmith from the share sheet or the browser menu. Safari clears saved jobs after seven days of not opening the site unless the app is on the home screen. Audio on a locked screen depends on your phone.",
+    dismiss: "Dismiss",
+  },
 } as const;

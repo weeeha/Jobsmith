@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { PasteDialogTrigger } from "@/components/job/paste-dialog";
 import { BankCard } from "@/components/prep/bank-card";
+import { InstallHint } from "@/components/prep/install-hint";
+import { OfflinePanel } from "@/components/prep/offline-panel";
 import { QuestionList } from "@/components/prep/question-list";
 import { EmptyState } from "@/components/super-ai/empty-state";
 import { buttonVariants } from "@/components/ui/button";
@@ -18,6 +20,7 @@ export async function PrepHub(props: {
   s: Scoped;
   opportunityId: string;
   slug: string;
+  userHash: string;
   docs: ArtifactMeta[];
   stages: StageRow[];
   docRef: DocRef | null;
@@ -69,6 +72,10 @@ export async function PrepHub(props: {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="grid gap-3 empty:hidden md:grid-cols-2">
+        <OfflinePanel slug={props.slug} userHash={props.userHash} />
+        <InstallHint />
+      </div>
       {view.groups.map((group) => (
         <section key={group.stageId ?? "general"} aria-label={group.heading} className="flex flex-col gap-2">
           <h3 className="text-sm font-medium text-muted-foreground">{group.heading}</h3>
