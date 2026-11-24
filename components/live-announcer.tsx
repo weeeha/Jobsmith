@@ -6,6 +6,11 @@ const LiveAnnouncerContext = React.createContext<((message: string) => void) | n
 
 export function LiveAnnouncerProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = React.useState("");
+  const pending = React.useRef<number | undefined>(undefined);
+
+  // A timer still waiting when the provider unmounts would set state on an
+  // unmounted tree (and, in tests, fire after the DOM is torn down).
+  React.useEffect(() => () => window.clearTimeout(pending.current), []);
 
   const announce = React.useCallback((next: string) => {
     // A live region only speaks on a text change. Setting the identical
@@ -13,9 +18,11 @@ export function LiveAnnouncerProvider({ children }: { children: React.ReactNode 
     // for example, can produce the same sentence) would otherwise be silent
     // the second time, so this clears first and sets the real text on the
     // next tick, which is two distinct DOM mutations for assistive tech to
-    // pick up rather than one no-op write.
+    // pick up rather than one no-op write. A newer announcement replaces a
+    // pending older one, so the last thing said is the last thing asked for.
     setMessage("");
-    window.setTimeout(() => setMessage(next), 50);
+    window.clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => setMessage(next), 50);
   }, []);
 
   return (
