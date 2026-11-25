@@ -1,4 +1,4 @@
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { test, expect, type Page, type TestInfo } from "./settled";
 import { scanForViolations } from "./axe";
 import { runCli } from "./cli";
 import { insertOtherUsersAsset } from "./db";

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { test, expect, type Page, type TestInfo } from "./settled";
 import { scanForViolations } from "./axe";
 import { runCli } from "./cli";
 import { scanInPlace } from "./scan-in-place";
