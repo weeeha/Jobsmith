@@ -33,8 +33,21 @@ Next.js 16 and React 19 with Tailwind CSS 4, Postgres through Drizzle ORM, Bette
 the Vercel AI SDK for the optional AI features (`package.json`).
 
 Pages: `/board` (jobs by stage), `/companies`, `/jobs/<slug>` (one job), `/settings`, and `/` (Home).
-`/preferences` holds the filters that new jobs are checked against. `/library` is a placeholder until interview prep lands. Without a session, every page
-redirects to `/login`, except `/setup` and `/login` themselves.
+`/preferences` holds the filters that new jobs are checked against. `/library` is the answers, stories, intros
+and facts you reuse across jobs (see below). Without a session, every page redirects to `/login`, except
+`/setup` and `/login` themselves.
+
+## Library
+
+`/library` lists the items you reuse across jobs: an **answer** saved from a question ("Save to library" in the
+Prep tab, in Listen and after a Drill), and **stories**, **intros** and **facts** you add by hand. Search by
+text, filter by kind and tag, edit, and archive (a flag, not a delete). An item that came from a question shows
+"Used in N jobs" and, on its page, the mark each job gave that question with its date, plus the library's own.
+`/library/quick-fire` runs a ten-question round over every active job's questions that have a Spine and every
+library item that has a question. `/library/drill` runs the Drill loop over the items that have a question;
+their answers are spoken from clips made on demand, or by the browser voice when voice generation is off. Library
+rounds and drills write marks in the library scope and no timeline event, because they belong to no job.
+`jobsmith pull` writes the `## Prep` and `## Library` sections of the context file (see the CLI section).
 
 ## Requirements
 
@@ -166,7 +179,11 @@ either variable on its own or both together.
 `jobsmith list` prints your active jobs and their slugs.
 
 `jobsmith pull <slug> [--out <dir>]` writes `<slug>-context.md`: the posting, stages, people, a
-preferences summary and an index of existing documents, as one markdown file with frontmatter.
+preferences summary, an index of existing documents, a `## Prep` section and a `## Library` section, as
+one markdown file with frontmatter (`jobsmith: context/v1`). `## Prep` has a heading per question bank and
+one line per question: its number, section, mark (`solid`, `okay`, `shaky` or `none`) and last drilled
+date, so a skill can start from the shaky answers. `## Library` lists each item's title, kind and tags.
+Neither section carries an answer, a Spine, audio or a recording.
 
 `jobsmith push <slug> [--dir <dir>] [--prefix <file-prefix>] [--dry-run]` reads every
 `<prefix>-*.md` file in `--dir` (default the current directory; the prefix defaults to the slug),
@@ -191,9 +208,42 @@ each file:
 `--dry-run` asks the server what would happen and prints it without saving anything. Pushing the
 same folder twice is always safe: unchanged content reports `unchanged` and changes nothing.
 
+`jobsmith audio <slug>` makes the audio clips for a job's question banks and pitches on your computer
+and uploads them; see Voice below.
+
 Credentials live in a different file from the suffix map on purpose: one is per machine
 (`~/.config/jobsmith/config.json`), the other is per content folder (`jobsmith.config.json`, next to
 the markdown files themselves, so a folder synced between machines carries its own mapping with it).
+
+## Prep
+
+The Prep tab of a job is a hub for its interview questions. Push an answers-full file (a markdown
+file whose questions are lines like `### 1. "Tell me about yourself"`) and the hub shows one card per
+question bank with the question count and a confidence line (`0 solid · 0 okay · 0 shaky · 7 unmarked`),
+the questions grouped by section, a chip on the ones still unfilled, and Shaky, Okay and Solid marks
+you set per question. A mark stays when the file is pushed again with changed text. Quick-fire runs a
+round of up to ten questions: five seconds to recall the shape of the answer, then the Spine, then a
+mark. It uses no audio (Listen does; see Voice). A finished round leaves a line on the job's timeline.
+
+Drill rehearses the answers out loud. Open it from a bank card (or "Drill this section" on a section heading)
+and press Start drill: the interviewer asks, the question appears, and a silent countdown gives you time to
+answer aloud, sized to the length of the answer (Done ends it early, More time adds 30 seconds). Then the Spine
+shows first, the answer plays in your voice, and you mark it Shaky, Okay or Solid or Skip it. Keys: Space ends
+the wait or plays the answer again, 1 to 3 mark, the right arrow skips. A drill takes ten questions, shakiest
+and longest undrilled first, so the next run starts with what you marked Shaky. The summary lists the marks and
+links "Drill the shaky ones again". If your browser can record, "Record my answer" captures the wait and
+offers Keep or Discard after the reveal; nothing leaves the browser until Keep, and a kept recording is listed
+under its question on the Prep tab with a Delete button. A finished drill leaves a line on the job's timeline.
+
+Questions are read from the pushed documents into their own table. If a row is ever missing, the
+card shows a Rebuild questions button. To fill the table for documents pushed before it existed, run
+this once against each database, after the migration has been applied:
+
+```bash
+pnpm prep:backfill
+```
+
+It is safe to run twice: it rebuilds the rows from the stored documents and never touches marks.
 
 ## API
 
@@ -318,6 +368,53 @@ tighter per-client limit below.
 
 `AUTH_SIGNIN_MAX_PER_MINUTE` is optional and defaults to 5.
 
+## Voice
+
+The Listen screen reads a question bank or a pitch aloud: the interviewer's question in one voice, your
+answer in another, with a transcript that follows along, speed from 0.8 to 1.5, and Shaky, Okay and Solid
+marks that never stop playback. With no voice provider it speaks through your browser's own voices, and
+Settings, Voice picks which ones. With a provider, a bank card's Prepare audio button makes the clips once and
+stores them; changing a voice later keeps the old clips.
+
+Two groups of environment variables, all optional, all listed with no values in `.env.example`:
+
+- **Speech provider**, off unless `TTS_PROVIDER` is set: `openai_compatible` (any server with
+  `/v1/audio/speech`, such as a local Qwen3-TTS; needs `TTS_BASE_URL`, optional `TTS_API_KEY`), `gemini`
+  (`GEMINI_API_KEY`), `elevenlabs` (`ELEVENLABS_API_KEY` and `TTS_MODEL`) or `fake` (silent clips for the test
+  suite, nothing leaves the machine). `TTS_MODEL` overrides the provider's default model. Unset means the
+  server never sends text to a speech provider, whatever other keys are in the environment.
+- **Clip storage**: `STORAGE_PROVIDER` is `local` (the default; files under `STORAGE_LOCAL_DIR`, default
+  `.data/storage`; refused on Vercel), `memory` (tests only, refused in production), `s3` (`S3_BUCKET`,
+  `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_ENDPOINT` plus `S3_FORCE_PATH_STYLE=true` for
+  MinIO or R2) or `vercel_blob` (`BLOB_READ_WRITE_TOKEN`; the store must be private). No clip is public: every
+  one is served through `/api/assets/<id>` to the signed-in owner only, with Range support.
+
+`jobsmith audio <slug> [--tts-url <base>] [--voice-interviewer <v>] [--voice-candidate <v>]` makes the missing
+clips on your own computer and uploads them, so a deployed app needs no speech provider of its own. The
+default speech URL is `http://127.0.0.1:8890/v1`, where a local Qwen3-TTS server listens; `--tts-url` names
+another OpenAI-compatible server. Text goes only to that address. If the server wants a key, set
+`JOBSMITH_TTS_API_KEY` in the environment of the command. Run it again to retry any clip that failed.
+
+## Phone
+
+Jobsmith installs as an app. On an iPhone open it in Safari, then Share, then Add to Home Screen. On Android
+or a desktop Chromium use the browser menu's Install item. It needs HTTPS (or `localhost`); the service worker
+registers only in a production build, so `pnpm dev` never caches anything.
+
+On a job's Prep tab, Save for offline stores that job on the device: its questions, its Listen, Drill and
+Quick-fire pages and every audio clip, with the size shown before you start. Remove saved copy deletes it.
+Nothing else is cached: the board, Home, the Library and every job you have not saved need a connection, and
+open to a short offline page that lists the saved jobs. Marks made offline wait on the device (a line shows
+"3 marks waiting to sync") and post when the connection returns, keeping the time you tapped; a newer mark
+made elsewhere wins. Signing out deletes the saved jobs and the waiting marks from that device.
+
+Platform limits. Safari removes the saved copy of a site you have not opened for seven days unless the app is
+on the home screen. Audio on a locked screen depends on the phone. Session notes of a Quick-fire round started
+with no connection are not recorded on the timeline. After new clips are prepared on the server, Remove saved
+copy and save again to include them.
+
+`pnpm icons` redraws the app icons in `public/icons` from `scripts/make-icons.ts`.
+
 ## Scripts
 
 | Script | Purpose |
@@ -333,6 +430,7 @@ tighter per-client limit below.
 | `pnpm db:generate` | Generate a SQL migration from the schema |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm seed` | Create a fictional demo user and profile (only while no account exists) |
+| `pnpm prep:backfill` | Read the questions of every pushed prep document into the question table (run once per database, safe to repeat) |
 | `pnpm reset-db` | Drop and re-migrate a local database (refuses non-local hosts) |
 
 Two more variables are read only by these scripts, never by the app itself:

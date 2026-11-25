@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "library_item_user_question_source_uniq" ON "library_item" USING btree ("user_id","question_key","source_opportunity_id") WHERE "library_item"."question_key" is not null and "library_item"."source_opportunity_id" is not null;

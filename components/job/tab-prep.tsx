@@ -4,7 +4,7 @@ import { DocumentList } from "@/components/job/document-list";
 import { DocumentView } from "@/components/job/document-view";
 import { PasteDialogTrigger } from "@/components/job/paste-dialog";
 import { BridgePanel } from "@/components/job/bridge-panel";
-import { EmptyState } from "@/components/super-ai/empty-state";
+import { PrepHub } from "@/components/prep/prep-hub";
 import type { Scoped, ArtifactMeta, StageRow } from "@/lib/db/scoped";
 
 export async function TabPrep(props: {
@@ -16,6 +16,7 @@ export async function TabPrep(props: {
   basePath: string;
   stages: StageRow[]; // position-sorted; prepGroups sorts its own copy again regardless
   slug: string;
+  userHash: string;
 }): Promise<React.ReactElement> {
   const groups = prepGroups(props.jobDocuments, props.stages);
   const selected = selectDoc(groups, props.docRef);
@@ -23,15 +24,26 @@ export async function TabPrep(props: {
 
   const bridgePanel = <BridgePanel slug={props.slug} opportunityId={props.opportunityId} stages={stageOptions} />;
 
+  // The hub sits above the document list and read-only view. With no
+  // document at all, the hub's own empty state is the whole tab.
+  const hub = (
+    <PrepHub
+      s={props.s}
+      opportunityId={props.opportunityId}
+      slug={props.slug}
+      userHash={props.userHash}
+      docs={props.jobDocuments}
+      stages={props.stages}
+      docRef={props.docRef}
+      basePath={props.basePath}
+    />
+  );
+
   if (selected === null) {
     return (
       <section aria-label="Prep" className="flex flex-col gap-4 py-4">
         {bridgePanel}
-        <EmptyState
-          size="panel"
-          title="No prep documents yet."
-          description="Push a prep packet from the command line or paste markdown."
-        />
+        {hub}
       </section>
     );
   }
@@ -47,6 +59,7 @@ export async function TabPrep(props: {
   return (
     <section aria-label="Prep" className="flex flex-col gap-4 py-4">
       {bridgePanel}
+      {hub}
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <div className="md:w-64 md:shrink-0">
           <DocumentList

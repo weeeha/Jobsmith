@@ -27,6 +27,8 @@ export type AttentionJob = {
   stage: { kind: StageKind; label: string; enteredAt: Date | null };
   lastEventAt: Date | null;
   researched: boolean;
+  // Every question row of the job's banks and call cards, and how many carry a solid mark.
+  prep: { questions: number; solid: number };
 };
 
 export type AttentionStage = {
@@ -51,7 +53,7 @@ export type AttentionJobRef = Pick<AttentionJob, "id" | "slug" | "roleTitle" | "
 type StageRef = { id: string; label: string; scheduledAt: Date; format: StageFormat | null };
 
 export type AttentionItem =
-  | { kind: "interview"; job: AttentionJobRef; stage: StageRef; researched: boolean }
+  | { kind: "interview"; job: AttentionJobRef; stage: StageRef; researched: boolean; prep: AttentionJob["prep"] }
   | { kind: "due"; job: AttentionJobRef; nextAction: string; at: Date; overdue: boolean }
   | { kind: "follow_up"; job: AttentionJobRef; quietDays: number; appliedAt: Date | null }
   | { kind: "saved"; job: AttentionJobRef; days: number; savedAt: Date }
@@ -87,7 +89,7 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
     .filter((st) => st.scheduledAt.getTime() >= now.getTime() && st.scheduledAt.getTime() <= windowEnd)
     .map((st) => {
       const job = byId.get(st.opportunityId)!;
-      return { kind: "interview", job: ref(job), stage: stageRef(st), researched: job.researched };
+      return { kind: "interview", job: ref(job), stage: stageRef(st), researched: job.researched, prep: job.prep };
     });
 
   const due: AttentionItem[] = jobs

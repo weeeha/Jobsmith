@@ -9,6 +9,8 @@ import type { BridgeDeps } from "@/lib/bridge/handlers";
 import { bridgeFetch } from "../helpers/bridge-fetch";
 import { createApiToken, revokeApiToken } from "@/lib/auth/api-token";
 import { defaultStages } from "@/lib/pipeline/rules";
+import { createLibraryItem } from "@/lib/library/items";
+import { markQuestion } from "@/lib/prep/marks";
 import { run } from "@/cli/src/main";
 import { configPath, readCredentials } from "@/cli/src/config";
 import { USAGE } from "@/cli/src/args";
@@ -186,6 +188,60 @@ describe("jobsmith list / pull / push", () => {
       const code = await run(["list"], io);
       expect(code).toBe(1);
       expect(err.join("")).toBe("Error: the server sent a reply the CLI could not read.\n");
+    } finally {
+      await close();
+    }
+  });
+
+  it("jobsmith pull writes a context file that lists each question's mark", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const { token, s, opportunity } = await seedJob(db, { slug: "nwl-designer", email: "pull-marks@example.com" });
+      const artifact = await s.artifact.insert({
+        opportunityId: opportunity.id,
+        companyId: null,
+        stageId: null,
+        key: "answers-full",
+        version: 1,
+        kind: "question_bank",
+        title: "Full answers",
+        bodyMd: "x",
+        contentHash: "h",
+        sourceHash: "h",
+        origin: "pushed",
+      });
+      const keys = ["1111111111111111", "2222222222222222", "3333333333333333"];
+      await s.prepQuestion.replaceForArtifactKey(
+        opportunity.id,
+        "answers-full",
+        keys.map((questionKey, i) => ({
+          opportunityId: opportunity.id,
+          artifactId: artifact.id,
+          artifactVersion: 1,
+          artifactKey: "answers-full",
+          number: i + 1,
+          position: i,
+          section: i === 0 ? "Motivation" : null,
+          question: `Question ${i + 1}`,
+          questionKey,
+          blocks: [{ label: "Say", spoken: true, text: "A private answer" }],
+        })),
+      );
+      const markedAt = new Date("2026-11-19T10:00:00Z");
+      await markQuestion(s, { scope: "job", opportunityId: opportunity.id, questionKey: keys[0], level: "solid", markedAt, drilled: true });
+      await markQuestion(s, { scope: "job", opportunityId: opportunity.id, questionKey: keys[1], level: "shaky", markedAt, drilled: false });
+      await createLibraryItem(s, { kind: "answer", title: "Question 1", bodyMd: "A private answer", tags: ["opener"] }, { questionKey: keys[0] });
+
+      const outDir = await mkdtemp(path.join(os.tmpdir(), "jobsmith-pull-marks-"));
+      const io = buildIo(db, { env: { JOBSMITH_URL: "http://test.local", JOBSMITH_TOKEN: token }, cwd: outDir });
+      expect(await run(["pull", "nwl-designer", "--out", "."], io)).toBe(0);
+      const content = await readFile(path.join(outDir, "nwl-designer-context.md"), "utf8");
+      expect(content).toContain("### Full answers (answers-full)");
+      expect(content).toContain("- 1. Question 1. Section: Motivation. Mark: solid. Last drilled: 2026-11-19.");
+      expect(content).toContain("- 2. Question 2. Mark: shaky. Last drilled: never.");
+      expect(content).toContain("- 3. Question 3. Mark: none. Last drilled: never.");
+      expect(content).toContain("- Question 1 (answer). Tags: opener.");
+      expect(content).not.toContain("A private answer");
     } finally {
       await close();
     }

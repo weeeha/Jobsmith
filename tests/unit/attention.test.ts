@@ -17,6 +17,7 @@ function job(id: string, overrides: Partial<AttentionJob> = {}): AttentionJob {
     stage: { kind: "applied", label: "Applied", enteredAt: ago(1) },
     lastEventAt: ago(1),
     researched: true,
+    prep: { questions: 0, solid: 0 },
     ...overrides,
   };
 }
@@ -54,6 +55,20 @@ describe("attentionItems", () => {
       ["a", false],
       ["b", true],
     ]);
+  });
+
+  it("carries the job's prep counts on interview items only", () => {
+    const items = attentionItems(
+      input({
+        jobs: [job("a", { prep: { questions: 30, solid: 12 } }), job("b", { stage: { kind: "saved", label: "Saved", enteredAt: ago(5) }, prep: { questions: 4, solid: 1 } })],
+        scheduled: [{ id: "s1", opportunityId: "a", kind: "recruiter_screen", label: "Recruiter screen", scheduledAt: ahead(2), format: "phone" }],
+      }),
+    );
+    const interview = items.find((i) => i.kind === "interview");
+    expect(interview?.kind === "interview" && interview.prep).toEqual({ questions: 30, solid: 12 });
+    const saved = items.find((i) => i.kind === "saved");
+    expect(saved).toBeDefined();
+    expect(saved && "prep" in saved).toBe(false);
   });
 
   it("counts a next action as due until the end of today in the profile zone, oldest first", () => {

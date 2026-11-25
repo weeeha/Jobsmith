@@ -8,6 +8,12 @@ import { opportunityPersonQueries } from "./opportunity-person";
 import { eventQueries } from "./event";
 import { artifactQueries } from "./artifact";
 import { apiTokenQueries } from "./api-token";
+import { prepQuestionQueries } from "./prep-question";
+import { prepMarkQueries } from "./prep-mark";
+import { prepSessionQueries } from "./prep-session";
+import { libraryItemQueries } from "./library-item";
+import { assetQueries } from "./asset";
+import { ttsSegmentQueries } from "./tts-segment";
 import { getDb } from "../client";
 
 export * from "./strip";
@@ -20,6 +26,12 @@ export * from "./opportunity-person";
 export * from "./event";
 export * from "./artifact";
 export * from "./api-token";
+export * from "./prep-question";
+export * from "./prep-mark";
+export * from "./prep-session";
+export * from "./library-item";
+export * from "./asset";
+export * from "./tts-segment";
 
 // Declared explicitly rather than as `ReturnType<typeof scoped>`. That
 // inferred form is circular: `scoped`'s own `transaction` method takes a
@@ -46,6 +58,12 @@ export type Scoped = {
   event: ReturnType<typeof eventQueries>;
   artifact: ReturnType<typeof artifactQueries>;
   apiToken: ReturnType<typeof apiTokenQueries>;
+  prepQuestion: ReturnType<typeof prepQuestionQueries>;
+  prepMark: ReturnType<typeof prepMarkQueries>;
+  prepSession: ReturnType<typeof prepSessionQueries>;
+  libraryItem: ReturnType<typeof libraryItemQueries>;
+  asset: ReturnType<typeof assetQueries>;
+  ttsSegment: ReturnType<typeof ttsSegmentQueries>;
 };
 
 export function scoped(db: Db, userId: string): Scoped {
@@ -63,6 +81,12 @@ export function scoped(db: Db, userId: string): Scoped {
     event: eventQueries(db, userId),
     artifact: artifactQueries(db, userId),
     apiToken: apiTokenQueries(db, userId),
+    prepQuestion: prepQuestionQueries(db, userId),
+    prepMark: prepMarkQueries(db, userId),
+    prepSession: prepSessionQueries(db, userId),
+    libraryItem: libraryItemQueries(db, userId),
+    asset: assetQueries(db, userId),
+    ttsSegment: ttsSegmentQueries(db, userId),
   };
 }
 

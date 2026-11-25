@@ -8,6 +8,7 @@ export const profile = pgTable("profile", {
   headline: text("headline"),
   resumeMd: text("resume_md"),
   preferences: jsonb("preferences").notNull().default({}),
+  prep: jsonb("prep").notNull().default({}),
   timezone: text("timezone").notNull().default("UTC"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

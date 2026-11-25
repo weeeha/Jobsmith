@@ -1,0 +1,215 @@
+// Binding copy for the Prep hub. Strings the spec fixes are exact; the ones
+// marked proposed are the plan's wording, kept here so the Figma drafts can
+// replace them in one place.
+// The browser-voice line with its Settings link split out, so the link can be
+// a real anchor and the sentence still reads the same.
+export const VOICE_LINE = {
+  before: "Audio uses your browser's voices. ",
+  link: "Settings",
+  after: " has the voice options.",
+} as const;
+
+export const PREP_COPY = {
+  empty: "No prep yet. Push a question bank or paste one.",
+  noQuestions:
+    'This document has no questions Jobsmith can read. A question is a line like `### 1. "Tell me about yourself"`.',
+  audio: {
+    browser: "Browser voice",
+    // Proposed. The hub's audio line and panel.
+    ready: "Audio ready",
+    preparing: "Preparing audio",
+    paused: "Paused, trying again in a minute",
+    readyAnnouncement: "Audio ready.",
+    prepare: "Prepare audio",
+    delete: "Delete audio",
+    deleteTitle: "Delete audio clips?",
+    deleteBody:
+      "This removes clips that no current question, library item or pitch needs, in every job. Clips still in use stay, and you can prepare any of them again.",
+    deleteConfirm: "Delete clips",
+    deleteCancel: "Keep clips",
+    deletedAnnouncement: (count: number) => (count === 1 ? "Deleted 1 clip." : `Deleted ${count} clips.`),
+    prepareFailed: "Could not prepare the audio.",
+    deleteFailed: "Could not delete the audio.",
+  },
+  buttons: {
+    quickFire: "Quick-fire",
+    rebuild: "Rebuild questions",
+    checkBank: "Check the bank",
+    unfilledChip: "unfilled",
+  },
+  marks: {
+    shaky: "Shaky",
+    okay: "Okay",
+    solid: "Solid",
+  },
+  // Proposed. Home's interview item when research exists and no questions do.
+  homeNoPrep: "No prep yet",
+  // Proposed. The hub's own labels; the plan fixes none of these.
+  hub: {
+    pasteLabel: "Paste a question bank",
+    pushLead: "Or run",
+    bankSelected: "Showing",
+    markDisclosure: "Mark",
+    questionsHeading: "Questions",
+    pitchesHeading: "Pitches",
+    bankLabel: "Question banks",
+    selectedBank: "Showing questions",
+    selectBank: "Show questions",
+    checkBankNone: "Nothing to check.",
+    markGroup: "Mark this answer",
+    rebuildFailed: "Could not rebuild the questions.",
+    markFailed: "Could not save the mark.",
+  },
+  // Proposed. The Quick-fire screen's own labels.
+  quickFire: {
+    next: "Next question",
+    countdownAnnounce: "Five seconds. Recall the shape of your answer.",
+    spineLabel: "Spine",
+    summaryHeading: "This round",
+    noMark: "No mark",
+    back: "Back to Prep",
+    startFailed: "Could not start the round.",
+    retry: "Try again",
+    starting: "Starting the round.",
+    keysHint: "Space or Enter for the next question. 1, 2 and 3 mark Shaky, Okay and Solid.",
+    sessionEndFailed: "Could not save the round.",
+  },
+  // Proposed. The Settings Voice section.
+  voice: {
+    title: "Voice",
+    intro: "Who reads your questions and answers aloud in the player, and how fast.",
+    providerHeading: "Voice provider",
+    off: "Off: the player uses your browser's voices",
+    interviewer: "Interviewer voice",
+    mine: "My voice",
+    browserInterviewer: "Interviewer voice on this device",
+    browserMine: "My voice on this device",
+    deviceDefault: "Device default",
+    noBrowserVoices: "This browser has no speech voices.",
+    browserHint: "Used when a clip is missing. These voices live on this device, so each device picks its own.",
+    loadingVoices: "Loading the voice list.",
+    emptyList: "The provider did not return a voice list, so type the voice name it expects.",
+    loadFailed: "Could not load the voice list. You can still type a voice name.",
+    loadAgain: "Load voices again",
+    speed: "Speed",
+    pauseFactor: "Pause factor",
+    speedHint: "From 0.8 to 1.5.",
+    pauseHint: "Scales the pauses between lines, from 0.5 to 2.",
+    defaultNote: (value: number) => `Default ${value}`,
+    save: "Save voice settings",
+    saved: "Voice settings saved.",
+    checkFields: "Check the highlighted fields.",
+    storage: "Storage",
+    keepClips: "Changing a voice keeps your existing clips. Delete audio on a job's Prep tab removes the ones no question uses.",
+    deleteAll: "Delete all audio",
+    deleteAllTitle: "Delete all audio?",
+    deleteAllBody:
+      "This removes every clip in every job, including clips a question still uses. You can prepare them again, which uses the voice provider.",
+    deleteAllConfirm: "Delete all clips",
+    deleteAllKeep: "Keep clips",
+    deleteAllFailed: "Could not delete the audio.",
+    deletedAll: (count: number) => (count === 1 ? "Deleted 1 clip." : `Deleted ${count} clips.`),
+  },
+  // Proposed. The Listen screen's own labels.
+  listen: {
+    button: "Listen",
+    play: "Play",
+    pause: "Pause",
+    previous: "Previous question",
+    next: "Next question",
+    repeat: "Repeat question",
+    previousChapter: "Previous chapter",
+    nextChapter: "Next chapter",
+    repeatChapter: "Repeat chapter",
+    speed: "Speed",
+    transport: "Playback controls",
+    transcript: "Transcript",
+    browserVoice: "Browser voice",
+    checkClip: "Check this clip",
+    regenerate: "Regenerate",
+    regenerating: "Regenerating",
+    regenerateFailed: "Could not regenerate the clip.",
+    regenerated: "Clip regenerated.",
+    note: "Note",
+    ended: "End of the list. Press Play to start again.",
+    back: "Back to Prep",
+    backgroundStopped: "Playback stopped when the screen turned off. Your phone does not let audio continue.",
+    listenFrom: (n: number) => `Listen from question ${n}`,
+    listenPitch: (title: string) => `Listen: ${title}`,
+    questionOf: (n: number, total: number) => `Question ${n} of ${total}`,
+    chapterOf: (n: number, total: number) => `Chapter ${n} of ${total}`,
+    speedValue: (speed: number) => `${speed.toFixed(1)}x`,
+  },
+  // Proposed. The Drill screen's own labels; the spec fixes the button words
+  // "Done", "More time", "Skip" and "Drill the shaky ones again".
+  drill: {
+    heading: "Drill",
+    button: "Drill",
+    start: "Start drill",
+    startHint: (count: number) =>
+      `${count === 1 ? "1 question" : `${count} questions`}. The interviewer asks, you answer aloud, then the answer is revealed.`,
+    asking: "The interviewer is asking.",
+    positionOf: (n: number, total: number) => `Question ${n} of ${total}`,
+    timerLabel: "Time to answer",
+    timeLeft: (seconds: number) => `${seconds} seconds left.`,
+    done: "Done",
+    moreTime: "More time",
+    skip: "Skip",
+    spine: "Spine",
+    say: "Say",
+    lastLine: "Last line",
+    guard: "Guard",
+    replay: "Play the answer again",
+    reveal: "Answer",
+    keysHint: "Space ends the wait or plays the answer again. 1, 2 and 3 mark Shaky, Okay and Solid. Right arrow skips.",
+    section: "Drill this section",
+    sectionLabel: (name: string) => `Drill this section: ${name}`,
+    summaryHeading: "This drill",
+    summaryCounts: (marked: number, skipped: number) => `${marked} marked, ${skipped} skipped`,
+    marksHeading: "Marks given",
+    noMarks: "No marks this time.",
+    stillShaky: "Still shaky",
+    noneShaky: "Nothing is shaky now.",
+    again: "Drill the shaky ones again",
+    back: "Back to Prep",
+    sessionEndFailed: "Could not save the drill.",
+    // Record my answer. "Record my answer" and the refused line are the plan's exact strings.
+    record: {
+      button: "Record my answer",
+      recording: "Recording. It stops when you press Done or the time runs out.",
+      yourRecording: "Your recording",
+      keep: "Keep",
+      discard: "Discard",
+      saved: "Recording saved.",
+      saveFailed: "Could not save the recording.",
+      refused: "Recording is not available: the microphone was refused.",
+      heading: "Recordings",
+      delete: "Delete",
+      deleteLabel: (date: string) => `Delete the recording from ${date}`,
+      playLabel: (date: string) => `Recording from ${date}`,
+      deleted: "Recording deleted.",
+      deleteFailed: "Could not delete the recording.",
+    },
+    empty: "Nothing to drill yet. Drill needs questions that have an answer.",
+    emptyShaky: "Nothing shaky to drill. Mark a question Shaky in a drill and it shows up here.",
+  },
+  // Proposed.
+  quickFireEmpty: "Nothing to practice yet. Quick-fire needs questions that have a Spine.",
+  toTheBrowserVoiceLine: `${VOICE_LINE.before}${VOICE_LINE.link}${VOICE_LINE.after}`,
+} as const;
+
+export function questionCountLabel(count: number): string {
+  return count === 1 ? "1 question" : `${count} questions`;
+}
+
+export function markedAnnouncement(level: "shaky" | "okay" | "solid"): string {
+  return `Marked ${level}.`;
+}
+
+export function rebuiltAnnouncement(rows: number): string {
+  return rows === 1 ? "Rebuilt 1 question." : `Rebuilt ${rows} questions.`;
+}
+
+export function quickFireProgress(position: number, total: number): string {
+  return `Question ${position} of ${total}`;
+}

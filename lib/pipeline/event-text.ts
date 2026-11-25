@@ -41,5 +41,7 @@ export function eventText(event: EventRow): string {
       return "Documents updated.";
     case "next_action_done":
       return `Done: ${event.body ?? ""}.`;
+    case "prep_drilled":
+      return event.body ?? "";
   }
 }

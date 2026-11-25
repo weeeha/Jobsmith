@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
+import { userHash } from "@/lib/storage/keys";
 import { scopedFor } from "@/lib/db/scoped";
 import { getJobView } from "@/lib/pipeline/read";
 import { toOpportunityState, stageControlsFor } from "@/lib/pipeline/stage-controls";
@@ -117,6 +118,7 @@ export default async function JobPage(props: PageProps<"/jobs/[slug]">) {
             basePath={basePath}
             stages={view.stages}
             slug={slug}
+            userHash={userHash(user.id)}
           />
         )}
       </div>

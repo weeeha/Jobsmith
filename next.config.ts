@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
+// Computed once so the build id Next uses and the one the browser sends in
+// /sw.js?build=<id> (NEXT_PUBLIC_BUILD_ID) are the same value.
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now());
+
 const nextConfig: NextConfig = {
+  generateBuildId: async () => BUILD_ID,
+  env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   // turndown ships a browser build and linkedom an optional `canvas` require;
   // this makes Next require them at runtime instead of bundling them, so the
   // bundler never has to choose between turndown's builds or resolve an
@@ -31,6 +37,21 @@ const nextConfig: NextConfig = {
           // content and executing it as something other than what the
           // Content-Type header says.
           { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      {
+        // The worker script itself: never served from the HTTP cache, so a
+        // new build reaches the browser at its next update check. Listed after
+        // /:path*, so these values win for the same key; the policy repeats
+        // frame-ancestors 'none' because it replaces the global one.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self'; frame-ancestors 'none'",
+          },
         ],
       },
     ];

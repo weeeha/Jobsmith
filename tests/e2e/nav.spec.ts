@@ -34,9 +34,8 @@ test("desktop: the sidebar lists six sections, Companies shows a job under its c
 
   await page.goto("/library");
   await expect(page.getByRole("heading", { level: 1, name: "Library" })).toBeVisible();
-  await expect(page.getByText("Your library comes with interview prep.")).toBeVisible();
   await expect(
-    page.getByText("Stories, pitches and question banks you reuse across jobs will live here."),
+    page.getByText("Your library is empty. Save an answer from a question, or add a story, an intro or a fact."),
   ).toBeVisible();
   await scanForViolations(page, "library", testInfo);
 

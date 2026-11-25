@@ -443,6 +443,118 @@ const cases: Case[] = [
       expect(locked?.id).toBe(ids.companyId);
     },
   },
+  {
+    name: "prepQuestion.listForJob and listByQuestionKey hide A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.prepQuestion.listForJob(ids.opportunityId)).toEqual([]);
+      expect(await b.prepQuestion.listByQuestionKey("0123456789abcdef")).toEqual([]);
+      expect(await b.prepQuestion.listAll()).toEqual([]);
+      expect(await a.prepQuestion.listForJob(ids.opportunityId)).toHaveLength(1);
+      expect((await b.prepQuestion.countsByOpportunity()).size).toBe(0);
+      expect((await b.prepQuestion.countJobsByQuestionKey(["0123456789abcdef"])).size).toBe(0);
+      expect((await a.prepQuestion.countJobsByQuestionKey(["0123456789abcdef"])).get("0123456789abcdef")).toBe(1);
+    },
+  },
+  {
+    name: "prepQuestion.replaceForArtifactKey cannot delete A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.prepQuestion.replaceForArtifactKey(ids.opportunityId, "cv", [])).toBe(0);
+      expect(await a.prepQuestion.listForJob(ids.opportunityId)).toHaveLength(1);
+    },
+  },
+  {
+    name: "prepMark.listForJob, find and listForQuestionKey hide A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.prepMark.listForJob(ids.opportunityId)).toEqual([]);
+      expect(await b.prepMark.find("job", ids.opportunityId, "0123456789abcdef")).toBeNull();
+      expect(await b.prepMark.listForQuestionKey("0123456789abcdef")).toEqual([]);
+      expect((await b.prepMark.levelsByOpportunity()).size).toBe(0);
+      expect(await a.prepMark.find("job", ids.opportunityId, "0123456789abcdef")).not.toBeNull();
+    },
+  },
+  {
+    name: "prepMark.applyMark from B never changes A's mark",
+    run: async (a, b, ids) => {
+      // B's own library mark under the same key is a different row.
+      const { row } = await b.prepMark.applyMark({
+        scope: "library",
+        opportunityId: null,
+        questionKey: "0123456789abcdef",
+        level: "shaky",
+        markedAt: new Date("2030-01-01T00:00:00Z"),
+        drilled: true,
+      });
+      expect(row.userId).toBe(b.userId);
+      const mine = await a.prepMark.find("job", ids.opportunityId, "0123456789abcdef");
+      expect(mine?.level).toBe("okay");
+      expect(mine?.drillCount).toBe(0);
+    },
+  },
+  {
+    name: "prepMark.applyMark ignores a smuggled userId in its input",
+    run: async (a, b) => {
+      const { row } = await a.prepMark.applyMark({
+        scope: "library",
+        opportunityId: null,
+        questionKey: "fedcba9876543210",
+        level: "solid",
+        markedAt: new Date("2026-11-02T00:00:00Z"),
+        drilled: false,
+        userId: b.userId,
+      } as never);
+      expect(row.userId).toBe(a.userId);
+      expect(await b.prepMark.listLibrary()).toEqual([]);
+    },
+  },
+  {
+    name: "prepSession.getById and listForJob hide A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.prepSession.getById(ids.prepSessionId)).toBeNull();
+      expect(await b.prepSession.listForJob(ids.opportunityId)).toEqual([]);
+      expect(await b.prepSession.update(ids.prepSessionId, { questions: 99 })).toBeNull();
+      expect((await a.prepSession.getById(ids.prepSessionId))?.questions).toBe(0);
+    },
+  },
+  {
+    name: "libraryItem.getById, list and findBySource hide A's rows from B",
+    run: async (a, b, ids) => {
+      expect(await b.libraryItem.getById(ids.libraryItemId)).toBeNull();
+      expect(await b.libraryItem.list({ includeArchived: true })).toEqual([]);
+      expect(await b.libraryItem.findBySource("0123456789abcdef", null)).toBeNull();
+      expect(await b.libraryItem.update(ids.libraryItemId, { title: "Hacked" })).toBeNull();
+      expect((await a.libraryItem.getById(ids.libraryItemId))?.title).toBe("Intro");
+    },
+  },
+  {
+    name: "asset.getById and delete cannot reach A's row from B; totals counts only the caller's",
+    run: async (a, b, ids) => {
+      expect(await b.asset.getById(ids.assetId)).toBeNull();
+      expect(await b.asset.delete(ids.assetId)).toBeNull();
+      expect(await b.asset.totals()).toEqual({ bytes: 0, clips: 0 });
+      expect(await a.asset.totals()).toEqual({ bytes: 100, clips: 1 });
+      expect(await a.asset.getById(ids.assetId)).not.toBeNull();
+    },
+  },
+  {
+    name: "ttsSegment.listByHashes hides A's rows from B and insert ignores a smuggled userId",
+    run: async (a, b) => {
+      const [seeded] = await a.ttsSegment.listAll();
+      expect(await b.ttsSegment.listByHashes([seeded.hash])).toEqual([]);
+      expect(await b.ttsSegment.deleteByIds([seeded.id])).toBe(0);
+      const row = await a.ttsSegment.insert({
+        hash: "smuggled0000000a",
+        provider: "fake",
+        model: "fake",
+        voice: "v",
+        style: "v1",
+        textChars: 3,
+        userId: b.userId,
+      } as never);
+      expect(row?.userId).toBe(a.userId);
+      expect(await b.ttsSegment.listByHashes(["smuggled0000000a"])).toEqual([]);
+      expect(await b.ttsSegment.statusCounts()).toEqual({ pending: 0, done: 0, failed: 0 });
+    },
+  },
 ];
 
 describe("scoped tenant isolation", () => {

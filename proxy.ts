@@ -39,5 +39,14 @@ export const config = {
   // chance to enforce its own 4 MB limit correctly. Excluding the path from
   // the matcher means the proxy never runs on it at all, so no buffering
   // and no cookie-based redirect ever happens to a bearer-only request.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/bridge/).*)"],
+  //
+  // manifest.webmanifest, sw.js, icons/ and offline are excluded for a
+  // different reason: a browser fetches the manifest, the worker script and
+  // the icons without the session cookie, and the worker's offline fallback
+  // page must answer on its own, so a redirect to /login would break install
+  // and offline. The `$` anchors keep near-miss paths such as /swx.js or
+  // /offline-notes behind the proxy.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/bridge/|manifest\\.webmanifest$|sw\\.js$|icons/|offline$).*)",
+  ],
 };

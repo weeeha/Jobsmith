@@ -193,3 +193,40 @@ describe("parseEnv: AI", () => {
     }
   });
 });
+
+describe("parseEnv: STORAGE", () => {
+  it("carries STORAGE, local by default", () => {
+    const env = parseEnv(validSource);
+    expect(env.STORAGE).toEqual({ provider: "local", dir: ".data/storage" });
+  });
+
+  it("adds an invalid storage setting to the same EnvError list", () => {
+    expect(() => parseEnv({ ...validSource, STORAGE_PROVIDER: "gcs" })).toThrow(
+      "Invalid environment variables: STORAGE_PROVIDER",
+    );
+    expect(() => parseEnv({ ...validSource, VERCEL: "1" })).toThrow(
+      "Invalid environment variables: STORAGE_PROVIDER",
+    );
+  });
+});
+
+describe("parseEnv: TTS", () => {
+  it("is null when TTS_PROVIDER is unset", () => {
+    expect(parseEnv(validSource).TTS).toBeNull();
+  });
+
+  it("parses TTS_PROVIDER=fake into the fake config", () => {
+    expect(parseEnv({ ...validSource, TTS_PROVIDER: "fake" }).TTS).toEqual({
+      provider: "fake",
+      model: "fake-tts",
+      baseUrl: null,
+      apiKey: null,
+    });
+  });
+
+  it("adds an invalid TTS variable name to the same EnvError list", () => {
+    expect(() => parseEnv({ ...validSource, TTS_PROVIDER: "gemini" })).toThrow(
+      "Invalid environment variables: GEMINI_API_KEY",
+    );
+  });
+});

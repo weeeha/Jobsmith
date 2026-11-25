@@ -11,6 +11,7 @@ import { AppTopbar } from "@/components/super-ai/app-topbar";
 import { AccountMenu } from "@/components/super-ai/account-menu";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { clearOfflineData } from "@/lib/offline/clear";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -33,11 +34,14 @@ const PHONE_NAV_ITEM_CLASS =
 
 export function AppShell({
   email,
+  userHash,
   onSignOut,
   children,
 }: {
   email: string;
-  onSignOut: () => void;
+  /** The signed-in user's storage hash: what sign-out clears from this device. */
+  userHash: string;
+  onSignOut: () => void | Promise<void>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -45,6 +49,13 @@ export function AppShell({
   const { theme, setTheme } = useTheme();
   const [moreOpen, setMoreOpen] = React.useState(false);
   const isMoreActive = MORE_ITEMS.some((item) => item.href === pathname);
+
+  // Saved jobs and queued marks leave this device before the session ends.
+  // A failure to clear must never keep anyone signed in.
+  const signOut = React.useCallback(async () => {
+    await clearOfflineData(userHash).catch(() => undefined);
+    await onSignOut();
+  }, [userHash, onSignOut]);
 
   return (
     <SidebarProvider>
@@ -60,7 +71,7 @@ export function AppShell({
             user={{ name: email, email }}
             theme={theme ?? "system"}
             onThemeChange={setTheme}
-            onSignOut={onSignOut}
+            onSignOut={signOut}
           />
         }
       />

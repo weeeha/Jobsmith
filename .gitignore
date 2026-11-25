@@ -53,3 +53,6 @@ skills-lock.json
 
 # the owner's personal import mapping, owner-gated and never committed
 /local/
+
+# local audio storage (Prep voice)
+/.data/

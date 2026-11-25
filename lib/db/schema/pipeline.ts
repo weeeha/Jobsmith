@@ -233,7 +233,7 @@ export const event = pgTable(
     }).onDelete("cascade"),
     check(
       "event_kind_check",
-      sql`${t.kind} in ('created', 'stage_moved', 'closed', 'reopened', 'note', 'interview_scheduled', 'document_sent', 'artifact_pushed', 'next_action_done')`,
+      sql`${t.kind} in ('created', 'stage_moved', 'closed', 'reopened', 'note', 'interview_scheduled', 'document_sent', 'artifact_pushed', 'next_action_done', 'prep_drilled')`,
     ),
   ],
 );

@@ -20,8 +20,23 @@ function withoutUserId<T extends { userId: string }>(rows: T[]): Omit<T, "userId
  * verification rows. Tokens appear only as name, prefix and dates.
  */
 export async function collectExport(s: Scoped, account: ExportAccount, now: Date) {
-  const [profile, companies, opportunities, stages, people, opportunityPeople, events, artifacts, apiTokens] =
-    await Promise.all([
+  const [
+    profile,
+    companies,
+    opportunities,
+    stages,
+    people,
+    opportunityPeople,
+    events,
+    artifacts,
+    apiTokens,
+    prepQuestions,
+    prepMarks,
+    libraryItems,
+    prepSessions,
+    assets,
+    ttsSegments,
+  ] = await Promise.all([
       s.profile.get(),
       s.company.list(),
       s.opportunity.listAll(),
@@ -31,6 +46,12 @@ export async function collectExport(s: Scoped, account: ExportAccount, now: Date
       s.event.listAll(),
       s.artifact.listAll(),
       s.apiToken.list(),
+      s.prepQuestion.listAll(),
+      s.prepMark.listAll(),
+      s.libraryItem.listAll(),
+      s.prepSession.listAll(),
+      s.asset.listAll(),
+      s.ttsSegment.listAll(),
     ]);
 
   return {
@@ -54,6 +75,13 @@ export async function collectExport(s: Scoped, account: ExportAccount, now: Date
     opportunityPeople: withoutUserId(opportunityPeople),
     events: withoutUserId(events),
     artifacts: withoutUserId(artifacts),
+    prepQuestions: withoutUserId(prepQuestions),
+    prepMarks: withoutUserId(prepMarks),
+    libraryItems: withoutUserId(libraryItems),
+    prepSessions: withoutUserId(prepSessions),
+    // Metadata only: the table holds a storage key, a size and a hash, never the audio.
+    assets: withoutUserId(assets),
+    ttsSegments: withoutUserId(ttsSegments),
     apiTokens: apiTokens.map((t) => ({
       name: t.name,
       prefix: t.prefix,

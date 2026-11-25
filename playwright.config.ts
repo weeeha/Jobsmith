@@ -66,6 +66,29 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    // The prep specs push documents and write marks on the shared account, so
+    // they run after the fit specs, one engine at a time.
+    {
+      name: "prep-chromium",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["fit-phone"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "prep-webkit",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["prep-chromium"],
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "prep-phone",
+      testMatch: /prep-.*\.spec\.ts$/,
+      dependencies: ["prep-webkit"],
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
   webServer: {
     // All browsers log in from the same address, so the suite raises the
@@ -77,13 +100,16 @@ export default defineConfig({
     // deterministic fake driver: no network call, no real AI key needed to
     // run this suite at all.
     command:
-      "pnpm build && SETUP_TOKEN=e2e-setup-token-0123456789 AUTH_SIGNIN_MAX_PER_MINUTE=1000 AI_PROVIDER=fake pnpm start",
+      "pnpm build && SETUP_TOKEN=e2e-setup-token-0123456789 AUTH_SIGNIN_MAX_PER_MINUTE=1000 AI_PROVIDER=fake TTS_PROVIDER=fake STORAGE_PROVIDER=local STORAGE_LOCAL_DIR=.data/e2e-storage pnpm start",
     url: baseURL,
     // Never reuse a server already listening on baseURL: it would be
     // whatever `pnpm dev` or a stale `pnpm start` happens to have running,
     // built without this suite's SETUP_TOKEN, AUTH_SIGNIN_MAX_PER_MINUTE and
     // AI_PROVIDER, which would then fail in confusing ways rather than at
-    // startup.
+    // startup. TTS_PROVIDER=fake gives the voice specs deterministic silent
+    // clips with no network call; STORAGE_PROVIDER=local keeps them under the
+    // gitignored .data/ (global-setup empties that folder), because `memory` is
+    // refused by a production build.
     reuseExistingServer: false,
     timeout: 180_000,
   },

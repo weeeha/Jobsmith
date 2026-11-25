@@ -15,7 +15,7 @@ describe("homeSubline", () => {
 
 describe("itemCopy and primaryAction", () => {
   it("interview", () => {
-    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true };
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true, prep: { questions: 0, solid: 0 } };
     const c = itemCopy(item);
     expect(c.reason).toBe("Recruiter screen");
     expect(c.jobLine).toBe("Design Lead at Northwind Labs");
@@ -24,16 +24,48 @@ describe("itemCopy and primaryAction", () => {
   });
 
   it("interview without a format leaves the format out", () => {
-    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Panel", scheduledAt: at, format: null }, researched: true };
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Panel", scheduledAt: at, format: null }, researched: true, prep: { questions: 0, solid: 0 } };
     expect(itemCopy(item).meta.suffix).toBe("");
   });
 
   it("interview with no research says so and opens Research instead of Prep", () => {
-    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: false };
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: false, prep: { questions: 0, solid: 0 } };
     expect(itemCopy(item).meta.suffix).toBe(" · Phone · No research yet");
     expect(primaryAction(item)).toEqual({ type: "link", label: "Open research", href: "/jobs/lead-at-northwind?tab=research" });
     const noFormat: AttentionItem = { ...item, stage: { ...item.stage, format: null } };
     expect(itemCopy(noFormat).meta.suffix).toBe(" · No research yet");
+  });
+
+  it("an interview with research and no question rows shows 'No prep yet' linking to the hub", () => {
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true, prep: { questions: 0, solid: 0 } };
+    expect(itemCopy(item).prepLine).toEqual({ text: "No prep yet", href: "/jobs/lead-at-northwind?tab=prep" });
+  });
+
+  it("an interview with research and 30 rows, 12 solid, shows '12 of 30 solid' without a link", () => {
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true, prep: { questions: 30, solid: 12 } };
+    expect(itemCopy(item).prepLine).toEqual({ text: "12 of 30 solid", href: null });
+  });
+
+  it("an interview with no research keeps 'No research yet' and shows no prep line", () => {
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: false, prep: { questions: 30, solid: 12 } };
+    const c = itemCopy(item);
+    expect(c.meta.suffix).toContain("No research yet");
+    expect(c.prepLine).toBeNull();
+  });
+
+  it("the primary action is still 'Open prep' with href ?tab=prep", () => {
+    const item: AttentionItem = { kind: "interview", job, stage: { id: "s1", label: "Recruiter screen", scheduledAt: at, format: "phone" }, researched: true, prep: { questions: 30, solid: 12 } };
+    expect(primaryAction(item)).toEqual({ type: "link", label: "Open prep", href: "/jobs/lead-at-northwind?tab=prep" });
+  });
+
+  it("other attention kinds carry no prep line", () => {
+    const items: AttentionItem[] = [
+      { kind: "due", job, nextAction: "Send", at, overdue: false },
+      { kind: "follow_up", job, quietDays: 9, appliedAt: at },
+      { kind: "saved", job, days: 4, savedAt: at },
+      { kind: "passed", job, stage: { id: "s1", label: "Panel", scheduledAt: at, format: null } },
+    ];
+    for (const item of items) expect(itemCopy(item).prepLine).toBeNull();
   });
 
   it("due, overdue and today", () => {

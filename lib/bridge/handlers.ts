@@ -2,12 +2,15 @@ import { DrizzleQueryError } from "drizzle-orm";
 import { parseBearer, readJsonCapped, bridgeJson, bridgeError } from "./http";
 import { pushBodySchema, firstIssue, toIncoming } from "./push-schema";
 import { buildContextDocument } from "./context";
+import { loadContextLibrary, loadContextPrep } from "./context-prep";
 import { MAX_ARTIFACTS_PER_PUSH, MAX_PUSH_BYTES, MAX_ARTIFACT_BYTES, RATE_LIMIT_PER_MINUTE, SLUG_PATTERN, type WireOpportunity, type WireStatus } from "./wire";
 import { utf8Bytes } from "@/lib/artifacts/normalize";
 import { upsertArtifacts } from "@/lib/artifacts/upsert";
 import { authenticateBearer } from "@/lib/auth/api-token";
 import { scoped, type Scoped } from "@/lib/db/scoped";
 import type { Db } from "@/lib/db/client";
+import type { Storage } from "@/lib/storage/driver";
+import type { TtsConfig } from "@/lib/tts/config";
 import { getJobView } from "@/lib/pipeline/read";
 
 // The request id and error name only, never a message: drizzle wraps every
@@ -15,7 +18,7 @@ import { getJobView } from "@/lib/pipeline/read";
 // plus every bound parameter, which for a push can be the document itself.
 // The cause's code and constraint (a Postgres error carries both) are the
 // only extra detail worth the log line.
-function logBridgeError(requestId: string, error: unknown): void {
+export function logBridgeError(requestId: string, error: unknown): void {
   // error.constructor.name rather than error.name: DrizzleQueryError never
   // sets the latter, so it would otherwise log as the unhelpful "Error".
   const name = error instanceof Error ? error.constructor.name : "UnknownError";
@@ -27,14 +30,21 @@ function logBridgeError(requestId: string, error: unknown): void {
   console.error("[bridge]", requestId, name);
 }
 
-export type BridgeDeps = { db: Db; now(): Date; revalidate(path: string): void; requestId(): string };
+export type BridgeDeps = {
+  db: Db;
+  now(): Date;
+  revalidate(path: string): void;
+  requestId(): string;
+  // Only the audio endpoints read this; production fills it in.
+  audio?: { storage: Storage; ttsConfig: TtsConfig | null; randomHex(bytes: number): string };
+};
 
-type AuthResult = { ok: true; userId: string; s: Scoped } | { ok: false; response: Response };
+export type AuthResult = { ok: true; userId: string; s: Scoped } | { ok: false; response: Response };
 
 // Shared by every handler below. Never reads the `cookie` header: that
 // omission, not a check that rejects it, is what keeps a session-looking
 // cookie from ever authenticating a bridge request.
-async function authenticate(deps: BridgeDeps, request: Request, requestId: string, now: Date): Promise<AuthResult> {
+export async function authenticate(deps: BridgeDeps, request: Request, requestId: string, now: Date): Promise<AuthResult> {
   const token = parseBearer(request.headers.get("authorization"));
   if (token === null) {
     return { ok: false, response: bridgeError("unauthorized", requestId) };
@@ -57,7 +67,7 @@ async function authenticate(deps: BridgeDeps, request: Request, requestId: strin
 // Matches what lib/pipeline/slug.ts actually produces: letters and digits
 // from any script (a company or role name is not always ASCII), plus
 // hyphens, never a `/` so a slug can never smuggle in an extra path segment.
-function isValidSlugShape(slug: string): boolean {
+export function isValidSlugShape(slug: string): boolean {
   return SLUG_PATTERN.test(slug);
 }
 
@@ -104,7 +114,9 @@ export async function handleGetContext(deps: BridgeDeps, request: Request, slug:
     }
 
     const companyDocuments = await auth.s.artifact.listLatestForCompany(view.company.id);
-    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now });
+    const prep = await loadContextPrep(auth.s, view.opportunity.id);
+    const library = await loadContextLibrary(auth.s);
+    const doc = buildContextDocument({ view, companyDocuments, generatedAt: now, prep, library });
     return new Response(doc, {
       status: 200,
       headers: { "content-type": "text/markdown; charset=utf-8", "x-request-id": requestId, "cache-control": "no-store" },

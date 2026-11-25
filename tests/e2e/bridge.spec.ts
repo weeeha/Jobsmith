@@ -1,38 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { scanForViolations } from "./axe";
 import { scanOpenOverlay } from "./scan-open";
 import { login, uniqueName, addJobAndOpen } from "./session";
 import { runCli } from "./cli";
-
-async function createToken(page: Page, name: string, testInfo: TestInfo): Promise<string> {
-  await page.goto("/settings");
-  // The rest of this file only scans dialogs opened from Settings, so the
-  // plain page itself needs its own scan here, before anything is open.
-  await scanForViolations(page, "settings", testInfo);
-  await page.getByRole("button", { name: "Create token" }).click();
-  const dialog = page.getByRole("dialog", { name: "Create a token" });
-  await expect(dialog).toBeVisible();
-
-  await dialog.getByRole("button", { name: "Create token" }).click();
-  await expect(dialog.getByText("Give the token a name.")).toBeVisible();
-  await expect(dialog).toBeVisible();
-
-  await dialog.getByLabel("Name").fill(name);
-  await dialog.getByRole("button", { name: "Create token" }).click();
-  const revealDialog = page.getByRole("dialog", { name: "Copy your new token" });
-  await expect(revealDialog).toBeVisible();
-  // Scoped to the dialog, not page.getByLabel: the dialog's own title,
-  // "Copy your new token", contains "your new token" as a case-insensitive
-  // substring, so an unscoped query for that label matches both the real
-  // input and the dialog's own labelled root - confirmed directly against a
-  // real run before adding this scope.
-  await expect(revealDialog.getByLabel("Your new token")).toBeFocused();
-  const token = await revealDialog.getByLabel("Your new token").inputValue();
-  await page.getByRole("button", { name: "Done" }).click();
-  return token;
-}
+import { createToken } from "./token";
 
 test("the CLI pushes a real packet, a second push changes nothing, the app reads it back, and a revoked token is refused", async ({
   page,
@@ -107,19 +80,22 @@ test("the CLI pushes a real packet, a second push changes nothing, the app reads
     await scanForViolations(page, "documents tab with documents", testInfo);
 
     await page.goto(`/jobs/${slug}?tab=prep`);
-    await expect(page.getByRole("heading", { name: "Recruiter screen" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Hiring manager" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: full answers" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: recruiter screen questions" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: hiring manager call card" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Portfolio walkthrough pitch" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Northwind Labs: round two debrief" })).toBeVisible();
-    await page.getByRole("link", { name: "Northwind Labs: hiring manager call card" }).click();
+    const docs = page.getByRole("navigation", { name: "Prep documents" });
+    await expect(docs.getByRole("heading", { name: "Recruiter screen" })).toBeVisible();
+    await expect(docs.getByRole("heading", { name: "Hiring manager" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: full answers" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: recruiter screen questions" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: hiring manager call card" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Portfolio walkthrough pitch" })).toBeVisible();
+    await expect(docs.getByRole("link", { name: "Northwind Labs: round two debrief" })).toBeVisible();
+    await docs.getByRole("link", { name: "Northwind Labs: hiring manager call card" }).click();
     await expect(page.getByText("Open with the onboarding redesign story.")).toBeVisible();
+    // The hub above the list has its own cards and a Listen link per pitch, so
+    // the document list is scoped by its navigation name.
     // The pitch carries its own title and stage in frontmatter rather than
     // the usual derived-from-filename kind, so opening it proves that path
     // too, alongside the body itself landing under Prep.
-    await page.getByRole("link", { name: "Portfolio walkthrough pitch" }).click();
+    await docs.getByRole("link", { name: "Portfolio walkthrough pitch" }).click();
     await expect(page.getByText("One sentence framing of the case study.")).toBeVisible();
     await scanForViolations(page, "prep tab with documents", testInfo);
   });

@@ -34,6 +34,8 @@ const eslintConfig = defineConfig([
     // under .superpowers/. Linting them fails the main checkout's lint.
     ".claude/**",
     ".superpowers/**",
+    // Built CLI bundle (gitignored output).
+    "cli/dist/**",
   ]),
 ]);
 

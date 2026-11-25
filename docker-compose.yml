@@ -10,5 +10,21 @@ services:
     volumes:
       - jobsmith-postgres-data:/var/lib/postgresql/data
 
+  # Optional S3-compatible store for trying the s3 storage driver locally.
+  # Not started by `docker compose up`: run `docker compose --profile storage up -d minio`.
+  # The credentials below are for this machine only.
+  minio:
+    image: minio/minio:latest
+    profiles: ["storage"]
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: jobsmith
+      MINIO_ROOT_PASSWORD: jobsmith-local-only
+    ports:
+      - "9000:9000"
+    volumes:
+      - jobsmith-minio-data:/data
+
 volumes:
   jobsmith-postgres-data:
+  jobsmith-minio-data:

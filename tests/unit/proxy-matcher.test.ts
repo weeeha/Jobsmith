@@ -25,4 +25,19 @@ describe("proxy matcher", () => {
     expect(matches("/")).toBe(true);
     expect(matches("/_next/static/chunk.js")).toBe(false);
   });
+
+  it("does not run the proxy for /manifest.webmanifest, /sw.js, /icons/icon-192.png and /offline, but still does for near-miss paths", async () => {
+    (globalThis as { AsyncLocalStorage?: unknown }).AsyncLocalStorage ??= AsyncLocalStorage;
+    const { unstable_doesMiddlewareMatch } = await import("next/experimental/testing/server");
+    const { config } = await import("@/proxy");
+    const matches = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+
+    expect(matches("/manifest.webmanifest")).toBe(false);
+    expect(matches("/sw.js")).toBe(false);
+    expect(matches("/icons/icon-192.png")).toBe(false);
+    expect(matches("/offline")).toBe(false);
+    expect(matches("/swx.js")).toBe(true);
+    expect(matches("/offline-notes")).toBe(true);
+    expect(matches("/icons-list")).toBe(true);
+  });
 });

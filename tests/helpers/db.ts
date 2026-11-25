@@ -41,6 +41,12 @@ export type SeededIds = {
   eventId: string;
   artifactId: string;
   apiTokenId: string;
+  prepQuestionId: string;
+  prepMarkId: string;
+  prepSessionId: string;
+  libraryItemId: string;
+  assetId: string;
+  ttsSegmentId: string;
 };
 
 export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
@@ -83,6 +89,51 @@ export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
     origin: "pushed",
   });
   const apiToken = await s.apiToken.insert({ name: "Laptop", tokenHash: `seed-hash-${opportunity.id}`, prefix: "jsm_AAAA" });
+  await s.prepQuestion.replaceForArtifactKey(opportunity.id, "cv", [
+    {
+      opportunityId: opportunity.id,
+      artifactId: artifact.id,
+      artifactVersion: 1,
+      artifactKey: "cv",
+      number: 1,
+      position: 0,
+      question: "Tell me about yourself",
+      questionKey: "0123456789abcdef",
+    },
+  ]);
+  const [prepQuestion] = await s.prepQuestion.listForJob(opportunity.id);
+  const { row: prepMark } = await s.prepMark.applyMark({
+    scope: "job",
+    opportunityId: opportunity.id,
+    questionKey: "0123456789abcdef",
+    level: "okay",
+    markedAt: new Date("2026-11-01T10:00:00Z"),
+    drilled: false,
+  });
+  const prepSession = await s.prepSession.insert({
+    opportunityId: opportunity.id,
+    mode: "drill",
+    startedAt: new Date("2026-11-01T10:00:00Z"),
+  });
+  const libraryItem = await s.libraryItem.insert({ kind: "answer", title: "Intro", bodyMd: "Hello" });
+  const asset = await s.asset.insert({
+    kind: "tts_segment",
+    storageKey: `u/seed/tts/${crypto.randomUUID().replace(/-/g, "")}.mp3`,
+    contentType: "audio/mpeg",
+    bytes: 100,
+    sha256: "seed-sha",
+  });
+  const ttsSegment = await s.ttsSegment.insert({
+    hash: `seedhash${opportunity.id.slice(0, 8)}`,
+    provider: "fake",
+    model: "fake",
+    voice: "v",
+    style: "v1",
+    textChars: 10,
+    assetId: asset.id,
+    status: "done",
+  });
+  if (!ttsSegment) throw new Error("seed: tts segment was not inserted");
   return {
     companyId: company.id,
     opportunityId: opportunity.id,
@@ -92,5 +143,11 @@ export async function seedOneOfEach(s: Scoped): Promise<SeededIds> {
     eventId: event.id,
     artifactId: artifact.id,
     apiTokenId: apiToken.id,
+    prepQuestionId: prepQuestion.id,
+    prepMarkId: prepMark.id,
+    prepSessionId: prepSession.id,
+    libraryItemId: libraryItem.id,
+    assetId: asset.id,
+    ttsSegmentId: ttsSegment.id,
   };
 }

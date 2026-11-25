@@ -41,6 +41,54 @@ describe("LiveAnnouncerProvider", () => {
     vi.useRealTimers();
   });
 
+  it("drops a pending announcement when the provider unmounts", () => {
+    vi.useFakeTimers();
+    const { unmount } = render(
+      <LiveAnnouncerProvider>
+        <Announcer message="Saved." />
+      </LiveAnnouncerProvider>,
+    );
+    act(() => {
+      screen.getByRole("button").click();
+    });
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("a newer announcement replaces a pending older one", () => {
+    vi.useFakeTimers();
+    function Two() {
+      const announce = useAnnounce();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            announce("First.");
+            announce("Second.");
+          }}
+        >
+          Announce twice
+        </button>
+      );
+    }
+    render(
+      <LiveAnnouncerProvider>
+        <Two />
+      </LiveAnnouncerProvider>,
+    );
+    act(() => {
+      screen.getByRole("button").click();
+    });
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(screen.getByRole("status").textContent).toBe("Second.");
+    vi.useRealTimers();
+  });
+
   it("throws when useAnnounce is called outside the provider", () => {
     function Bad() {
       useAnnounce();

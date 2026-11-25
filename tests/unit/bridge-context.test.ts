@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContextDocument } from "@/lib/bridge/context";
+import type { ContextLibrary, ContextPrep } from "@/lib/bridge/context-prep";
 import type { JobView } from "@/lib/pipeline/read";
 import type { OpportunityRow, CompanyRow, StageRow, LinkedPerson, PersonRow, ArtifactMeta } from "@/lib/db/scoped";
 
@@ -114,6 +115,9 @@ function artifactMeta(partial: Partial<ArtifactMeta> & { key: string; kind: Arti
 }
 
 const generatedAt = new Date("2026-09-23T18:00:00.000Z");
+const EMPTY_PREP: ContextPrep = { banks: [] };
+const EMPTY_LIBRARY: ContextLibrary = { items: [] };
+const TAIL = ["## Prep", "", "No question banks parsed yet.", "", "## Library", "", "No library items yet.", ""];
 
 describe("buildContextDocument, a rich fixture", () => {
   const stageDone = stageRow({
@@ -170,7 +174,7 @@ describe("buildContextDocument, a rich fixture", () => {
     artifactMeta({ key: "recon", kind: "research", updatedAt: new Date("2026-09-02T08:00:00.000Z") }),
   ];
 
-  const doc = buildContextDocument({ view, companyDocuments, generatedAt });
+  const doc = buildContextDocument({ view, companyDocuments, generatedAt, prep: EMPTY_PREP, library: EMPTY_LIBRARY });
 
   it("matches the exact expected document", () => {
     expect(doc).toBe(
@@ -224,6 +228,7 @@ describe("buildContextDocument, a rich fixture", () => {
         "| cv | cv | job |  | 2 | 2026-09-05T12:00:00.000Z |",
         "| recon | research | company |  | 1 | 2026-09-02T08:00:00.000Z |",
         "",
+        ...TAIL,
       ].join("\n"),
     );
   });
@@ -253,7 +258,7 @@ describe("buildContextDocument, a bare fixture", () => {
     documents: [],
   };
 
-  const doc = buildContextDocument({ view, companyDocuments: [], generatedAt });
+  const doc = buildContextDocument({ view, companyDocuments: [], generatedAt, prep: EMPTY_PREP, library: EMPTY_LIBRARY });
 
   it("falls back to the fixed sentence in Posting, People and Artifacts, and still emits the Stages table", () => {
     expect(doc).toBe(
@@ -293,7 +298,96 @@ describe("buildContextDocument, a bare fixture", () => {
         "",
         "No artifacts yet.",
         "",
+        ...TAIL,
       ].join("\n"),
     );
+  });
+});
+
+describe("buildContextDocument, Prep and Library sections", () => {
+  const stage = stageRow({ id: "s0", kind: "saved", label: "Saved", position: 0, status: "upcoming" });
+  const view: JobView = {
+    opportunity: opportunityRow({ slug: "bare-job", roleTitle: "Engineer" }),
+    company: companyRow({ name: "Bare Co" }),
+    stages: [stage],
+    currentStage: stage,
+    people: [],
+    events: [],
+    documents: [],
+  };
+  const prep: ContextPrep = {
+    banks: [
+      {
+        key: "answers-full",
+        title: "Full answers",
+        questions: [
+          { number: 1, section: "Motivation", question: "Tell me about yourself", level: "solid", lastDrilledAt: new Date("2026-11-19T22:30:00.000Z") },
+          { number: 3, section: null, question: "Walk me through\na project | any", level: null, lastDrilledAt: null },
+          { number: 4, section: "Craft", question: "Why this team?", level: "shaky", lastDrilledAt: null },
+        ],
+      },
+      { key: "answers-short", title: "Short answers", questions: [{ number: 1, section: null, question: "Why now", level: "okay", lastDrilledAt: null }] },
+    ],
+  };
+  const library: ContextLibrary = {
+    items: [
+      { title: "Tell me about yourself", kind: "answer", tags: ["opener", "story"] },
+      { title: "A shop owner who kept orders\non paper", kind: "story", tags: [] },
+    ],
+  };
+  const doc = buildContextDocument({ view, companyDocuments: [], generatedAt, prep, library });
+  const section = (name: string) => doc.slice(doc.indexOf(`## ${name}\n`));
+
+  it("adds ## Prep after ## Artifacts and ## Library after it", () => {
+    expect(doc.indexOf("## Artifacts")).toBeLessThan(doc.indexOf("## Prep"));
+    expect(doc.indexOf("## Prep")).toBeLessThan(doc.indexOf("## Library"));
+  });
+
+  it("groups one line per question under a heading per bank with its title and key", () => {
+    expect(section("Prep").split("## Library")[0]).toBe(
+      [
+        "## Prep",
+        "",
+        "### Full answers (answers-full)",
+        "",
+        "- 1. Tell me about yourself. Section: Motivation. Mark: solid. Last drilled: 2026-11-19.",
+        "- 3. Walk me through a project | any. Mark: none. Last drilled: never.",
+        "- 4. Why this team? Section: Craft. Mark: shaky. Last drilled: never.",
+        "",
+        "### Short answers (answers-short)",
+        "",
+        "- 1. Why now. Mark: okay. Last drilled: never.",
+        "",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("lists ## Library with title, kind and tags, 'Tags: none' for no tags", () => {
+    expect(section("Library")).toBe(
+      [
+        "## Library",
+        "",
+        "- Tell me about yourself (answer). Tags: opener, story.",
+        "- A shop owner who kept orders on paper (story). Tags: none.",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("prints the fallback lines when there are no banks or no items", () => {
+    const bare = buildContextDocument({ view, companyDocuments: [], generatedAt, prep: EMPTY_PREP, library: EMPTY_LIBRARY });
+    expect(bare).toContain("## Prep\n\nNo question banks parsed yet.\n");
+    expect(bare).toContain("## Library\n\nNo library items yet.\n");
+  });
+
+  it("keeps the context/v1 frontmatter and every earlier section unchanged", () => {
+    const bare = buildContextDocument({ view, companyDocuments: [], generatedAt, prep: EMPTY_PREP, library: EMPTY_LIBRARY });
+    expect(doc.startsWith("---\njobsmith: context/v1\n")).toBe(true);
+    expect(doc.slice(0, doc.indexOf("## Prep"))).toBe(bare.slice(0, bare.indexOf("## Prep")));
+  });
+
+  it("carries no answer text, audio or recording reference", () => {
+    expect(doc).not.toMatch(/audio|recording|asset/i);
   });
 });

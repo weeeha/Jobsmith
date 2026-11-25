@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 
 describe("CLI bundle", () => {
   it(
-    "builds one ESM file with the real build options, importing nothing from node_modules, and runs under plain Node",
+    "builds one ESM file with the real build options, importing only the MP3 encoder from node_modules, and runs under plain Node",
     async () => {
       const outDir = await mkdtemp(path.join(os.tmpdir(), "jobsmith-bundle-test-"));
       const outfile = path.join(outDir, "jobsmith.mjs");
@@ -28,11 +28,12 @@ describe("CLI bundle", () => {
         metafile: true,
       });
 
-      // No runtime dependencies means every input the bundle
-      // actually pulled in is either the CLI's own source or the one leaf
-      // module it is allowed to import; nothing from node_modules.
-      for (const input of Object.keys(result.metafile!.inputs)) {
-        expect(input.includes("node_modules"), input).toBe(false);
+      // Every input the bundle pulled in is the repo's own source or the MP3
+      // encoder: it is inlined, so installing the CLI still needs no packages.
+      const vendored = Object.keys(result.metafile!.inputs).filter((input) => input.includes("node_modules"));
+      expect(vendored.length).toBeGreaterThan(0);
+      for (const input of vendored) {
+        expect(input, input).toMatch(/node_modules\/@breezystack\/lamejs\//);
       }
 
       const { stdout } = await execFileAsync(process.execPath, [outfile, "--version"]);

@@ -319,6 +319,52 @@ describe("handleGetContext", () => {
       expect(text).toContain("## People");
       expect(text).toContain("## Preferences");
       expect(text).toContain("## Artifacts");
+      expect(text).toContain("## Prep");
+      expect(text).toContain("## Library");
+    } finally {
+      await close();
+    }
+  });
+
+  it("loads the job's own prep and the user's library only", async () => {
+    const { db, close } = await makeTestDb();
+    try {
+      const mine = await seedJob(db, { slug: "acme-designer", email: "ctx-prep1@example.com" });
+      const other = await seedJob(db, { slug: "other-designer", email: "ctx-prep2@example.com", companyName: "Other Co", nameKey: "other-co" });
+      const addBank = async (s: ReturnType<typeof scoped>, opportunityId: string, question: string) => {
+        const artifact = await s.artifact.insert({
+          opportunityId,
+          companyId: null,
+          stageId: null,
+          key: "bank",
+          version: 1,
+          kind: "question_bank",
+          title: "The bank",
+          bodyMd: "x",
+          contentHash: "h",
+          sourceHash: "h",
+          origin: "pushed",
+        });
+        await s.prepQuestion.replaceForArtifactKey(opportunityId, "bank", [
+          { opportunityId, artifactId: artifact.id, artifactVersion: 1, artifactKey: "bank", number: 1, position: 0, question, questionKey: "0123456789abcdef", blocks: [] },
+        ]);
+      };
+      await addBank(mine.s, mine.opportunity.id, "My own question");
+      await addBank(other.s, other.opportunity.id, "Someone else's question");
+      await mine.s.libraryItem.insert({ kind: "story", title: "My story", bodyMd: "b", tags: ["x"], questionKey: null, sourceOpportunityId: null, sourceArtifactId: null });
+      await other.s.libraryItem.insert({ kind: "story", title: "Their story", bodyMd: "b", tags: [], questionKey: null, sourceOpportunityId: null, sourceArtifactId: null });
+      const { deps } = testDeps(db);
+      const response = await handleGetContext(
+        deps,
+        new Request(`${BASE}/api/bridge/opportunities/acme-designer/context`, { headers: { authorization: `Bearer ${mine.token}` } }),
+        "acme-designer",
+      );
+      const text = await response.text();
+      expect(text).toContain("### The bank (bank)");
+      expect(text).toContain("- 1. My own question. Mark: none. Last drilled: never.");
+      expect(text).not.toContain("Someone else's question");
+      expect(text).toContain("- My story (story). Tags: x.");
+      expect(text).not.toContain("Their story");
     } finally {
       await close();
     }

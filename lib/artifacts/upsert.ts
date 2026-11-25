@@ -1,4 +1,4 @@
-import type { Scoped, ArtifactScopeRef, OpportunityRow, StageRow } from "@/lib/db/scoped";
+import type { Scoped, ArtifactScopeRef, ArtifactRow, OpportunityRow, StageRow } from "@/lib/db/scoped";
 import { type Result, ok, fail } from "@/lib/result";
 import { parseKind, kindInfo, type ArtifactKind } from "@/lib/artifacts/kinds";
 import { matchStageRef } from "@/lib/artifacts/stage-ref";
@@ -6,6 +6,7 @@ import { deriveTitle, normalizeBody, hashBody, utf8Bytes } from "@/lib/artifacts
 import { planUpsert } from "@/lib/artifacts/plan";
 import { warningMessage, type ArtifactScope, type ArtifactWarning, type UpsertStatus } from "@/lib/artifacts/values";
 import { KEY_PATTERN, MAX_ARTIFACT_BYTES } from "@/lib/bridge/wire";
+import { rebuildForArtifact } from "@/lib/prep/rebuild";
 
 export type StageInput = { ref: string } | { id: string } | null;
 export type IncomingArtifact = { key: string; kind: string; title: string | null; scope: ArtifactScope; stage: StageInput; bodyMd: string };
@@ -25,6 +26,8 @@ export async function applyUpserts(
   const results: UpsertResult[] = [];
   const warnings: ArtifactWarning[] = [];
   const changed: UpsertResult[] = [];
+  // Rows written by this call whose question rows need a rebuild.
+  const written: ArtifactRow[] = [];
   let companyLocked = false;
 
   async function lockCompanyOnce(scope: ArtifactScope) {
@@ -121,7 +124,7 @@ export async function applyUpserts(
       case "created":
       case "versioned": {
         if (!options.dryRun) {
-          await tx.artifact.insert({
+          const inserted = await tx.artifact.insert({
             opportunityId: scope === "opportunity" ? context.opportunity.id : null,
             companyId: scope === "company" ? context.opportunity.companyId : null,
             stageId: plan.insert.stageId,
@@ -135,20 +138,24 @@ export async function applyUpserts(
             origin: plan.insert.origin,
             editedAt: plan.insert.editedAt,
           });
+          written.push(inserted);
         }
         version = plan.insert.version;
         break;
       }
       case "updated": {
         if (!options.dryRun) {
-          await tx.artifact.update(versions[versions.length - 1].id, plan.patch);
+          const updated = await tx.artifact.update(versions[versions.length - 1].id, plan.patch);
+          // A new kind or stage changes which rows exist and which stage they carry.
+          if (updated && ("kind" in plan.patch || "stageId" in plan.patch)) written.push(updated);
         }
         version = versions[versions.length - 1].version;
         break;
       }
       case "edited": {
         if (!options.dryRun) {
-          await tx.artifact.update(plan.id, plan.patch);
+          const edited = await tx.artifact.update(plan.id, plan.patch);
+          if (edited) written.push(edited);
         }
         version = versions[versions.length - 1].version;
         break;
@@ -164,6 +171,13 @@ export async function applyUpserts(
     if (plan.status !== "unchanged") {
       changed.push(result);
     }
+  }
+
+  // After every write of this call, so an include finds a document pushed in
+  // the same call. Still the caller's transaction: rows and artifacts commit
+  // or roll back together.
+  for (const row of written) {
+    await rebuildForArtifact(tx, row);
   }
 
   if (!options.dryRun && (options.origin === "pushed" || options.origin === "generated") && changed.length > 0) {

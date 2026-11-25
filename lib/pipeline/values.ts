@@ -37,6 +37,7 @@ export const EVENT_KINDS = [
   "document_sent",
   "artifact_pushed",
   "next_action_done",
+  "prep_drilled",
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 

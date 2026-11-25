@@ -101,4 +101,34 @@ describe("parseCommand", () => {
   it("no arguments at all is a usage error", () => {
     expect(parseCommand([])).toEqual({ ok: false, message: USAGE });
   });
+
+  it("parses 'audio acme --tts-url http://127.0.0.1:9 --voice-interviewer A --voice-candidate B'", () => {
+    expect(
+      parseCommand(["audio", "acme", "--tts-url", "http://127.0.0.1:9", "--voice-interviewer", "A", "--voice-candidate", "B"]),
+    ).toEqual({
+      ok: true,
+      command: { name: "audio", slug: "acme", ttsUrl: "http://127.0.0.1:9", voiceInterviewer: "A", voiceCandidate: "B" },
+    });
+    expect(parseCommand(["audio", "acme"])).toEqual({
+      ok: true,
+      command: { name: "audio", slug: "acme", ttsUrl: null, voiceInterviewer: null, voiceCandidate: null },
+    });
+  });
+
+  it("audio needs a slug and rejects a slug shaped like a path", () => {
+    expect(parseCommand(["audio"])).toEqual({ ok: false, message: USAGE });
+    expect(parseCommand(["audio", "../x"])).toEqual({ ok: false, message: USAGE });
+    expect(parseCommand(["audio", "a/b"])).toEqual({ ok: false, message: USAGE });
+  });
+
+  it("audio rejects a speech URL that is not http or https", () => {
+    expect(parseCommand(["audio", "acme", "--tts-url", "ftp://x"])).toEqual({
+      ok: false,
+      message: "Enter a URL that starts with http:// or https://.",
+    });
+  });
+
+  it("the usage text lists audio", () => {
+    expect(USAGE).toContain("audio <slug> [--tts-url <base>] [--voice-interviewer <v>] [--voice-candidate <v>]");
+  });
 });
